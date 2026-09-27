@@ -1,0 +1,405 @@
+openapi: 3.0.0
+info:
+  title: Kazi Connect API
+  version: 1.1.0
+  description: >
+    Kazi Connect job listings and job applications for SettleIn students.
+    Endpoint numbers match ENDPOINT_LIST.md, and each endpoint names the need statement it serves.
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+paths:
+
+  #---ENDPOINT 1 and ENDPOINT 2 (same path; Endpoint 2 adds the county and category filters)---
+  /api/jobs:
+    get:
+      summary: Returns active job/service listings, optionally filtered by county and category
+      description: >
+        Endpoint 1 (Statement 1): send only status=active to get every active listing.
+        Endpoint 2 (Statement 2): also send county and category to get the active listings near a
+        student's accommodation. The filters are query parameters on the jobs resource, not a
+        separate path. An empty list means nothing matched.
+      parameters:
+        - name: status
+          in: query
+          required: true
+          description: active returns jobs that can still be requested; closed returns jobs that are filled or withdrawn.
+          schema:
+            type: string
+            example: active
+        - name: county
+          in: query
+          required: false
+          description: Endpoint 2 filter. Matches the job's county, ignoring upper and lower case.
+          schema:
+            type: string
+            example: Nairobi
+        - name: category
+          in: query
+          required: false
+          description: Endpoint 2 filter. Matches the job's category, ignoring upper and lower case.
+          schema:
+            type: string
+            example: accommodation
+      responses:
+        '200':
+          description: The matching job listings. Empty list if none match.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+        '400':
+          description: status is missing, or county or category was sent empty.
+
+  #---ENDPOINT 3---
+  /api/jobs/{jobId}:
+    get:
+      summary: Returns a single job's full details, including status and pay range
+      description: Statements 3 and 4.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: The unique identifier of the job
+          schema:
+            type: string
+            example: job_12345
+      responses:
+        '200':
+          description: Job details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          description: Job ID not found.
+
+  #---ENDPOINT 4---
+  /api/jobs/{jobId}/status:
+    get:
+      summary: Returns just the availability status of a job
+      description: >
+        Statement 3. A lightweight check that SettleIn can poll often without pulling the full job.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: The unique identifier of the job
+          schema:
+            type: string
+            example: job_12345
+      responses:
+        '200':
+          description: Job availability retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+        '404':
+          description: Job ID not found.
+
+  #---ENDPOINT 5---
+  /api/applications/{applicationId}/status:
+    get:
+      summary: Returns the current status of an application/service request
+      description: Statement 5.
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: app_1001
+      responses:
+        '200':
+          description: Successful response containing the application status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationStatus'
+        '404':
+          description: Application ID not found.
+
+  #---ENDPOINT 6---
+  /api/applications/{applicationId}/subscribe:
+    get:
+      summary: Opens a WebSocket that pushes status changes in real time (accepted / filled)
+      description: >
+        Statement 5. This is a plain GET that upgrades to a WebSocket, so connect with a WebSocket
+        client (ws://), not a normal HTTP request. On connect the server sends the current status
+        once, then sends a new message every time the status changes, for example to accepted or
+        filled. Every message is a JSON ApplicationStatus object. If the application is cancelled
+        with DELETE, a final message with status "cancelled" is sent and the server closes the
+        connection. Swagger UI cannot open WebSockets, so Try it out returns 426 for this endpoint.
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: app_1001
+      responses:
+        '101':
+          description: Switching Protocols. The real time stream subscription is established.
+        '404':
+          description: Application ID not found. The connection is refused.
+        '426':
+          description: Upgrade Required. The request was plain HTTP, not a WebSocket upgrade.
+
+  #---ENDPOINT 7---
+  /api/applications:
+    post:
+      summary: Creates a new application/service request from a SettleIn student
+      description: >
+        Statement 6. The job must exist and be active. Each call creates a new application, so this
+        endpoint is not idempotent: sending the same body twice creates two applications.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewApplication'
+      responses:
+        '201':
+          description: Application successfully created. The Location header points to the new application.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          description: >
+            The body failed validation: a required field is missing, a field has the wrong type,
+            a value is unusable (empty text, not a real date-time, a date in the past), a field
+            is not allowed, or jobId does not match any job. Nothing is written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Missing required field(s): preferredDate'
+        '409':
+          description: The job exists but is closed, so it is not accepting applications. Nothing is written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Job job_12350 is closed and is not accepting applications
+
+  #---ENDPOINT 8 and ENDPOINT 9 (same path, different methods)---
+  /api/applications/{applicationId}:
+    put:
+      summary: Updates an existing pending application (e.g. reschedule, edit details)
+      description: >
+        Statement 7. Replaces the editable details of a pending application. This sets an absolute
+        state: leaving note out clears it, and sending the same body twice leaves the application in
+        the same state. A PUT to an ID that does not exist returns 404 and never creates one.
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: app_1001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationUpdate'
+      responses:
+        '200':
+          description: Application successfully updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          description: The body failed validation. Nothing is changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'preferredDate must be a real date-time, for example 2027-01-15T09:00:00Z'
+        '404':
+          description: Application ID not found. Nothing is created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Application app_9999 not found
+        '409':
+          description: The application is no longer pending (already accepted or filled), so it cannot be changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Application app_1002 is accepted; only pending applications can be changed'
+    delete:
+      summary: Cancels a pending application/service request
+      description: >
+        Statement 8. Removes a pending application. Afterwards Endpoint 5 returns 404 for it, and
+        Endpoint 6 subscribers receive a final message with status "cancelled".
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: app_1004
+      responses:
+        '204':
+          description: Application successfully cancelled. No body.
+        '404':
+          description: Application ID not found, including one that was already cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Application app_9999 not found
+        '409':
+          description: The application is no longer pending (already accepted or filled), so it cannot be cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Application app_1002 is accepted; only pending applications can be cancelled'
+
+components:
+  schemas:
+    Job:
+      type: object
+      required: [id, title, category, county, status, payRange]
+      properties:
+        id:
+          type: string
+          example: job_12345
+        title:
+          type: string
+          example: Campus Housing Assistant
+        category:
+          type: string
+          example: accommodation
+        county:
+          type: string
+          example: Nairobi
+        status:
+          type: string
+          enum: [active, closed]
+          description: active means the job can still be requested; closed means it is filled or withdrawn.
+          example: active
+        payRange:
+          type: object
+          required: [min, max]
+          properties:
+            min:
+              type: number
+              example: 15000
+            max:
+              type: number
+              example: 22000
+    JobStatus:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId:
+          type: string
+          example: job_12345
+        status:
+          type: string
+          enum: [active, closed]
+          description: active means the job can still be requested; closed means it is filled or withdrawn.
+          example: active
+    ApplicationStatus:
+      type: object
+      required: [applicationId, status]
+      properties:
+        applicationId:
+          type: string
+          example: app_1001
+        status:
+          type: string
+          enum: [pending, accepted, filled, cancelled]
+          description: >
+            pending is waiting for a decision, accepted means the request was accepted, filled means
+            the job went to someone else, and cancelled only ever appears as the final Endpoint 6
+            message after a DELETE.
+          example: pending
+    Application:
+      type: object
+      required: [applicationId, jobId, studentId, preferredDate, note, status]
+      properties:
+        applicationId:
+          type: string
+          example: app_1005
+        jobId:
+          type: string
+          example: job_12345
+        studentId:
+          type: string
+          example: stu_0042
+        preferredDate:
+          type: string
+          format: date-time
+          example: '2027-01-15T09:00:00Z'
+        note:
+          type: string
+          description: Empty string when the student left no note.
+          example: Available after 2pm on weekdays
+        status:
+          type: string
+          enum: [pending, accepted, filled]
+          example: pending
+    NewApplication:
+      type: object
+      additionalProperties: false
+      required: [jobId, studentId, preferredDate]
+      properties:
+        jobId:
+          type: string
+          minLength: 1
+          description: Must match an existing, active job.
+          example: job_12345
+        studentId:
+          type: string
+          minLength: 1
+          example: stu_0042
+        preferredDate:
+          type: string
+          format: date-time
+          description: When the student wants the service. Must be a real date-time in the future.
+          example: '2027-01-15T09:00:00Z'
+        note:
+          type: string
+          maxLength: 500
+          example: Available after 2pm on weekdays
+    ApplicationUpdate:
+      type: object
+      additionalProperties: false
+      required: [preferredDate]
+      properties:
+        preferredDate:
+          type: string
+          format: date-time
+          description: The new date and time. Must be a real date-time in the future.
+          example: '2027-01-22T14:00:00Z'
+        note:
+          type: string
+          maxLength: 500
+          description: Replaces the existing note. Leave it out to clear the note.
+          example: Rescheduled to the following week
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: 'Missing required field(s): preferredDate'

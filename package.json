@@ -1,0 +1,20 @@
+{
+  "name": "kazi-connect-api",
+  "version": "1.1.0",
+  "description": "Kazi Connect API: GET endpoints (Week 5) and write endpoints with validation (Week 6), verified against openapi.yaml",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "verify": "node verifyContract.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "swagger-ui-express": "^5.0.1",
+    "ws": "^8.22.0",
+    "yaml": "^2.9.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}
