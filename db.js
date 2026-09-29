@@ -8,7 +8,7 @@
 
 const { EventEmitter } = require('events');
 
-const jobs = [
+const SEED_JOBS = [
   { _id: 'job_12345', job_title: 'Campus Housing Assistant', job_category: 'accommodation', county_name: 'Nairobi', listing_status: 'active', pay_min: '15000.00', pay_max: '22000.00', created_by: 'admin_3', internal_notes: 'Verified landlord partner' },
   { _id: 'job_12346', job_title: 'Hostel Front Desk Attendant', job_category: 'accommodation', county_name: 'Nairobi', listing_status: 'active', pay_min: '12000.00', pay_max: '18000.00', created_by: 'admin_1', internal_notes: '' },
   { _id: 'job_12347', job_title: 'Student Residence Cleaner', job_category: 'accommodation', county_name: 'Kiambu', listing_status: 'active', pay_min: '9000.00', pay_max: '12000.00', created_by: 'admin_2', internal_notes: 'Weekend shifts only' },
@@ -19,7 +19,7 @@ const jobs = [
   { _id: 'job_12352', job_title: 'Delivery Rider, Student Meals', job_category: 'catering', county_name: 'Kiambu', listing_status: 'closed', pay_min: '11000.00', pay_max: '16000.00', created_by: 'admin_4', internal_notes: 'Paused by partner' },
 ];
 
-const applications = [
+const SEED_APPLICATIONS = [
   { _id: 'app_1001', student_id: 'stu_0042', job_ref: 'job_12345', application_status: 'pending', preferred_at: new Date('2027-01-15T09:00:00Z'), student_note: 'Available after 2pm on weekdays', updated_at: new Date('2026-09-20T09:15:00Z'), reviewer_notes: '' },
   { _id: 'app_1002', student_id: 'stu_0107', job_ref: 'job_12348', application_status: 'accepted', preferred_at: new Date('2026-10-12T07:30:00Z'), student_note: '', updated_at: new Date('2026-09-18T14:02:00Z'), reviewer_notes: 'Start Monday' },
   { _id: 'app_1003', student_id: 'stu_0042', job_ref: 'job_12350', application_status: 'filled', preferred_at: new Date('2026-10-20T13:00:00Z'), student_note: 'Can start any weekday', updated_at: new Date('2026-09-15T11:40:00Z'), reviewer_notes: 'Job went to another worker' },
@@ -32,6 +32,23 @@ const applications = [
 //   'removed'       (id, row)  the application was cancelled and deleted
 const events = new EventEmitter();
 let nextApplicationNumber = 1005;
+
+// The live data. reset() fills it with fresh copies of the sample rows. It runs
+// once when the server starts, and the Week 7 tests call it before every test
+// so each test starts from the same known data.
+const jobs = [];
+const applications = [];
+
+function reset() {
+  jobs.splice(0, jobs.length, ...SEED_JOBS.map((row) => ({ ...row })));
+  applications.splice(0, applications.length, ...SEED_APPLICATIONS.map((row) => ({
+    ...row,
+    preferred_at: new Date(row.preferred_at),
+    updated_at: new Date(row.updated_at),
+  })));
+  nextApplicationNumber = 1005;
+}
+reset();
 
 const same = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 
@@ -102,5 +119,5 @@ function countApplications() {
 
 module.exports = {
   findJobs, findJobById, findApplicationById, setApplicationStatus,
-  createApplication, replaceApplicationDetails, deleteApplication, countApplications, events,
+  createApplication, replaceApplicationDetails, deleteApplication, countApplications, events, reset,
 };

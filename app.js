@@ -28,9 +28,15 @@ function createServer() {
   // Week 6: read JSON request bodies for POST and PUT.
   app.use(express.json());
 
-  // Swagger UI, built straight from the contract file.
+  // Swagger UI, built straight from the contract file. Try it out always
+  // sends requests to the address this page was opened from, so it works the
+  // same on localhost and when the app is hosted online.
   const contract = YAML.parse(fs.readFileSync(CONTRACT_PATH, 'utf8'));
-  app.use('/docs', swaggerUi.serve, swaggerUi.setup(contract));
+  app.set('trust proxy', true); // behind a host's proxy, report https correctly
+  app.use('/docs', (req, res, next) => {
+    req.swaggerDoc = { ...contract, servers: [{ url: `${req.protocol}://${req.get('host')}`, description: 'This server' }] };
+    next();
+  }, swaggerUi.serveFiles(), swaggerUi.setup());
   app.get('/openapi.yaml', (req, res) => res.sendFile(CONTRACT_PATH));
   app.get('/', (req, res) => res.redirect('/docs'));
 
