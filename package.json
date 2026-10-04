@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "verify": "node verifyContract.js",
-    "test": "jest"
+    "test": "jest",
+    "test:partner": "jest --testMatch \"**/partner-tests/*.partner.js\" --verbose"
   },
   "dependencies": {
     "express": "^5.2.1",
