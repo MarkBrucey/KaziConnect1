@@ -13,6 +13,10 @@
 //
 // Run with: npm run verify   Results are written to VERIFICATION.md.
 
+// Always check against the in-memory sample data, never a real database:
+// the checks create and delete applications, which must not touch live data.
+delete process.env.DATABASE_URL;
+
 const fs = require('fs');
 const path = require('path');
 const YAML = require('yaml');
@@ -81,7 +85,7 @@ async function checkHttp(base, c) {
     init.headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(c.body);
   }
-  const before = c.snapshot ? c.snapshot() : null;
+  const before = c.snapshot ? await c.snapshot() : null;
   const res = await fetch(base + c.url, init);
   const text = await res.text();
   const problems = [];
@@ -105,7 +109,7 @@ async function checkHttp(base, c) {
     problems.push('the contract gives this response no body, but a body was sent');
   }
 
-  if (c.snapshot && JSON.stringify(c.snapshot()) !== JSON.stringify(before)) {
+  if (c.snapshot && JSON.stringify(await c.snapshot()) !== JSON.stringify(before)) {
     problems.push('the stored data changed, but this request should have written nothing');
   }
   if (c.also && problems.length === 0) await c.also({ body, res, problems, base });
@@ -141,15 +145,15 @@ async function checkWsSubscribe(wsBase, c) {
 
   const onConnect = await first;
   schemaCheck(onConnect, schema, 'message on connect', problems);
-  const current = db.findApplicationById('app_1001').application_status;
+  const current = (await db.findApplicationById('app_1001')).application_status;
   if (onConnect.status !== current) problems.push(`first message status "${onConnect.status}", expected "${current}"`);
 
   const pushed = nextMessage(ws);
-  db.setApplicationStatus('app_1001', 'accepted');
+  await db.setApplicationStatus('app_1001', 'accepted');
   const update = await pushed;
   schemaCheck(update, schema, 'pushed message', problems);
   if (update.status !== 'accepted') problems.push(`pushed status "${update.status}", expected "accepted"`);
-  db.setApplicationStatus('app_1001', current); // put the sample data back
+  await db.setApplicationStatus('app_1001', current); // put the sample data back
   ws.close();
   return { ...c, method: 'WS', status, body: [onConnect, update], problems };
 }
@@ -186,7 +190,7 @@ async function checkWsRefused(wsBase, c) {
 
 // Helpers for Week 6 cases
 
-const store = () => ({ count: db.countApplications(), rows: ['app_1001', 'app_1002', 'app_1003', 'app_1004', 'app_1005'].map((id) => db.findApplicationById(id)) });
+const store = async () => ({ count: await db.countApplications(), rows: await Promise.all(['app_1001', 'app_1002', 'app_1003', 'app_1004', 'app_1005'].map((id) => db.findApplicationById(id))) });
 const refetchStatus = async (base, id) => {
   const res = await fetch(`${base}/api/applications/${id}/status`);
   return { status: res.status, body: res.status === 200 ? await res.json() : null };
@@ -272,15 +276,15 @@ const writeCases = [
     also: async ({ body, problems, base }) => {
       putFirstResult = body;
       if (body.preferredDate !== DATE_2 || body.note !== 'Rescheduled') problems.push('the new details were not applied');
-      const row = db.findApplicationById('app_1005');
+      const row = await db.findApplicationById('app_1005');
       if (row.preferred_at.getTime() !== Date.parse(DATE_2)) problems.push('the stored row was not updated');
       const again = await refetchStatus(base, 'app_1005');
       if (again.status !== 200 || again.body.status !== 'pending') problems.push('re-fetch with GET /status failed');
     } },
   { ep: 8, kind: 'http', method: 'PUT', path: P_APP, url: '/api/applications/app_1005', body: { preferredDate: DATE_2, note: 'Rescheduled' }, expect: 200, good: true, what: 'same PUT again gives the same end state',
-    also: ({ body, problems }) => {
+    also: async ({ body, problems }) => {
       if (JSON.stringify(body) !== JSON.stringify(putFirstResult)) problems.push('the second identical PUT produced a different result');
-      if (db.countApplications() !== 5) problems.push('the second PUT changed the number of applications');
+      if ((await db.countApplications()) !== 5) problems.push('the second PUT changed the number of applications');
     } },
   { ep: 8, kind: 'http', method: 'PUT', path: P_APP, url: '/api/applications/app_1005', body: { note: 'no date' }, expect: 400, what: 'missing required field preferredDate', snapshot: store },
   { ep: 8, kind: 'http', method: 'PUT', path: P_APP, url: '/api/applications/app_1005', body: { preferredDate: DATE_2, note: 123 }, expect: 400, what: 'wrong type: note is a number', snapshot: store },
@@ -293,7 +297,7 @@ const writeCases = [
   // DELETE
   { ep: 9, kind: 'http', method: 'DELETE', path: P_APP, url: '/api/applications/app_1005', expect: 204, good: true, what: 'cancel a pending application',
     also: async ({ problems, base }) => {
-      if (db.findApplicationById('app_1005')) problems.push('the application is still in the data store');
+      if (await db.findApplicationById('app_1005')) problems.push('the application is still in the data store');
       const again = await refetchStatus(base, 'app_1005');
       if (again.status !== 404) problems.push(`re-fetch with GET /status returned ${again.status}, expected 404`);
     } },

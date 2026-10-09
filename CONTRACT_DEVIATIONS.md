@@ -70,3 +70,51 @@ The Week 4 contract gave Endpoints 7, 8 and 9 no request bodies and only a 200 r
 After a DELETE, subscribers receive a final message with status `cancelled`, and the connection closes, so SettleIn can notify the student in real time.
 
 **New schemas:** `Application`, `NewApplication`, `ApplicationUpdate` and `Error`.
+
+# After Week 7: accounts, employer tools and job details (version 1.1.0 to 1.2.0)
+
+These changes add the FundiLink website's own needs (Statements F1 to F5 in API_NEEDS.md) on top of what SettleIn needs. Endpoints 1 to 9 keep the same paths, methods, inputs and status codes, and SettleIn still needs no account to use them.
+
+## Changes that affect SettleIn
+
+These have been flagged to Team 1 directly.
+
+**1. Job has three more fields, always present: `area`, `duration` and `urgent`**
+What changed: every Job, from Endpoints 1, 2, 3 and 14, now also includes `area` (the estate, for example `Parklands`), `duration` (plain words, for example `About 2 hours`) and `urgent` (true or false). Nothing was removed or renamed.
+Why: the FundiLink website shows the estate, how long the work takes and whether it is urgent, and SettleIn's students benefit from the same detail. A test that checks Job has no extra fields needs these three added to its list.
+
+**2. Application status now changes through real employer decisions**
+What changed: an employer can accept an application (Endpoint 18). That application becomes `accepted`, every other application still waiting for the same job becomes `filled`, and the job closes. Closing a job (Endpoint 17) also marks its waiting applications `filled`. Subscribers to Endpoint 6 receive each change live.
+Why: Statement 5 asks for real time notice when a request is accepted or already filled. Before this change nothing in the API could cause those statuses.
+
+**3. Data is now kept in a database**
+What changed: the live API stores its data in PostgreSQL. Applications SettleIn creates are no longer wiped when the free server goes to sleep.
+Why: accounts are useless if they disappear. The shapes of all requests and responses are unchanged by this.
+
+## New endpoints
+
+| # | Request | Who | Serves |
+|---|---|---|---|
+| 10 | `POST /api/auth/register` | anyone | F1 |
+| 11 | `POST /api/auth/login` | anyone | F1 |
+| 12 | `POST /api/auth/logout` | logged in | F1 |
+| 13 | `GET /api/me` | logged in | F1 |
+| 14 | `POST /api/jobs` | employers | F2 |
+| 15 | `GET /api/me/jobs` | employers | F2 |
+| 16 | `GET /api/jobs/{jobId}/applications` | the employer who posted the job | F3 |
+| 17 | `PATCH /api/jobs/{jobId}` | the employer who posted the job | F4 |
+| 18 | `PATCH /api/applications/{applicationId}` | the employer who posted the job | F3, Statement 5 |
+| 19 | `GET /api/me/applications` | students | F5 |
+| 20 | `POST /api/auth/password-resets` | anyone | F6 |
+| 21 | `PUT /api/auth/password` | anyone with a reset link | F6 |
+
+New schemas: `User`, `AuthResponse`, `NewUser`, `Credentials`, `NewJob`, `EmployerJob`, `Applicant`, `JobStatusUpdate`, `ApplicationDecision`, `PasswordResetRequest`, `NewPassword` and `Message`. `Applicant` is an Application plus `studentName`, used only by Endpoint 16 so an employer sees who applied; it is empty for applications SettleIn creates with its own student IDs, and Application itself is unchanged. New status codes: 401 when no valid login token is sent, and 403 when the account is not allowed to do something. New paths reuse existing ones where REST allows it: posting a job is `POST` on `/api/jobs`, and closing a job or accepting an application are `PATCH` on the resource itself, so no verbs appear in any path.
+
+## Security decisions
+
+1. Passwords are never stored. Each one is scrambled with scrypt and its own random salt.
+2. Login tokens are 64 random characters, valid for 7 days or until logout. The database keeps only a hash of each token.
+3. A wrong password and an unknown email get exactly the same 401 message, so the API never reveals which emails have accounts.
+4. An employer can only see applicants for, close, or accept applications on jobs they posted. Anything else gets 403.
+5. "Forgot password?" (Endpoints 20 and 21) always gives the same 202 reply, whether or not the email has an account. Reset links work once, for 30 minutes, and only a hash of each is stored. Setting a new password cancels the account's other reset links and logs it out everywhere. At most 3 reset emails are sent per account per hour.
+6. Reset links always use the site's own address from its settings, never the Host header of the incoming request, which an attacker could fake to receive someone else's reset link.

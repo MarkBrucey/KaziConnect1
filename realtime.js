@@ -18,7 +18,7 @@ function refuse(socket, statusLine) {
 function attachRealtime(server) {
   const wss = new WebSocketServer({ noServer: true });
 
-  server.on('upgrade', (req, socket, head) => {
+  server.on('upgrade', async (req, socket, head) => {
     let applicationId = null;
     try {
       const match = SUBSCRIBE_PATH.exec(new URL(req.url, 'http://localhost').pathname);
@@ -26,14 +26,16 @@ function attachRealtime(server) {
     } catch (err) {
       applicationId = null;
     }
-    if (!applicationId || !db.findApplicationById(applicationId)) {
+    const existing = applicationId ? await db.findApplicationById(applicationId).catch(() => null) : null;
+    if (!existing) {
       return refuse(socket, '404 Not Found');
     }
 
     // Completes the handshake, which answers 101 Switching Protocols.
-    wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.handleUpgrade(req, socket, head, async (ws) => {
       const send = (row) => ws.send(JSON.stringify(toApplicationStatus(row)));
-      send(db.findApplicationById(applicationId));
+      const current = await db.findApplicationById(applicationId);
+      if (current && ws.readyState === ws.OPEN) send(current);
 
       const onChange = (changedId, row) => {
         if (changedId === applicationId && ws.readyState === ws.OPEN) send(row);

@@ -78,4 +78,89 @@ function validateApplicationUpdate(body) {
     || checkNote(body);
 }
 
-module.exports = { validateNewApplication, validateApplicationUpdate, isRealDateTime };
+// Accounts, employer jobs and decisions (added after Week 7)
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function checkTextLength(body, name, min, max) {
+  if (typeof body[name] !== 'string') return `${name} must be a string`;
+  const length = body[name].trim().length;
+  if (length < min) return min === 1 ? `${name} must not be empty` : `${name} must be at least ${min} characters`;
+  if (length > max) return `${name} must be ${max} characters or fewer`;
+  return null;
+}
+
+// POST /api/auth/register body: NewUser
+function validateRegistration(body) {
+  return checkFields(body, ['name', 'email', 'password', 'role'], ['name', 'email', 'password', 'role'])
+    || checkTextLength(body, 'name', 1, 80)
+    || (typeof body.email !== 'string' || !EMAIL.test(body.email.trim()) || body.email.length > 254 ? 'email must be a valid email address' : null)
+    || (typeof body.password !== 'string' ? 'password must be a string' : null)
+    || (body.password.length < 8 ? 'password must be at least 8 characters' : null)
+    || (body.password.length > 128 ? 'password must be 128 characters or fewer' : null)
+    || (!['student', 'employer'].includes(body.role) ? 'role must be student or employer' : null);
+}
+
+// POST /api/auth/login body: Credentials
+function validateLogin(body) {
+  return checkFields(body, ['email', 'password'], ['email', 'password'])
+    || checkRequiredText(body, 'email')
+    || checkRequiredText(body, 'password');
+}
+
+// POST /api/jobs body: NewJob
+function validateNewJob(body) {
+  const problem = checkFields(body, ['title', 'category', 'county', 'area', 'duration', 'urgent', 'payRange'],
+    ['title', 'category', 'county', 'area', 'duration', 'payRange'])
+    || checkTextLength(body, 'title', 3, 100)
+    || checkTextLength(body, 'category', 2, 40)
+    || checkTextLength(body, 'county', 2, 40)
+    || checkTextLength(body, 'area', 2, 60)
+    || checkTextLength(body, 'duration', 2, 40)
+    || (body.urgent !== undefined && typeof body.urgent !== 'boolean' ? 'urgent must be true or false' : null);
+  if (problem) return problem;
+  const pay = body.payRange;
+  if (!isPlainObject(pay)) return 'payRange must be an object with min and max';
+  const extra = Object.keys(pay).filter((k) => !['min', 'max'].includes(k));
+  if (extra.length) return `Unknown field(s) in payRange: ${extra.join(', ')}`;
+  for (const k of ['min', 'max']) {
+    if (typeof pay[k] !== 'number' || !Number.isFinite(pay[k])) return `payRange.${k} must be a number`;
+    if (pay[k] < 0) return `payRange.${k} must not be negative`;
+    if (pay[k] > 10000000) return `payRange.${k} must be 10,000,000 or less`;
+  }
+  if (pay.min > pay.max) return 'payRange.min must not be more than payRange.max';
+  return null;
+}
+
+// PATCH /api/jobs/{jobId} body: JobStatusUpdate
+function validateJobStatusUpdate(body) {
+  return checkFields(body, ['status'], ['status'])
+    || (!['active', 'closed'].includes(body.status) ? 'status must be active or closed' : null);
+}
+
+// PATCH /api/applications/{applicationId} body: ApplicationDecision
+function validateApplicationDecision(body) {
+  return checkFields(body, ['status'], ['status'])
+    || (body.status !== 'accepted' ? 'status must be accepted' : null);
+}
+
+// POST /api/auth/password-resets body: PasswordResetRequest
+function validatePasswordResetRequest(body) {
+  return checkFields(body, ['email'], ['email'])
+    || (typeof body.email !== 'string' || !EMAIL.test(body.email.trim()) ? 'email must be a valid email address' : null);
+}
+
+// PUT /api/auth/password body: NewPassword
+function validateNewPassword(body) {
+  return checkFields(body, ['token', 'password'], ['token', 'password'])
+    || (typeof body.token !== 'string' || !/^[a-f0-9]{64}$/.test(body.token) ? 'token is not a valid reset token' : null)
+    || (typeof body.password !== 'string' ? 'password must be a string' : null)
+    || (body.password.length < 8 ? 'password must be at least 8 characters' : null)
+    || (body.password.length > 128 ? 'password must be 128 characters or fewer' : null);
+}
+
+module.exports = {
+  validatePasswordResetRequest, validateNewPassword,
+  validateNewApplication, validateApplicationUpdate, isRealDateTime,
+  validateRegistration, validateLogin, validateNewJob, validateJobStatusUpdate, validateApplicationDecision,
+};

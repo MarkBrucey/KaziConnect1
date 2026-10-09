@@ -9,12 +9,31 @@ function toJob(row) {
     title: row.job_title,                // job_title  -> title
     category: row.job_category,          // job_category -> category
     county: row.county_name,             // county_name  -> county
+    area: row.area_name,                 // area_name -> area (estate or neighbourhood)
+    duration: row.duration_text,         // duration_text -> duration
+    urgent: Boolean(row.is_urgent),      // is_urgent -> urgent
     status: row.listing_status,          // listing_status -> status
     payRange: {
       min: Number(row.pay_min),          // "15000.00" (string) -> 15000 (number)
       max: Number(row.pay_max),
     },
-    // created_by and internal_notes are internal columns and are left out on purpose.
+    // employer_id, created_by and internal_notes are internal and are left out on purpose.
+  };
+}
+
+// Database row + count -> EmployerJob schema (an employer's own job, with how many are waiting)
+function toEmployerJob(row, pendingApplications) {
+  return { ...toJob(row), pendingApplications };
+}
+
+// Database row -> User schema. The password hash never leaves the server.
+function toUser(row) {
+  return {
+    id: String(row._id),                 // _id -> id
+    name: row.full_name,                 // full_name -> name
+    email: row.email,
+    role: row.role,
+    // password_hash and created_at are left out on purpose.
   };
 }
 
@@ -54,4 +73,11 @@ function toApplication(row) {
   };
 }
 
-module.exports = { toJob, toJobStatus, toApplicationStatus, toApplication, toIsoDateTime };
+// Application row + account row -> Applicant schema (Endpoint 16 only).
+// studentName is empty when the application did not come from a Kazi Connect
+// account, for example one SettleIn created with its own student ID.
+function toApplicant(row, account) {
+  return { ...toApplication(row), studentName: account ? account.full_name : '' };
+}
+
+module.exports = { toJob, toJobStatus, toEmployerJob, toUser, toApplicationStatus, toApplication, toApplicant, toIsoDateTime };

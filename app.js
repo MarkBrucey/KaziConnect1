@@ -7,6 +7,7 @@ const YAML = require('yaml');
 
 const jobsRouter = require('./jobsRoutes');
 const applicationsRouter = require('./applicationsRoutes');
+const accountRoutes = require('./accountRoutes');
 const { attachRealtime } = require('./realtime');
 
 const CONTRACT_PATH = path.join(__dirname, 'openapi.yaml');
@@ -19,14 +20,14 @@ function createServer() {
   // Allows Swagger Editor (editor.swagger.io) to call this local server as well.
   app.use((req, res, next) => {
     res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') return res.status(204).end();
     next();
   });
 
   // Week 6: read JSON request bodies for POST and PUT.
-  app.use(express.json());
+  app.use(express.json({ limit: '20kb' }));
 
   // Swagger UI, built straight from the contract file. Try it out always
   // sends requests to the address this page was opened from, so it works the
@@ -38,10 +39,12 @@ function createServer() {
     next();
   }, swaggerUi.serveFiles(), swaggerUi.setup());
   app.get('/openapi.yaml', (req, res) => res.sendFile(CONTRACT_PATH));
-  app.get('/', (req, res) => res.redirect('/docs'));
+  app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html'))); // the public website
 
   app.use('/api/jobs', jobsRouter);
   app.use('/api/applications', applicationsRouter);
+  app.use('/api/auth', accountRoutes.auth);
+  app.use('/api/me', accountRoutes.me);
 
   // Anything else: 404 with no body.
   app.use((req, res) => res.status(404).end());
@@ -50,6 +53,9 @@ function createServer() {
   app.use((err, req, res, next) => {
     if (err.type === 'entity.parse.failed') {
       return res.status(400).json({ message: 'Request body is not valid JSON' });
+    }
+    if (err.type === 'entity.too.large') {
+      return res.status(413).json({ message: 'Request body is too large' });
     }
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });

@@ -1,10 +1,12 @@
 openapi: 3.0.0
 info:
   title: Kazi Connect API
-  version: 1.1.0
+  version: 1.2.0
   description: >
-    Kazi Connect job listings and job applications for SettleIn students.
-    Endpoint numbers match ENDPOINT_LIST.md, and each endpoint names the need statement it serves.
+    Kazi Connect job listings and job applications for SettleIn students, plus accounts and
+    employer tools for the FundiLink website. Endpoint numbers match ENDPOINT_LIST.md, and each
+    endpoint names the need statement it serves. Endpoints marked with a lock need a login token:
+    log in with Endpoint 11, then send the token as "Authorization: Bearer <token>".
 servers:
   - url: http://localhost:3000
     description: Local development server
@@ -54,6 +56,38 @@ paths:
         '400':
           description: status is missing, or county or category was sent empty.
 
+    # ENDPOINT 14 (same path as Endpoints 1 and 2)
+    post:
+      summary: Posts a new job (employers only)
+      description: FundiLink Statement F2. The kind of work is saved in lower case. A new job starts active.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewJob'
+      responses:
+        '201':
+          description: Job posted. The Location header points to the new job.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: The body failed validation. Nothing is posted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'payRange.min must not be more than payRange.max'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   #---ENDPOINT 3---
   /api/jobs/{jobId}:
     get:
@@ -76,6 +110,56 @@ paths:
                 $ref: '#/components/schemas/Job'
         '404':
           description: Job ID not found.
+
+    # ENDPOINT 17 (same path as Endpoint 3)
+    patch:
+      summary: Closes or reopens a job (the employer who posted it)
+      description: >
+        FundiLink Statement F4. Closing a job marks every application still waiting on it as
+        filled, and subscribers to those applications hear about it live. Sending the same status
+        twice leaves the job in the same state.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: job_12345
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobStatusUpdate'
+      responses:
+        '200':
+          description: Job updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: status must be active or closed, and no other fields are allowed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'status must be active or closed'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Job ID not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Job job_99999 not found'
 
   #---ENDPOINT 4---
   /api/jobs/{jobId}/status:
@@ -100,6 +184,44 @@ paths:
                 $ref: '#/components/schemas/JobStatus'
         '404':
           description: Job ID not found.
+
+  #---ENDPOINT 16---
+  /api/jobs/{jobId}/applications:
+    get:
+      summary: Lists the applicants for a job (the employer who posted it)
+      description: >
+        FundiLink Statement F3. Newest first. An empty list means nobody has applied yet. Each
+        applicant includes studentName when the application came from a Kazi Connect account.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: job_12345
+      responses:
+        '200':
+          description: The job's applicants.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Applicant'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Job ID not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Job job_99999 not found'
 
   #---ENDPOINT 5---
   /api/applications/{applicationId}/status:
@@ -272,12 +394,298 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'Application app_1002 is accepted; only pending applications can be cancelled'
+    # ENDPOINT 18 (same path as Endpoints 8 and 9)
+    patch:
+      summary: Accepts an application (the employer who posted the job)
+      description: >
+        FundiLink Statement F3, and SettleIn Statement 5. The application becomes accepted, every
+        other application still waiting for the same job becomes filled, and the job closes.
+        Subscribers to each application hear about the change live.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: app_1001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationDecision'
+      responses:
+        '200':
+          description: Application accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          description: status must be accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'status must be accepted'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Application ID not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Application app_9999 not found'
+        '409':
+          description: The application is no longer pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Application app_1002 is accepted; only pending applications can be accepted'
+
+  #---ENDPOINT 10---
+  /api/auth/register:
+    post:
+      summary: Creates an account and logs it in
+      description: >
+        FundiLink Statement F1. The password is stored only as a scrambled hash and is never
+        returned. Emails are saved in lower case.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '201':
+          description: Account created. Use the token for endpoints that need a login.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: The body failed validation. No account is created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'password must be at least 8 characters'
+        '409':
+          description: An account with this email already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'An account with this email already exists. Log in instead.'
+
+  #---ENDPOINT 11---
+  /api/auth/login:
+    post:
+      summary: Logs in and returns a token
+      description: >
+        FundiLink Statement F1. A wrong password and an unknown email get exactly the same 401
+        message, so the reply never reveals which emails have accounts. Tokens last 7 days.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: Logged in.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: email or password is missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Missing required field(s): password'
+        '401':
+          description: The email or password is wrong.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Email or password is incorrect.'
+
+  #---ENDPOINT 12---
+  /api/auth/logout:
+    post:
+      summary: Logs out, so the token stops working
+      description: FundiLink Statement F1.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logged out. No body.
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+
+  #---ENDPOINT 20---
+  /api/auth/password-resets:
+    post:
+      summary: Asks for a password reset email ("Forgot password?")
+      description: >
+        FundiLink Statement F6. The reply is always the same 202, whether or not the email has an
+        account, so it never reveals who is registered. If the account exists, a single use link
+        that works for 30 minutes is emailed to it. At most 3 reset emails are sent per account
+        per hour; further requests still get 202 but send nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '202':
+          description: Request accepted. Check the inbox if the account exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: email is missing or is not an email address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'email must be a valid email address'
+
+  #---ENDPOINT 21---
+  /api/auth/password:
+    put:
+      summary: Sets a new password using the token from the reset email
+      description: >
+        FundiLink Statement F6. Works once, within 30 minutes of the email. Afterwards every other
+        reset link for the account stops working, and the account is logged out everywhere, so the
+        person logs in again with the new password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewPassword'
+      responses:
+        '204':
+          description: Password changed. No body.
+        '400':
+          description: >
+            The body failed validation, or the reset token is unknown, already used, or more than
+            30 minutes old. Nothing is changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'This reset link is not valid or has expired. Ask for a new one.'
+
+  #---ENDPOINT 13---
+  /api/me:
+    get:
+      summary: Returns the logged in user
+      description: FundiLink Statement F1.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The logged in user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+
+  #---ENDPOINT 15---
+  /api/me/jobs:
+    get:
+      summary: Lists the jobs the logged in employer posted
+      description: FundiLink Statement F2. Newest first, each with how many applications are waiting.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The employer's jobs. Empty list if none posted yet.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmployerJob'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  #---ENDPOINT 19---
+  /api/me/applications:
+    get:
+      summary: Lists the logged in student's applications
+      description: >
+        FundiLink Statement F5. Applications whose studentId is the student's account ID, newest
+        first. Empty list if the student has not applied yet.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The student's applications.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'The token from Endpoint 10 or 11, sent as "Authorization: Bearer <token>".'
+  responses:
+    NotLoggedIn:
+      description: No token was sent, or it is not valid, or it has expired.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'Your session has expired or is not valid. Log in again.'
+    Forbidden:
+      description: Logged in, but this account is not allowed to do this.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: 'You can only manage jobs you posted.'
   schemas:
     Job:
       type: object
-      required: [id, title, category, county, status, payRange]
+      required: [id, title, category, county, area, duration, urgent, status, payRange]
       properties:
         id:
           type: string
@@ -291,6 +699,18 @@ components:
         county:
           type: string
           example: Nairobi
+        area:
+          type: string
+          description: The estate or neighbourhood within the county.
+          example: Parklands
+        duration:
+          type: string
+          description: How long the work takes, in plain words.
+          example: Part time, 3 months
+        urgent:
+          type: boolean
+          description: true when the employer needs someone quickly.
+          example: true
         status:
           type: string
           enum: [active, closed]
@@ -403,3 +823,241 @@ components:
         message:
           type: string
           example: 'Missing required field(s): preferredDate'
+    User:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id:
+          type: string
+          example: usr_1001
+        name:
+          type: string
+          example: Demo Employer
+        email:
+          type: string
+          format: email
+          example: employer@kaziconnect.demo
+        role:
+          type: string
+          enum: [student, employer]
+          example: employer
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: 64 character login token. Valid for 7 days or until logout.
+          example: 4f1c2a9e0b7d4e6f8a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f
+        user:
+          $ref: '#/components/schemas/User'
+    NewUser:
+      type: object
+      additionalProperties: false
+      required: [name, email, password, role]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+          example: Amina Otieno
+        email:
+          type: string
+          format: email
+          example: amina@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          example: choose-a-long-password
+        role:
+          type: string
+          enum: [student, employer]
+          example: student
+    Credentials:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: employer@kaziconnect.demo
+        password:
+          type: string
+          format: password
+          example: KaziDemo2026
+    NewJob:
+      type: object
+      additionalProperties: false
+      required: [title, category, county, area, duration, payRange]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Fix leaking kitchen sink
+        category:
+          type: string
+          minLength: 2
+          maxLength: 40
+          description: The kind of work. Saved in lower case.
+          example: plumbing
+        county:
+          type: string
+          minLength: 2
+          maxLength: 40
+          example: Nairobi
+        area:
+          type: string
+          minLength: 2
+          maxLength: 60
+          example: Westlands
+        duration:
+          type: string
+          minLength: 2
+          maxLength: 40
+          example: About 2 hours
+        urgent:
+          type: boolean
+          description: Leave out for false.
+          example: true
+        payRange:
+          type: object
+          additionalProperties: false
+          required: [min, max]
+          description: Pay in Kenyan shillings. min must not be more than max.
+          properties:
+            min:
+              type: number
+              minimum: 0
+              maximum: 10000000
+              example: 1500
+            max:
+              type: number
+              minimum: 0
+              maximum: 10000000
+              example: 1500
+    EmployerJob:
+      type: object
+      description: A Job, plus how many applications are waiting for a decision.
+      required: [id, title, category, county, area, duration, urgent, status, payRange, pendingApplications]
+      properties:
+        id:
+          type: string
+          example: job_12345
+        title:
+          type: string
+          example: Campus Housing Assistant
+        category:
+          type: string
+          example: accommodation
+        county:
+          type: string
+          example: Nairobi
+        area:
+          type: string
+          example: Parklands
+        duration:
+          type: string
+          example: Part time, 3 months
+        urgent:
+          type: boolean
+          example: true
+        status:
+          type: string
+          enum: [active, closed]
+          example: active
+        payRange:
+          type: object
+          required: [min, max]
+          properties:
+            min:
+              type: number
+              example: 15000
+            max:
+              type: number
+              example: 22000
+        pendingApplications:
+          type: integer
+          minimum: 0
+          example: 1
+    Applicant:
+      type: object
+      description: An Application, plus the applicant's name for the employer deciding on it.
+      required: [applicationId, jobId, studentId, preferredDate, note, status, studentName]
+      properties:
+        applicationId:
+          type: string
+          example: app_1005
+        jobId:
+          type: string
+          example: job_12346
+        studentId:
+          type: string
+          example: usr_1003
+        preferredDate:
+          type: string
+          format: date-time
+          example: '2027-01-15T09:00:00Z'
+        note:
+          type: string
+          example: Free after lectures
+        status:
+          type: string
+          enum: [pending, accepted, filled]
+          example: pending
+        studentName:
+          type: string
+          description: Empty when the application did not come from a Kazi Connect account, for example one SettleIn created.
+          example: Amina Otieno
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          example: student@kaziconnect.demo
+    NewPassword:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          description: The 64 character token from the reset link in the email.
+          pattern: '^[a-f0-9]{64}$'
+          example: 9c1e4b7a2d5f8e0b3a6c9d2f5e8b1a4c7d0e3f6a9b2c5d8e1f4a7b0c3d6e9f2a
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          example: choose-a-new-password
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: 'If an account exists for that email, we have sent a link to reset its password. The link works for 30 minutes.'
+    JobStatusUpdate:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, closed]
+          example: closed
+    ApplicationDecision:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+          example: accepted

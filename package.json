@@ -1,16 +1,17 @@
 {
   "name": "kazi-connect-api",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Kazi Connect API: GET endpoints (Week 5) and write endpoints with validation (Week 6), verified against openapi.yaml",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "verify": "node verifyContract.js",
-    "test": "jest",
+    "test": "jest --runInBand",
     "test:partner": "jest --testMatch \"**/partner-tests/*.partner.js\" --verbose"
   },
   "dependencies": {
     "express": "^5.2.1",
+    "pg": "^8.23.1",
     "swagger-ui-express": "^5.0.1",
     "ws": "^8.22.0",
     "yaml": "^2.9.1"
