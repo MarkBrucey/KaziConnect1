@@ -8,7 +8,7 @@ const request = require('supertest');
 const { createServer } = require('../app');
 const db = require('../db');
 
-const JOB_FIELDS = ['category', 'county', 'id', 'payRange', 'status', 'title'];
+const JOB_FIELDS = ['area', 'category', 'county', 'duration', 'id', 'payRange', 'status', 'title', 'urgent'];
 
 // Strong shape check for one Job: exactly the contract's fields, right types.
 function expectJobShape(job) {
@@ -17,6 +17,9 @@ function expectJobShape(job) {
   expect(typeof job.title).toBe('string');
   expect(typeof job.category).toBe('string');
   expect(typeof job.county).toBe('string');
+  expect(typeof job.area).toBe('string');
+  expect(typeof job.duration).toBe('string');
+  expect(typeof job.urgent).toBe('boolean');
   expect(['active', 'closed']).toContain(job.status);
   expect(Object.keys(job.payRange).sort()).toEqual(['max', 'min']);
   expect(typeof job.payRange.min).toBe('number');
@@ -26,8 +29,8 @@ function expectJobShape(job) {
 
 let server;
 beforeAll((done) => { server = createServer(); server.listen(0, done); });
-afterAll((done) => { server.close(done); });
-beforeEach(() => db.reset()); // arrange: every test starts from the same sample data
+afterAll(async () => { await new Promise((r) => server.close(r)); if (db.close) await db.close(); });
+beforeEach(async () => { await db.reset(); }); // arrange: every test starts from the same sample data
 
 describe('Endpoint 1: GET /api/jobs?status=active', () => {
   it('returns every active job, each with exactly the contract fields', async () => {
@@ -58,6 +61,8 @@ describe('Endpoint 1: GET /api/jobs?status=active', () => {
       expect(job).not.toHaveProperty('job_title');
       expect(job).not.toHaveProperty('internal_notes');
       expect(job).not.toHaveProperty('created_by');
+      expect(job).not.toHaveProperty('employer_id');
+      expect(job).not.toHaveProperty('area_name');
     });
   });
 
@@ -148,6 +153,9 @@ describe('Endpoint 3: GET /api/jobs/{jobId}', () => {
       title: 'Campus Housing Assistant',
       category: 'accommodation',
       county: 'Nairobi',
+      area: 'Parklands',
+      duration: 'Part time, 3 months',
+      urgent: true,
       status: 'active',
       payRange: { min: 15000, max: 22000 },
     });

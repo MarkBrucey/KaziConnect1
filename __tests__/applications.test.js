@@ -32,7 +32,7 @@ function expectErrorBody(res) {
   expect(res.body.message.length).toBeGreaterThan(0);
 }
 
-const snapshot = (id) => JSON.stringify(db.findApplicationById(id));
+const snapshot = async (id) => JSON.stringify(await db.findApplicationById(id));
 
 let server;
 let wsBase;
@@ -40,8 +40,8 @@ beforeAll((done) => {
   server = createServer();
   server.listen(0, () => { wsBase = `ws://localhost:${server.address().port}`; done(); });
 });
-afterAll((done) => { server.close(done); });
-beforeEach(() => db.reset()); // arrange: every test starts from the same sample data
+afterAll(async () => { await new Promise((r) => server.close(r)); if (db.close) await db.close(); });
+beforeEach(async () => { await db.reset(); }); // arrange: every test starts from the same sample data
 
 // WebSocket helpers
 
@@ -101,7 +101,7 @@ describe('Endpoint 6: WebSocket /api/applications/{applicationId}/subscribe', ()
     expect(await first).toEqual({ applicationId: 'app_1001', status: 'pending' });
 
     const pushed = nextMessage(ws);
-    db.setApplicationStatus('app_1001', 'accepted');
+    await db.setApplicationStatus('app_1001', 'accepted');
     expect(await pushed).toEqual({ applicationId: 'app_1001', status: 'accepted' });
     ws.close();
   });
@@ -155,7 +155,7 @@ describe('Endpoint 7: POST /api/applications', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('pending');
-    expect(db.countApplications()).toBe(5);
+    expect(await db.countApplications()).toBe(5);
   });
 
   it('stores an empty note when the note is left out', async () => {
@@ -176,7 +176,7 @@ describe('Endpoint 7: POST /api/applications', () => {
     expect(first.status).toBe(201);
     expect(second.status).toBe(201);
     expect(first.body.applicationId).not.toBe(second.body.applicationId);
-    expect(db.countApplications()).toBe(6);
+    expect(await db.countApplications()).toBe(6);
   });
 
   describe('rejects invalid input with 400 and a message, and writes nothing', () => {
@@ -204,7 +204,7 @@ describe('Endpoint 7: POST /api/applications', () => {
       expect(res.status).toBe(400);
       expectErrorBody(res);
       expect(res.body.message).toMatch(messagePattern);
-      expect(db.countApplications()).toBe(4); // nothing was written
+      expect(await db.countApplications()).toBe(4); // nothing was written
     });
 
     it('the body is not valid JSON', async () => {
@@ -215,7 +215,7 @@ describe('Endpoint 7: POST /api/applications', () => {
 
       expect(res.status).toBe(400);
       expectErrorBody(res);
-      expect(db.countApplications()).toBe(4);
+      expect(await db.countApplications()).toBe(4);
     });
   });
 
@@ -225,7 +225,7 @@ describe('Endpoint 7: POST /api/applications', () => {
     expect(res.status).toBe(409);
     expectErrorBody(res);
     expect(res.body.message).toMatch(/closed/);
-    expect(db.countApplications()).toBe(4);
+    expect(await db.countApplications()).toBe(4);
   });
 
   it('boundary: a note of exactly 500 characters is accepted, 501 is rejected', async () => {
@@ -252,21 +252,21 @@ describe('Endpoint 8: PUT /api/applications/{applicationId}', () => {
       applicationId: 'app_1001', jobId: 'job_12345', studentId: 'stu_0042',
       preferredDate: body.preferredDate, note: 'Rescheduled', status: 'pending',
     });
-    expect(db.findApplicationById('app_1001').preferred_at.getTime()).toBe(Date.parse(body.preferredDate));
+    expect((await db.findApplicationById('app_1001')).preferred_at.getTime()).toBe(Date.parse(body.preferredDate));
   });
 
   it('is idempotent: the same PUT twice gives the same end state', async () => {
     const body = update();
 
     const first = await request(server).put('/api/applications/app_1001').send(body);
-    const stateAfterFirst = snapshot('app_1001').replace(/"updated_at":"[^"]*"/, '');
+    const stateAfterFirst = (await snapshot('app_1001')).replace(/"updated_at":"[^"]*"/, '');
     const second = await request(server).put('/api/applications/app_1001').send(body);
-    const stateAfterSecond = snapshot('app_1001').replace(/"updated_at":"[^"]*"/, '');
+    const stateAfterSecond = (await snapshot('app_1001')).replace(/"updated_at":"[^"]*"/, '');
 
     expect(second.status).toBe(200);
     expect(second.body).toEqual(first.body);
     expect(stateAfterSecond).toBe(stateAfterFirst);
-    expect(db.countApplications()).toBe(4);
+    expect(await db.countApplications()).toBe(4);
   });
 
   it('sets an absolute state: leaving note out clears it', async () => {
@@ -286,14 +286,14 @@ describe('Endpoint 8: PUT /api/applications/{applicationId}', () => {
     ];
 
     it.each(cases)('%s', async (_name, body, messagePattern) => {
-      const before = snapshot('app_1001');
+      const before = await snapshot('app_1001');
 
       const res = await request(server).put('/api/applications/app_1001').send(body);
 
       expect(res.status).toBe(400);
       expectErrorBody(res);
       expect(res.body.message).toMatch(messagePattern);
-      expect(snapshot('app_1001')).toBe(before);
+      expect(await snapshot('app_1001')).toBe(before);
     });
   });
 
@@ -302,18 +302,18 @@ describe('Endpoint 8: PUT /api/applications/{applicationId}', () => {
 
     expect(res.status).toBe(404);
     expectErrorBody(res);
-    expect(db.findApplicationById('app_9999')).toBeNull();
-    expect(db.countApplications()).toBe(4);
+    expect(await db.findApplicationById('app_9999')).toBeNull();
+    expect(await db.countApplications()).toBe(4);
   });
 
   it('edge case: an accepted application cannot be changed (409)', async () => {
-    const before = snapshot('app_1002');
+    const before = await snapshot('app_1002');
 
     const res = await request(server).put('/api/applications/app_1002').send(update());
 
     expect(res.status).toBe(409);
     expectErrorBody(res);
-    expect(snapshot('app_1002')).toBe(before);
+    expect(await snapshot('app_1002')).toBe(before);
   });
 
   it('edge case: a filled application cannot be changed (409)', async () => {
@@ -332,7 +332,7 @@ describe('Endpoint 9: DELETE /api/applications/{applicationId}', () => {
     expect(res.text).toBe('');
     const again = await request(server).get('/api/applications/app_1004/status');
     expect(again.status).toBe(404);
-    expect(db.countApplications()).toBe(3);
+    expect(await db.countApplications()).toBe(3);
   });
 
   it('returns 404 with a message for an application that does not exist', async () => {
@@ -340,7 +340,7 @@ describe('Endpoint 9: DELETE /api/applications/{applicationId}', () => {
 
     expect(res.status).toBe(404);
     expectErrorBody(res);
-    expect(db.countApplications()).toBe(4);
+    expect(await db.countApplications()).toBe(4);
   });
 
   it('edge case: cancelling the same application twice gives 404 the second time', async () => {
@@ -357,7 +357,7 @@ describe('Endpoint 9: DELETE /api/applications/{applicationId}', () => {
 
     expect(res.status).toBe(409);
     expectErrorBody(res);
-    expect(db.findApplicationById('app_1002')).not.toBeNull();
-    expect(db.countApplications()).toBe(4);
+    expect(await db.findApplicationById('app_1002')).not.toBeNull();
+    expect(await db.countApplications()).toBe(4);
   });
 });
