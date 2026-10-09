@@ -20,3 +20,13 @@ Format: *"[Consumer] needs to [verb] [resource] in order to [reason]."*
 8. Team 1 (SettleIn) needs to cancel a pending application on behalf of a student in order to let them withdraw a request they no longer want.
 
 Working both ends of the ring at once surprised us: the same modeling question came up twice. Shamba Direct's "status" field tells us whether a market listing is open or closed, but SettleIn needed our status field to answer a different question — is this service still available to request? We initially copied Shamba Direct's status vocabulary straight into our /jobs/{jobId} endpoint, and it wasn't until peer review that we noticed it didn't actually answer what SettleIn needed. That forced us to separate three things we'd been treating as one: how Shamba Direct represents status, how we store it internally, and what SettleIn reads. The real lesson — consuming and providing an API aren't independent problems. A naming or semantic choice upstream quietly leaks downstream unless you're deliberate about the translation layer in between.
+
+
+The FundiLink website's own needs (added after Week 7)
+Kazi Connect also serves our own FundiLink website. These statements cover what the website needs that SettleIn does not.
+F1. The FundiLink website needs students and employers to create an account and log in, in order that job postings and applications belong to a real person.
+F2. The FundiLink website needs employers to post jobs with a title, kind of work, county, estate, duration, urgency and pay, and to see the jobs they have posted, in order that work reaches students without an agency.
+F3. The FundiLink website needs employers to see who applied for their job and accept one applicant, in order that every applicant hears the result straight away.
+F4. The FundiLink website needs employers to close or reopen a job posting, in order that a filled job stops taking applications.
+F5. The FundiLink website needs a logged in student to see all their applications in one place, in order to follow and manage them.
+F6. The FundiLink website needs people who forget their password to reset it through a link sent to their email, in order not to lose their account.
