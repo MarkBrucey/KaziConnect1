@@ -6,7 +6,7 @@ info:
     Kazi Connect job listings and job applications for SettleIn students, plus accounts and
     employer tools for the FundiLink website. Endpoint numbers match ENDPOINT_LIST.md, and each
     endpoint names the need statement it serves. Endpoints marked with a lock need a login token:
-    log in with Endpoint 11, then send the token as "Authorization: Bearer <token>".
+    log in with Endpoint 11, then send the token as "Authorization: Bearer YOUR_TOKEN".
 servers:
   - url: http://localhost:3000
     description: Local development server
@@ -265,7 +265,17 @@ paths:
             example: app_1001
       responses:
         '101':
-          description: Switching Protocols. The real time stream subscription is established.
+          description: >
+            Switching Protocols. The real time stream is open. Each message the server then sends
+            is one JSON ApplicationStatus object, shown below. The example is the first message,
+            sent straight after connecting.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationStatus'
+              example:
+                applicationId: app_1001
+                status: pending
         '404':
           description: Application ID not found. The connection is refused.
         '426':
@@ -664,7 +674,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: 'The token from Endpoint 10 or 11, sent as "Authorization: Bearer <token>".'
+      description: 'The token from Endpoint 10 or 11, sent as "Authorization: Bearer YOUR_TOKEN". Paste only the token here; Swagger adds the word Bearer itself.'
   responses:
     NotLoggedIn:
       description: No token was sent, or it is not valid, or it has expired.
