@@ -701,17 +701,16 @@ When a request fails, PowerShell shows the error in red. Windows PowerShell 5.1 
 
 You need **Node.js 18 or newer** (from https://nodejs.org, the LTS version) and **Git**. The commands are the same on Windows, macOS and Linux.
 
-1. On this repository's GitHub page, click the green **Code** button and copy the **HTTPS** address.
-2. In a terminal, run these, pasting that address after `git clone`:
+1. In a terminal, run:
 
 ```text
-git clone PASTE_THE_ADDRESS_HERE
+git clone https://github.com/MarkBrucey/KaziConnect1.git
 cd KaziConnect1
 npm install
 npm start
 ```
 
-No Git? Click **Code**, then **Download ZIP**, extract it, and open a terminal in the extracted folder that contains `package.json` before running `npm install` and `npm start`.
+No Git? Open https://github.com/MarkBrucey/KaziConnect1, click the green **Code** button, then **Download ZIP**. Extract it, open a terminal in the extracted folder that contains `package.json`, and run `npm install` and then `npm start`.
 
 `npm install` may end with a note about moderate vulnerabilities. They are all inside Jest, the testing tool, which the server never runs: `npm audit --omit=dev` reports 0 for the server itself.
 
@@ -726,7 +725,7 @@ Swagger UI:           http://localhost:3000/docs
 Data is stored:       in memory (resets on restart)
 ```
 
-3. Open http://localhost:3000/docs for the interactive docs, or http://localhost:3000 for the website. Every walkthrough command works locally too: replace `https://kaziconnect1-1xmu.onrender.com` with `http://localhost:3000`.
+2. Open http://localhost:3000/docs for the interactive docs, or http://localhost:3000 for the website. Every walkthrough command works locally too: replace `https://kaziconnect1-1xmu.onrender.com` with `http://localhost:3000`.
 
 Things to know when running locally:
 
