@@ -1,7 +1,7 @@
 {
   "name": "kazi-connect-api",
-  "version": "1.2.0",
-  "description": "Kazi Connect API: GET endpoints (Week 5) and write endpoints with validation (Week 6), verified against openapi.yaml",
+  "version": "1.2.1",
+  "description": "Kazi Connect API: job listings and requests for SettleIn, plus accounts and employer tools for the Kazi Connect website, verified against openapi.yaml",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
   res.status(200).json((await db.findJobs(q)).map(toJob));
 });
 
-// ENDPOINT 14: POST /api/jobs   (FundiLink Statement F2) employers only
+// ENDPOINT 14: POST /api/jobs   (website need W2) employers only
 router.post('/', loggedIn, requireRole('employer'), async (req, res) => {
   const problem = validateNewJob(req.body);
   if (problem) return fail(res, 400, problem);
@@ -65,7 +65,7 @@ router.get('/:jobId/status', async (req, res) => {
   res.status(200).json(toJobStatus(row));
 });
 
-// ENDPOINT 16: GET /api/jobs/{jobId}/applications   (FundiLink Statement F3) the job's employer only
+// ENDPOINT 16: GET /api/jobs/{jobId}/applications   (website need W3) the job's employer only
 router.get('/:jobId/applications', loggedIn, requireRole('employer'), async (req, res) => {
   const job = await ownJob(req, res);
   if (!job) return;
@@ -85,7 +85,7 @@ router.get('/:jobId', async (req, res) => {
   res.status(200).json(toJob(row));
 });
 
-// ENDPOINT 17: PATCH /api/jobs/{jobId}   (FundiLink Statement F4) close or reopen, the job's employer only.
+// ENDPOINT 17: PATCH /api/jobs/{jobId}   (website need W4) close or reopen, the job's employer only.
 // Closing a job marks every application still waiting on it as filled.
 router.patch('/:jobId', loggedIn, requireRole('employer'), async (req, res) => {
   const problem = validateJobStatusUpdate(req.body);

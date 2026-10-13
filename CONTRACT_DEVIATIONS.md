@@ -73,7 +73,7 @@ After a DELETE, subscribers receive a final message with status `cancelled`, and
 
 # After Week 7: accounts, employer tools and job details (version 1.1.0 to 1.2.0)
 
-These changes add the FundiLink website's own needs (Statements F1 to F5 in API_NEEDS.md) on top of what SettleIn needs. Endpoints 1 to 9 keep the same paths, methods, inputs and status codes, and SettleIn still needs no account to use them.
+These changes add the Kazi Connect website's own needs (W1 to W6 in API_NEEDS.md) on top of what SettleIn needs. Endpoints 1 to 9 keep the same paths, methods, inputs and status codes, and SettleIn still needs no account to use them.
 
 ## Changes that affect SettleIn
 
@@ -81,7 +81,7 @@ These have been flagged to Team 1 directly.
 
 **1. Job has three more fields, always present: `area`, `duration` and `urgent`**
 What changed: every Job, from Endpoints 1, 2, 3 and 14, now also includes `area` (the estate, for example `Parklands`), `duration` (plain words, for example `About 2 hours`) and `urgent` (true or false). Nothing was removed or renamed.
-Why: the FundiLink website shows the estate, how long the work takes and whether it is urgent, and SettleIn's students benefit from the same detail. A test that checks Job has no extra fields needs these three added to its list.
+Why: the Kazi Connect website shows the estate, how long the work takes and whether it is urgent, and SettleIn's students benefit from the same detail. A test that checks Job has no extra fields needs these three added to its list.
 
 **2. Application status now changes through real employer decisions**
 What changed: an employer can accept an application (Endpoint 18). That application becomes `accepted`, every other application still waiting for the same job becomes `filled`, and the job closes. Closing a job (Endpoint 17) also marks its waiting applications `filled`. Subscribers to Endpoint 6 receive each change live.
@@ -95,18 +95,18 @@ Why: accounts are useless if they disappear. The shapes of all requests and resp
 
 | # | Request | Who | Serves |
 |---|---|---|---|
-| 10 | `POST /api/auth/register` | anyone | F1 |
-| 11 | `POST /api/auth/login` | anyone | F1 |
-| 12 | `POST /api/auth/logout` | logged in | F1 |
-| 13 | `GET /api/me` | logged in | F1 |
-| 14 | `POST /api/jobs` | employers | F2 |
-| 15 | `GET /api/me/jobs` | employers | F2 |
-| 16 | `GET /api/jobs/{jobId}/applications` | the employer who posted the job | F3 |
-| 17 | `PATCH /api/jobs/{jobId}` | the employer who posted the job | F4 |
-| 18 | `PATCH /api/applications/{applicationId}` | the employer who posted the job | F3, Statement 5 |
-| 19 | `GET /api/me/applications` | students | F5 |
-| 20 | `POST /api/auth/password-resets` | anyone | F6 |
-| 21 | `PUT /api/auth/password` | anyone with a reset link | F6 |
+| 10 | `POST /api/auth/register` | anyone | W1 |
+| 11 | `POST /api/auth/login` | anyone | W1 |
+| 12 | `POST /api/auth/logout` | logged in | W1 |
+| 13 | `GET /api/me` | logged in | W1 |
+| 14 | `POST /api/jobs` | employers | W2 |
+| 15 | `GET /api/me/jobs` | employers | W2 |
+| 16 | `GET /api/jobs/{jobId}/applications` | the employer who posted the job | W3 |
+| 17 | `PATCH /api/jobs/{jobId}` | the employer who posted the job | W4 |
+| 18 | `PATCH /api/applications/{applicationId}` | the employer who posted the job | W3, Statement 5 |
+| 19 | `GET /api/me/applications` | students | W5 |
+| 20 | `POST /api/auth/password-resets` | anyone | W6 |
+| 21 | `PUT /api/auth/password` | anyone with a reset link | W6 |
 
 New schemas: `User`, `AuthResponse`, `NewUser`, `Credentials`, `NewJob`, `EmployerJob`, `Applicant`, `JobStatusUpdate`, `ApplicationDecision`, `PasswordResetRequest`, `NewPassword` and `Message`. `Applicant` is an Application plus `studentName`, used only by Endpoint 16 so an employer sees who applied; it is empty for applications SettleIn creates with its own student IDs, and Application itself is unchanged. New status codes: 401 when no valid login token is sent, and 403 when the account is not allowed to do something. New paths reuse existing ones where REST allows it: posting a job is `POST` on `/api/jobs`, and closing a job or accepting an application are `PATCH` on the resource itself, so no verbs appear in any path.
 
@@ -118,3 +118,11 @@ New schemas: `User`, `AuthResponse`, `NewUser`, `Credentials`, `NewJob`, `Employ
 4. An employer can only see applicants for, close, or accept applications on jobs they posted. Anything else gets 403.
 5. "Forgot password?" (Endpoints 20 and 21) always gives the same 202 reply, whether or not the email has an account. Reset links work once, for 30 minutes, and only a hash of each is stored. Setting a new password cancels the account's other reset links and logs it out everywhere. At most 3 reset emails are sent per account per hour.
 6. Reset links always use the site's own address from its settings, never the Host header of the incoming request, which an attacker could fake to receive someone else's reset link.
+
+# Week 8: documentation only (version 1.2.0 to 1.2.1)
+
+Nothing a client sends or receives has changed: every path, method, field and status code is the same.
+
+1. **Endpoint 6 now shows its message shape.** Its `101` response lists the `ApplicationStatus` object every message carries, with an example, so the docs page shows a response shape for every endpoint, as Week 8 Part A asks.
+2. **The login token description is complete.** It read `Bearer <token>`, and the docs page hid `<token>` as if it were code, leaving "Bearer ." It now reads `Bearer YOUR_TOKEN` and says to paste only the token.
+3. **One name for the website.** Descriptions now say "Kazi Connect website" instead of the old name FundiLink, and the website's needs are labelled W1 to W6 instead of F1 to F6, matching API_NEEDS.md and ENDPOINT_LIST.md.

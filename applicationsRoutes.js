@@ -77,7 +77,7 @@ router.put('/:applicationId', async (req, res) => {
   res.status(200).json(toApplication(updated));
 });
 
-// ENDPOINT 18: PATCH /api/applications/{applicationId}   (FundiLink Statement F3)
+// ENDPOINT 18: PATCH /api/applications/{applicationId}   (website need W3)
 // The employer who posted the job accepts an application. Every other waiting
 // application for that job becomes filled, the job closes, and WebSocket
 // subscribers hear about each change straight away.

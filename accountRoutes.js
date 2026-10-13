@@ -18,7 +18,7 @@ async function startSession(user) {
   return { token, user: toUser(user) };
 }
 
-// ENDPOINT 10: POST /api/auth/register   (FundiLink Statement F1)
+// ENDPOINT 10: POST /api/auth/register   (website need W1)
 auth.post('/register', async (req, res) => {
   const problem = validateRegistration(req.body);
   if (problem) return fail(res, 400, problem);
@@ -32,7 +32,7 @@ auth.post('/register', async (req, res) => {
   res.status(201).json(await startSession(user));
 });
 
-// ENDPOINT 11: POST /api/auth/login   (FundiLink Statement F1)
+// ENDPOINT 11: POST /api/auth/login   (website need W1)
 // The same message for an unknown email and a wrong password, so the reply
 // never reveals which emails have accounts.
 auth.post('/login', async (req, res) => {
@@ -44,7 +44,7 @@ auth.post('/login', async (req, res) => {
   res.status(200).json(await startSession(user));
 });
 
-// ENDPOINT 12: POST /api/auth/logout   (FundiLink Statement F1)
+// ENDPOINT 12: POST /api/auth/logout   (website need W1)
 auth.post('/logout', loggedIn, async (req, res) => {
   await db.deleteSession(req.tokenHash);
   res.status(204).end();
@@ -54,7 +54,7 @@ const RESET_MINUTES = 30;
 const RESETS_PER_HOUR = 3;
 const RESET_REPLY = { message: 'If an account exists for that email, we have sent a link to reset its password. The link works for 30 minutes.' };
 
-// ENDPOINT 20: POST /api/auth/password-resets   (FundiLink Statement F6)
+// ENDPOINT 20: POST /api/auth/password-resets   (website need W6)
 // Always the same 202 reply, so it never reveals which emails have accounts.
 // At most 3 reset emails per account per hour, so nobody can flood an inbox.
 auth.post('/password-resets', async (req, res) => {
@@ -72,7 +72,7 @@ auth.post('/password-resets', async (req, res) => {
   res.status(202).json(RESET_REPLY);
 });
 
-// ENDPOINT 21: PUT /api/auth/password   (FundiLink Statement F6)
+// ENDPOINT 21: PUT /api/auth/password   (website need W6)
 // Sets a new password using the token from the reset email. The link works
 // once, for 30 minutes. Afterwards the account is logged out everywhere.
 auth.put('/password', async (req, res) => {
@@ -87,17 +87,17 @@ auth.put('/password', async (req, res) => {
   res.status(204).end();
 });
 
-// ENDPOINT 13: GET /api/me   (FundiLink Statement F1)
+// ENDPOINT 13: GET /api/me   (website need W1)
 me.get('/', loggedIn, (req, res) => res.status(200).json(toUser(req.user)));
 
-// ENDPOINT 15: GET /api/me/jobs   (FundiLink Statement F2) employers only
+// ENDPOINT 15: GET /api/me/jobs   (website need W2) employers only
 me.get('/jobs', loggedIn, requireRole('employer'), async (req, res) => {
   const rows = await db.findJobsByEmployer(req.user._id);
   const jobs = await Promise.all(rows.map(async (row) => toEmployerJob(row, await db.countPendingApplications(row._id))));
   res.status(200).json(jobs);
 });
 
-// ENDPOINT 19: GET /api/me/applications   (FundiLink Statement F5) students only
+// ENDPOINT 19: GET /api/me/applications   (website need W5) students only
 me.get('/applications', loggedIn, requireRole('student'), async (req, res) => {
   res.status(200).json((await db.findApplicationsByStudent(req.user._id)).map(toApplication));
 });

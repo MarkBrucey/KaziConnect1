@@ -37,3 +37,7 @@ We checked their `openapi.yaml` with an OpenAPI validator. It fails with 3 error
 ### Running our tests against Shamba Direct's live API
 
 At the time of submission, Shamba Direct had not shared the address of a running API, so our 21 tests have not yet been executed against their real server. They are ready to run with one command as soon as the address is available, and the results will be added here, with each failure classified as a real bug, a contract ambiguity or a misunderstanding.
+
+## Update after Week 7
+
+Since this exchange, the contract has moved from version 1.1.0 to 1.2.1 (every change is in `CONTRACT_DEVIATIONS.md`). Endpoints 1 to 9 keep the same paths, methods, inputs and status codes, but every Job now also carries `area`, `duration` and `urgent`. Any SettleIn test that checks a Job has no extra fields needs those three added to its list, so SettleIn's tests should be re-run against the live API before they rely on version 1.2.1. Our own suite has grown from 63 to 156 tests, covering the accounts, employer tools and password reset added since.

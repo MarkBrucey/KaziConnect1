@@ -1,10 +1,10 @@
 openapi: 3.0.0
 info:
   title: Kazi Connect API
-  version: 1.2.0
+  version: 1.2.1
   description: >
     Kazi Connect job listings and job applications for SettleIn students, plus accounts and
-    employer tools for the FundiLink website. Endpoint numbers match ENDPOINT_LIST.md, and each
+    employer tools for the Kazi Connect website. Endpoint numbers match ENDPOINT_LIST.md, and each
     endpoint names the need statement it serves. Endpoints marked with a lock need a login token:
     log in with Endpoint 11, then send the token as "Authorization: Bearer YOUR_TOKEN".
 servers:
@@ -59,7 +59,7 @@ paths:
     # ENDPOINT 14 (same path as Endpoints 1 and 2)
     post:
       summary: Posts a new job (employers only)
-      description: FundiLink Statement F2. The kind of work is saved in lower case. A new job starts active.
+      description: Kazi Connect website need W2. The kind of work is saved in lower case. A new job starts active.
       security:
         - bearerAuth: []
       requestBody:
@@ -115,7 +115,7 @@ paths:
     patch:
       summary: Closes or reopens a job (the employer who posted it)
       description: >
-        FundiLink Statement F4. Closing a job marks every application still waiting on it as
+        Kazi Connect website need W4. Closing a job marks every application still waiting on it as
         filled, and subscribers to those applications hear about it live. Sending the same status
         twice leaves the job in the same state.
       security:
@@ -190,7 +190,7 @@ paths:
     get:
       summary: Lists the applicants for a job (the employer who posted it)
       description: >
-        FundiLink Statement F3. Newest first. An empty list means nobody has applied yet. Each
+        Kazi Connect website need W3. Newest first. An empty list means nobody has applied yet. Each
         applicant includes studentName when the application came from a Kazi Connect account.
       security:
         - bearerAuth: []
@@ -408,7 +408,7 @@ paths:
     patch:
       summary: Accepts an application (the employer who posted the job)
       description: >
-        FundiLink Statement F3, and SettleIn Statement 5. The application becomes accepted, every
+        Kazi Connect website need W3, and SettleIn Statement 5. The application becomes accepted, every
         other application still waiting for the same job becomes filled, and the job closes.
         Subscribers to each application hear about the change live.
       security:
@@ -467,7 +467,7 @@ paths:
     post:
       summary: Creates an account and logs it in
       description: >
-        FundiLink Statement F1. The password is stored only as a scrambled hash and is never
+        Kazi Connect website need W1. The password is stored only as a scrambled hash and is never
         returned. Emails are saved in lower case.
       requestBody:
         required: true
@@ -504,7 +504,7 @@ paths:
     post:
       summary: Logs in and returns a token
       description: >
-        FundiLink Statement F1. A wrong password and an unknown email get exactly the same 401
+        Kazi Connect website need W1. A wrong password and an unknown email get exactly the same 401
         message, so the reply never reveals which emails have accounts. Tokens last 7 days.
       requestBody:
         required: true
@@ -540,7 +540,7 @@ paths:
   /api/auth/logout:
     post:
       summary: Logs out, so the token stops working
-      description: FundiLink Statement F1.
+      description: Kazi Connect website need W1.
       security:
         - bearerAuth: []
       responses:
@@ -554,7 +554,7 @@ paths:
     post:
       summary: Asks for a password reset email ("Forgot password?")
       description: >
-        FundiLink Statement F6. The reply is always the same 202, whether or not the email has an
+        Kazi Connect website need W6. The reply is always the same 202, whether or not the email has an
         account, so it never reveals who is registered. If the account exists, a single use link
         that works for 30 minutes is emailed to it. At most 3 reset emails are sent per account
         per hour; further requests still get 202 but send nothing.
@@ -585,7 +585,7 @@ paths:
     put:
       summary: Sets a new password using the token from the reset email
       description: >
-        FundiLink Statement F6. Works once, within 30 minutes of the email. Afterwards every other
+        Kazi Connect website need W6. Works once, within 30 minutes of the email. Afterwards every other
         reset link for the account stops working, and the account is logged out everywhere, so the
         person logs in again with the new password.
       requestBody:
@@ -612,7 +612,7 @@ paths:
   /api/me:
     get:
       summary: Returns the logged in user
-      description: FundiLink Statement F1.
+      description: Kazi Connect website need W1.
       security:
         - bearerAuth: []
       responses:
@@ -629,7 +629,7 @@ paths:
   /api/me/jobs:
     get:
       summary: Lists the jobs the logged in employer posted
-      description: FundiLink Statement F2. Newest first, each with how many applications are waiting.
+      description: Kazi Connect website need W2. Newest first, each with how many applications are waiting.
       security:
         - bearerAuth: []
       responses:
@@ -651,7 +651,7 @@ paths:
     get:
       summary: Lists the logged in student's applications
       description: >
-        FundiLink Statement F5. Applications whose studentId is the student's account ID, newest
+        Kazi Connect website need W5. Applications whose studentId is the student's account ID, newest
         first. Empty list if the student has not applied yet.
       security:
         - bearerAuth: []

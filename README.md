@@ -1,13 +1,13 @@
 # Kazi Connect API
 
-Kazi Connect is a REST API of casual jobs and services in Kenya, such as campus work, catering, tutoring, plumbing and other skilled work. It is built first for **SettleIn**, the student accommodation app run by Team 1: SettleIn uses it to show students the jobs and services near where they live, with their pay ranges, to request a job or service on a student's behalf, to change or withdraw that request, and to tell the student the moment it is accepted or already filled. SettleIn calls the API with no login at all. The same API also powers our own **FundiLink** website, where employers post those jobs and decide on requests, and where students can keep an account. It is built with Node.js and Express, and keeps its data in PostgreSQL.
+Kazi Connect is a REST API of casual jobs and services in Kenya, such as campus work, catering, tutoring, plumbing and other skilled work. It is built first for **SettleIn**, the student accommodation app run by Team 1: SettleIn uses it to show students the jobs and services near where they live, with their pay ranges, to request a job or service on a student's behalf, to change or withdraw that request, and to tell the student the moment it is accepted or already filled. SettleIn calls the API with no login at all. The same API also powers our own **Kazi Connect website**, where employers post those jobs and decide on requests, and where students can keep an account. It is built with Node.js and Express, and keeps its data in PostgreSQL.
 
 | What | Where |
 |---|---|
 | Live API | https://kaziconnect1-1xmu.onrender.com |
 | Interactive docs (Swagger UI, every endpoint) | https://kaziconnect1-1xmu.onrender.com/docs |
 | The contract itself | https://kaziconnect1-1xmu.onrender.com/openapi.yaml |
-| FundiLink website, built on this API | https://kaziconnect1-1xmu.onrender.com |
+| Kazi Connect website, built on this API | https://kaziconnect1-1xmu.onrender.com |
 
 > **Before your first request:** the API runs on a free server that goes to sleep after 15 minutes without visitors. The first request after a quiet spell can take **up to a minute** to answer. That is normal: wait for it, don't cancel. Every request after that is fast.
 
@@ -64,7 +64,7 @@ HTTP 200
 | Part | Who it's for | Login |
 |---|---|---|
 | [Part 1: Finding and requesting jobs](#part-1-finding-and-requesting-jobs-settlein) | **SettleIn**, and any app that lists jobs and requests them for students. Endpoints 1 to 9 | Never needed |
-| [Part 2: Accounts and employer tools](#part-2-accounts-and-employer-tools-fundilink) | The **FundiLink** website: employers posting jobs and accepting requests, students with accounts. Endpoints 10 to 21 | Needed for most |
+| [Part 2: Accounts and employer tools](#part-2-accounts-and-employer-tools-kazi-connect-website) | The **Kazi Connect website**: employers posting jobs and accepting requests, students with accounts. Endpoints 10 to 21 | Needed for most |
 
 The two parts meet in one place: when an employer accepts a request in Part 2, every app watching that request live, as SettleIn does in Part 1, is told straight away. That is SettleIn's Statement 5.
 
@@ -203,7 +203,7 @@ APP_ID=$(echo "$APP" | sed -nE 's/.*"applicationId":"([^"]+)".*/\1/p')
 }
 ```
 
-**Step 6. Check the request's status** (Statement 3, Endpoint 5). `pending` means waiting for the employer. It becomes `accepted` when the employer accepts it, or `filled` when the job goes to someone else.
+**Step 6. Check the request's status** (Statement 5, Endpoint 5). `pending` means waiting for the employer. It becomes `accepted` when the employer accepts it, or `filled` when the job goes to someone else.
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/applications/$APP_ID/status
@@ -271,11 +271,11 @@ HTTP 404
 
 That is everything SettleIn needs. Part 2 shows the other side: who posts these jobs, and what makes a request become `accepted` or `filled`.
 
-## Part 2: Accounts and employer tools (FundiLink)
+## Part 2: Accounts and employer tools (Kazi Connect website)
 
 ### Logging in
 
-The FundiLink website's endpoints need a login token:
+The website's endpoints need a login token:
 
 1. Get a token by registering (step 10) or logging in (step 11). Both answer with a 64 character `token`.
 2. Send it on every request that needs it, in this header:
@@ -292,7 +292,7 @@ Employers can post, close and reopen jobs, see who requested them, and accept on
 
 ### Employers
 
-**Step 10. Register as an employer** (F1, Endpoint 10). The first line makes a new email address each time, so this works however many times it is run. The reply is `201` with your token, which the last line saves as `TOKEN`. `role` is `employer` or `student`, and passwords need at least 8 characters.
+**Step 10. Register as an employer** (W1, Endpoint 10). The first line makes a new email address each time, so this works however many times it is run. The reply is `201` with your token, which the last line saves as `TOKEN`. `role` is `employer` or `student`, and passwords need at least 8 characters.
 
 ```bash
 EMAIL="employer$(date +%s)@example.com"
@@ -315,7 +315,7 @@ TOKEN=$(echo "$REG" | sed -nE 's/.*"token":"([a-f0-9]{64})".*/\1/p')
 }
 ```
 
-**Step 11. Log in** (F1, Endpoint 11). The reply is `200` with a new token, saved as `TOKEN` again. A wrong password and an unknown email both answer `401` with the same message.
+**Step 11. Log in** (W1, Endpoint 11). The reply is `200` with a new token, saved as `TOKEN` again. A wrong password and an unknown email both answer `401` with the same message.
 
 ```bash
 LOGIN=$(curl -s -X POST https://kaziconnect1-1xmu.onrender.com/api/auth/login \
@@ -337,7 +337,7 @@ TOKEN=$(echo "$LOGIN" | sed -nE 's/.*"token":"([a-f0-9]{64})".*/\1/p')
 }
 ```
 
-**Step 12. See who you are logged in as** (F1, Endpoint 13).
+**Step 12. See who you are logged in as** (W1, Endpoint 13).
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/me \
@@ -354,7 +354,7 @@ curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/me
 HTTP 200
 ```
 
-**Step 13. Post a job** (F2, Endpoint 14). It appears in the listings from Part 1 straight away. The reply is `201`, and the last line saves the new job's ID as `JOB_ID`. Leave out `urgent` for a job that isn't urgent; `min` may equal `max` for a fixed price.
+**Step 13. Post a job** (W2, Endpoint 14). It appears in the listings from Part 1 straight away. The reply is `201`, and the last line saves the new job's ID as `JOB_ID`. Leave out `urgent` for a job that isn't urgent; `min` may equal `max` for a fixed price.
 
 ```bash
 JOB=$(curl -s -X POST https://kaziconnect1-1xmu.onrender.com/api/jobs \
@@ -396,7 +396,7 @@ echo "$APP_ID"
 app_1019
 ```
 
-**Step 15. See who requested your job** (F3, Endpoint 16). Only the employer who posted the job can see this. `studentName` is filled in when the student applied from a Kazi Connect account, and empty otherwise, as here.
+**Step 15. See who requested your job** (W3, Endpoint 16). Only the employer who posted the job can see this. `studentName` is filled in when the student applied from a Kazi Connect account, and empty otherwise, as here.
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/jobs/$JOB_ID/applications \
@@ -418,7 +418,7 @@ curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/jo
 HTTP 200
 ```
 
-**Step 16. Accept a request** (F3 and SettleIn's Statement 5, Endpoint 18). The request becomes `accepted`, every other request still waiting for this job becomes `filled`, the job closes, and anyone watching those requests live is told straight away.
+**Step 16. Accept a request** (W3 and SettleIn's Statement 5, Endpoint 18). The request becomes `accepted`, every other request still waiting for this job becomes `filled`, the job closes, and anyone watching those requests live is told straight away.
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" -X PATCH https://kaziconnect1-1xmu.onrender.com/api/applications/$APP_ID \
@@ -439,7 +439,7 @@ curl -s -w "\nHTTP %{http_code}\n" -X PATCH https://kaziconnect1-1xmu.onrender.c
 HTTP 200
 ```
 
-**Step 17. List your jobs** (F2, Endpoint 15), newest first, with how many requests are still waiting on each.
+**Step 17. List your jobs** (W2, Endpoint 15), newest first, with how many requests are still waiting on each.
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/me/jobs \
@@ -467,7 +467,7 @@ curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/me
 HTTP 200
 ```
 
-**Step 18. Reopen or close a job** (F4, Endpoint 17). `status` is `active` or `closed`. Closing a job marks every request still waiting on it as `filled`. This reopens the job for the next step.
+**Step 18. Reopen or close a job** (W4, Endpoint 17). `status` is `active` or `closed`. Closing a job marks every request still waiting on it as `filled`. This reopens the job for the next step.
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" -X PATCH https://kaziconnect1-1xmu.onrender.com/api/jobs/$JOB_ID \
@@ -496,7 +496,7 @@ HTTP 200
 
 ### Students with an account
 
-**Step 19. Register a student, request the job, and list their requests** (F1 and F5, Endpoints 10, 7 and 19). When a student requests a job with their account ID as `studentId`, the request appears in their own list.
+**Step 19. Register a student, request the job, and list their requests** (W1 and W5, Endpoints 10, 7 and 19). When a student requests a job with their account ID as `studentId`, the request appears in their own list.
 
 ```bash
 STUDENT=$(curl -s -X POST https://kaziconnect1-1xmu.onrender.com/api/auth/register \
@@ -527,7 +527,7 @@ HTTP 200
 
 ### Forgot password, and finishing
 
-**Step 20. Forgot password** (F6, Endpoints 20 and 21). The first command asks for a reset email. Its reply is always the same `202`, whether or not the email has an account, so nobody can use it to find out who is registered; if the account exists, it receives a link that works once, for 30 minutes. This example uses an address with no account, so no email is sent. The second command sets a new password with the token from that link (the part after `#reset=`); success answers `204`, and this made up token shows the failure reply.
+**Step 20. Forgot password** (W6, Endpoints 20 and 21). The first command asks for a reset email. Its reply is always the same `202`, whether or not the email has an account, so nobody can use it to find out who is registered; if the account exists, it receives a link that works once, for 30 minutes. This example uses an address with no account, so no email is sent. The second command sets a new password with the token from that link (the part after `#reset=`); success answers `204`, and this made up token shows the failure reply.
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" -X POST https://kaziconnect1-1xmu.onrender.com/api/auth/password-resets \
@@ -549,7 +549,7 @@ HTTP 202
 HTTP 400
 ```
 
-**Step 21. Close your job and log out** (F4 and F1, Endpoints 17 and 12). Closing the job you posted keeps the public listings tidy for the next reader, and the student's waiting request from step 19 becomes `filled`. Logging out answers `204`, and the token stops working straight away, as the last command shows.
+**Step 21. Close your job and log out** (W4 and W1, Endpoints 17 and 12). Closing the job you posted keeps the public listings tidy for the next reader, and the student's waiting request from step 19 becomes `filled`. Logging out answers `204`, and the token stops working straight away, as the last command shows.
 
 ```bash
 curl -s -o /dev/null -w "Close job: HTTP %{http_code}\n" -X PATCH https://kaziconnect1-1xmu.onrender.com/api/jobs/$JOB_ID \
@@ -739,7 +739,7 @@ No Git? Open https://github.com/MarkBrucey/KaziConnect1, click the green **Code*
 After `npm start`, when it is ready, the terminal shows:
 
 ```text
-> kazi-connect-api@1.2.0 start
+> kazi-connect-api@1.2.1 start
 > node server.js
 
 Kazi Connect API running on http://localhost:3000
@@ -780,7 +780,7 @@ npm run verify
 | # | Request | Login | Success | Serves | Step |
 |---|---|---|---|---|---|
 | 1 | `GET /api/jobs?status=active` | no | 200 | SettleIn Statement 1 | 1 |
-| 2 | `GET /api/jobs?status=active&county=...&category=...` | no | 200 | SettleIn Statements 2, 4 | 2 |
+| 2 | `GET /api/jobs?status=active&county=...&category=...` | no | 200 | SettleIn Statement 2 | 2 |
 | 3 | `GET /api/jobs/{jobId}` | no | 200 | SettleIn Statements 3, 4 | 3 |
 | 4 | `GET /api/jobs/{jobId}/status` | no | 200 | SettleIn Statement 3 | 4 |
 | 5 | `GET /api/applications/{applicationId}/status` | no | 200 | SettleIn Statement 5 | 6 |
@@ -788,18 +788,18 @@ npm run verify
 | 7 | `POST /api/applications` | no | 201 | SettleIn Statement 6 | 5, 14 |
 | 8 | `PUT /api/applications/{applicationId}` | no | 200 | SettleIn Statement 7 | 8 |
 | 9 | `DELETE /api/applications/{applicationId}` | no | 204 | SettleIn Statement 8 | 9 |
-| 10 | `POST /api/auth/register` | no | 201 | FundiLink F1 | 10 |
-| 11 | `POST /api/auth/login` | no | 200 | FundiLink F1 | 11 |
-| 12 | `POST /api/auth/logout` | yes | 204 | FundiLink F1 | 21 |
-| 13 | `GET /api/me` | yes | 200 | FundiLink F1 | 12 |
-| 14 | `POST /api/jobs` | employer | 201 | FundiLink F2 | 13 |
-| 15 | `GET /api/me/jobs` | employer | 200 | FundiLink F2 | 17 |
-| 16 | `GET /api/jobs/{jobId}/applications` | the job's employer | 200 | FundiLink F3 | 15 |
-| 17 | `PATCH /api/jobs/{jobId}` | the job's employer | 200 | FundiLink F4 | 18, 21 |
-| 18 | `PATCH /api/applications/{applicationId}` | the job's employer | 200 | FundiLink F3, SettleIn Statement 5 | 16 |
-| 19 | `GET /api/me/applications` | student | 200 | FundiLink F5 | 19 |
-| 20 | `POST /api/auth/password-resets` | no | 202 | FundiLink F6 | 20 |
-| 21 | `PUT /api/auth/password` | no | 204 | FundiLink F6 | 20 |
+| 10 | `POST /api/auth/register` | no | 201 | Website W1 | 10 |
+| 11 | `POST /api/auth/login` | no | 200 | Website W1 | 11 |
+| 12 | `POST /api/auth/logout` | yes | 204 | Website W1 | 21 |
+| 13 | `GET /api/me` | yes | 200 | Website W1 | 12 |
+| 14 | `POST /api/jobs` | employer | 201 | Website W2 | 13 |
+| 15 | `GET /api/me/jobs` | employer | 200 | Website W2 | 17 |
+| 16 | `GET /api/jobs/{jobId}/applications` | the job's employer | 200 | Website W3 | 15 |
+| 17 | `PATCH /api/jobs/{jobId}` | the job's employer | 200 | Website W4 | 18, 21 |
+| 18 | `PATCH /api/applications/{applicationId}` | the job's employer | 200 | Website W3, SettleIn Statement 5 | 16 |
+| 19 | `GET /api/me/applications` | student | 200 | Website W5 | 19 |
+| 20 | `POST /api/auth/password-resets` | no | 202 | Website W6 | 20 |
+| 21 | `PUT /api/auth/password` | no | 204 | Website W6 | 20 |
 
 Full request and response shapes for every endpoint are on the docs page: https://kaziconnect1-1xmu.onrender.com/docs. The need statements themselves are in `API_NEEDS.md`.
 

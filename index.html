@@ -167,12 +167,12 @@
     .app.changed { animation: none; }
   }
 
-  /* Job card details from the FundiLink design */
+  /* Job card details from the original website design */
   .card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .urgent { background: var(--tag); border-radius: 999px; padding: 3px 11px; font-size: 14px; font-weight: 700; color: var(--ink); }
   .card .detail { margin: 2px 0 0; color: var(--muted); }
 
-  /* Log in and register card (FundiLink design) */
+  /* Log in and register card (original website design) */
   #auth-dialog { width: min(470px, calc(100vw - 28px)); }
   .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--cream); border-radius: 10px; padding: 4px; margin: 0 0 22px; }
   .tab { font: inherit; font-weight: 600; border: none; background: transparent; color: #8A847E; padding: 10px; border-radius: 8px; cursor: pointer; }
@@ -187,7 +187,7 @@
   .nav .link-btn { font-weight: 500; color: #5B5B5B; text-decoration: none; }
   .nav .link-btn:hover { color: var(--ink); }
 
-  /* Employer dashboard (FundiLink design) */
+  /* Employer dashboard (original website design) */
   #dashboard { padding: 0 0 80px; }
   .dash-body { padding-top: 40px; }
   .dash-tools { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0 0 24px; }
@@ -305,7 +305,7 @@
   </main>
 
   <footer>
-    <div class="wrap">Kazi Connect is the job API behind FundiLink. Developers can explore every endpoint at <a href="/docs">/docs</a>.</div>
+    <div class="wrap">This website runs on the Kazi Connect API. Developers can explore every endpoint at <a href="/docs">/docs</a>.</div>
   </footer>
 
   <dialog id="apply-dialog" aria-labelledby="apply-title"></dialog>
@@ -424,7 +424,7 @@
     showJobs();
   }
 
-  // Log in and register (the FundiLink log in card)
+  // Log in and register (the original website's log in card)
 
   let resetToken = null;
 
