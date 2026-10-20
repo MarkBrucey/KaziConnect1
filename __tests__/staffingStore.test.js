@@ -39,6 +39,15 @@ describe('createStaffingOffer', () => {
     expect(await db.findPendingStaffingOffers()).toHaveLength(1);
   });
 
+  it('refuses a Sherehe offer it already holds, even for another role, and stores nothing', async () => {
+    await db.createStaffingOffer(offer());
+
+    const again = await db.createStaffingOffer(offer({ roleId: 'rol_3004' })); // same shereheOfferId, ofr_4001
+
+    expect(again).toBeNull();
+    expect(await db.findPendingStaffingOffers()).toHaveLength(1);
+  });
+
   it('allows an offer on a different role, and a new one once the earlier one was declined', async () => {
     const first = await db.createStaffingOffer(offer());
     const other = await db.createStaffingOffer(offer({ shereheOfferId: 'ofr_4002', roleId: 'rol_3003' }));
