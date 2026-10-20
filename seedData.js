@@ -34,7 +34,7 @@ const SEED_APPLICATIONS = [
 ];
 
 // Numbers the next new rows will get.
-const FIRST_IDS = { job: 12353, application: 1005, user: 1003 };
+const FIRST_IDS = { job: 12353, application: 1005, user: 1003, staffingOffer: 1001 };
 
 // Password hashes are made once, when the server starts.
 const seedUsers = () => SEED_USERS.map((u) => ({ ...u, password_hash: hashPasswordSync(DEMO_PASSWORD), created_at: '2026-09-01T00:00:00Z' }));

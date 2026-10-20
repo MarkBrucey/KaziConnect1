@@ -67,6 +67,26 @@ CREATE INDEX IF NOT EXISTS sessions_user_id ON sessions (user_id);
 CREATE SEQUENCE IF NOT EXISTS job_number_seq START ${FIRST_IDS.job};
 CREATE SEQUENCE IF NOT EXISTS application_number_seq START ${FIRST_IDS.application};
 CREATE SEQUENCE IF NOT EXISTS user_number_seq START ${FIRST_IDS.user};
+
+-- Event work (added with Endpoints 22 to 25). Additive only: nothing above is changed or dropped.
+-- source_role_id is internal: the Sherehe role a job was opened from. toJob() never sends it.
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_role_id TEXT;
+CREATE SEQUENCE IF NOT EXISTS staffing_offer_number_seq START ${FIRST_IDS.staffingOffer};
+CREATE TABLE IF NOT EXISTS staffing_offers (
+  _id TEXT PRIMARY KEY,
+  employer_id TEXT NOT NULL REFERENCES users(_id),
+  sherehe_offer_id TEXT NOT NULL UNIQUE,
+  role_id TEXT NOT NULL,
+  event_name TEXT NOT NULL,
+  workers_offered INTEGER NOT NULL CHECK (workers_offered > 0),
+  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'declined')),
+  job_id TEXT REFERENCES jobs(_id),
+  job_draft JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS staffing_offers_employer ON staffing_offers (employer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS staffing_offers_pending ON staffing_offers (created_at) WHERE status = 'pending';
+CREATE UNIQUE INDEX IF NOT EXISTS staffing_offers_one_pending_per_role ON staffing_offers (role_id) WHERE status = 'pending';
 `;
 
 async function seed(client) {
@@ -96,10 +116,11 @@ async function init() {
 // Used only by the automated tests: wipe everything and reload the sample data.
 async function reset() {
   await pool.query(SCHEMA);
-  await pool.query('TRUNCATE password_resets, sessions, applications, jobs, users CASCADE');
+  await pool.query('TRUNCATE staffing_offers, password_resets, sessions, applications, jobs, users CASCADE');
   await pool.query(`ALTER SEQUENCE job_number_seq RESTART WITH ${FIRST_IDS.job};
     ALTER SEQUENCE application_number_seq RESTART WITH ${FIRST_IDS.application};
-    ALTER SEQUENCE user_number_seq RESTART WITH ${FIRST_IDS.user};`);
+    ALTER SEQUENCE user_number_seq RESTART WITH ${FIRST_IDS.user};
+    ALTER SEQUENCE staffing_offer_number_seq RESTART WITH ${FIRST_IDS.staffingOffer};`);
   await seed(pool);
 }
 
@@ -135,10 +156,14 @@ async function countPendingApplications(jobId) {
   return (await one("SELECT count(*)::int AS n FROM applications WHERE job_ref = $1 AND application_status = 'pending'", [jobId])).n;
 }
 
-function createJob({ employerId, title, category, county, area, duration, urgent, payMin, payMax }) {
-  return one(`INSERT INTO jobs (_id, job_title, job_category, county_name, area_name, duration_text, is_urgent, listing_status, pay_min, pay_max, employer_id, created_by)
-    VALUES ('job_' || nextval('job_number_seq'), $1, $2, $3, $4, $5, $6, 'active', $7, $8, $9, $9) RETURNING *`,
-    [title, category, county, area, duration, urgent, payMin, payMax, employerId]);
+// sourceRoleId is set only for jobs opened from an accepted Sherehe offer.
+const NEW_JOB_SQL = `INSERT INTO jobs (_id, job_title, job_category, county_name, area_name, duration_text, is_urgent, listing_status, pay_min, pay_max, employer_id, created_by, source_role_id)
+    VALUES ('job_' || nextval('job_number_seq'), $1, $2, $3, $4, $5, $6, 'active', $7, $8, $9, $9, $10) RETURNING *`;
+const newJobParams = ({ employerId, title, category, county, area, duration, urgent, payMin, payMax, sourceRoleId }) =>
+  [title, category, county, area, duration, urgent, payMin, payMax, employerId, sourceRoleId ?? null];
+
+function createJob(job) {
+  return one(NEW_JOB_SQL, newJobParams(job));
 }
 
 async function setJobStatus(id, status) {
@@ -238,6 +263,39 @@ function completePasswordReset({ tokenHash, userId, passwordHash }) {
   });
 }
 
+// Staffing offers (Event work: offers of workers for a Sherehe role)
+
+// Returns null when the role already has a pending offer: the unique index
+// staffing_offers_one_pending_per_role turns a second one into "do nothing".
+function createStaffingOffer({ employerId, shereheOfferId, roleId, eventName, workersOffered, jobDraft }) {
+  return one(`INSERT INTO staffing_offers (_id, employer_id, sherehe_offer_id, role_id, event_name, workers_offered, status, job_draft)
+    VALUES ('sof_' || nextval('staffing_offer_number_seq'), $1, $2, $3, $4, $5, 'pending', $6)
+    ON CONFLICT DO NOTHING RETURNING *`,
+    [employerId, shereheOfferId, roleId, eventName, workersOffered, JSON.stringify(jobDraft)]);
+}
+
+const findStaffingOfferById = (id) => one('SELECT * FROM staffing_offers WHERE _id = $1', [id]);
+const findPendingStaffingOffer = (roleId) => one("SELECT * FROM staffing_offers WHERE role_id = $1 AND status = 'pending'", [roleId]);
+const findStaffingOffersByEmployer = (userId) => many('SELECT * FROM staffing_offers WHERE employer_id = $1 ORDER BY created_at DESC, _id DESC', [userId]);
+const findPendingStaffingOffers = () => many("SELECT * FROM staffing_offers WHERE status = 'pending' ORDER BY created_at, _id");
+
+// Withdrawing deletes the offer, but only while it is still pending.
+const deleteStaffingOffer = (id) => one("DELETE FROM staffing_offers WHERE _id = $1 AND status = 'pending' RETURNING *", [id]);
+const declineStaffingOffer = (id) => one("UPDATE staffing_offers SET status = 'declined' WHERE _id = $1 AND status = 'pending' RETURNING *", [id]);
+
+// The organiser accepted: mark the offer accepted and open the job for the
+// employer in one transaction. Claiming the row first (WHERE status = 'pending')
+// means two runs at once can never make two jobs; the loser gets null.
+function acceptStaffingOffer(id) {
+  return inTransaction(async (client) => {
+    const claimed = (await client.query("UPDATE staffing_offers SET status = 'accepted' WHERE _id = $1 AND status = 'pending' RETURNING *", [id])).rows[0];
+    if (!claimed) return null;
+    const job = (await client.query(NEW_JOB_SQL, newJobParams({ employerId: claimed.employer_id, ...claimed.job_draft, sourceRoleId: claimed.role_id }))).rows[0];
+    const offer = (await client.query('UPDATE staffing_offers SET job_id = $2 WHERE _id = $1 RETURNING *', [id, job._id])).rows[0];
+    return { offer, job };
+  });
+}
+
 const close = () => pool.end();
 
 module.exports = {
@@ -247,4 +305,6 @@ module.exports = {
   createApplication, replaceApplicationDetails, deleteApplication, setApplicationStatus, acceptApplication,
   createUser, findUserByEmail, findUserById, createSession, findSession, deleteSession,
   createPasswordReset, countPasswordResetsSince, findPasswordReset, completePasswordReset,
+  createStaffingOffer, findStaffingOfferById, findPendingStaffingOffer, findStaffingOffersByEmployer,
+  findPendingStaffingOffers, deleteStaffingOffer, declineStaffingOffer, acceptStaffingOffer,
 };

@@ -16,6 +16,7 @@ const applications = [];
 const users = [];
 const sessions = [];
 const passwordResets = [];
+const staffingOffers = [];
 let next = { ...FIRST_IDS };
 let cachedUsers = null;
 
@@ -34,6 +35,7 @@ async function reset() {
   users.splice(0, users.length, ...cachedUsers.map((row) => ({ ...row, created_at: new Date(row.created_at) })));
   sessions.splice(0, sessions.length);
   passwordResets.splice(0, passwordResets.length);
+  staffingOffers.splice(0, staffingOffers.length);
   next = { ...FIRST_IDS };
 }
 
@@ -58,12 +60,15 @@ async function countPendingApplications(jobId) {
   return applications.filter((a) => a.job_ref === jobId && a.application_status === 'pending').length;
 }
 
-async function createJob({ employerId, title, category, county, area, duration, urgent, payMin, payMax }) {
+// sourceRoleId is set only for jobs opened from an accepted Sherehe offer. It is
+// internal: mappers.toJob() never sends it out.
+async function createJob({ employerId, title, category, county, area, duration, urgent, payMin, payMax, sourceRoleId }) {
   const row = {
     _id: `job_${next.job++}`, job_title: title, job_category: category, county_name: county,
     area_name: area, duration_text: duration, is_urgent: urgent, listing_status: 'active',
     pay_min: Number(payMin).toFixed(2), pay_max: Number(payMax).toFixed(2),
     employer_id: employerId, created_by: employerId, internal_notes: '',
+    source_role_id: sourceRoleId || null,
   };
   jobs.push(row);
   return copy(row);
@@ -200,6 +205,59 @@ async function completePasswordReset({ tokenHash, userId, passwordHash }) {
   return true;
 }
 
+// Staffing offers (Event work: offers of workers for a Sherehe role)
+
+const hasPendingOffer = (roleId) => staffingOffers.some((o) => o.role_id === roleId && o.status === 'pending');
+
+// Returns null when the role already has a pending offer (the database does the
+// same with a unique index), so two requests can never both make one.
+async function createStaffingOffer({ employerId, shereheOfferId, roleId, eventName, workersOffered, jobDraft }) {
+  if (hasPendingOffer(roleId)) return null;
+  const row = {
+    _id: `sof_${next.staffingOffer++}`, employer_id: employerId, sherehe_offer_id: shereheOfferId,
+    role_id: roleId, event_name: eventName, workers_offered: workersOffered, status: 'pending',
+    job_id: null, job_draft: JSON.parse(JSON.stringify(jobDraft)), created_at: new Date(),
+  };
+  staffingOffers.push(row);
+  return copy(row);
+}
+
+async function findStaffingOfferById(id) { return copy(staffingOffers.find((o) => o._id === id)); }
+async function findPendingStaffingOffer(roleId) { return copy(staffingOffers.find((o) => o.role_id === roleId && o.status === 'pending')); }
+async function findStaffingOffersByEmployer(userId) {
+  return staffingOffers.filter((o) => o.employer_id === userId).sort(newestFirst).map(copy);
+}
+async function findPendingStaffingOffers() {
+  return staffingOffers.filter((o) => o.status === 'pending').sort((x, y) => -newestFirst(x, y)).map(copy);
+}
+
+// Withdrawing deletes the offer, but only while it is still pending.
+async function deleteStaffingOffer(id) {
+  const index = staffingOffers.findIndex((o) => o._id === id && o.status === 'pending');
+  if (index === -1) return null;
+  const [row] = staffingOffers.splice(index, 1);
+  return copy(row);
+}
+
+async function declineStaffingOffer(id) {
+  const row = staffingOffers.find((o) => o._id === id && o.status === 'pending');
+  if (!row) return null;
+  row.status = 'declined';
+  return copy(row);
+}
+
+// The organiser accepted: mark the offer accepted and open the job for the
+// employer in one step. Returns null if the offer is no longer pending, so
+// running this twice never makes two jobs.
+async function acceptStaffingOffer(id) {
+  const row = staffingOffers.find((o) => o._id === id && o.status === 'pending');
+  if (!row) return null;
+  row.status = 'accepted'; // claim it before any await, so a second call finds it already taken
+  const job = await createJob({ employerId: row.employer_id, ...row.job_draft, sourceRoleId: row.role_id });
+  row.job_id = job._id;
+  return { offer: copy(row), job };
+}
+
 reset();
 
 module.exports = {
@@ -209,4 +267,6 @@ module.exports = {
   createApplication, replaceApplicationDetails, deleteApplication, setApplicationStatus, acceptApplication,
   createUser, findUserByEmail, findUserById, createSession, findSession, deleteSession,
   createPasswordReset, countPasswordResetsSince, findPasswordReset, completePasswordReset,
+  createStaffingOffer, findStaffingOfferById, findPendingStaffingOffer, findStaffingOffersByEmployer,
+  findPendingStaffingOffers, deleteStaffingOffer, declineStaffingOffer, acceptStaffingOffer,
 };
