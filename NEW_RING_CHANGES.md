@@ -13,20 +13,20 @@ Every file in this repository that changes because Shamba Direct and SettleIn le
 - [ ] `CONTRACT_DEVIATIONS.md`: planned 1.2.1 to 1.3.0 entry. Complete it when 1.3.0 ships.
 - [ ] `PARTNER_TEST_RESULTS.md`, `BLIND_TEST_REPORT.md`: new-ring sections left as TODO for real results.
 - [ ] `CLAUDE.md`: standing instructions for the Kazi agent.
-- [ ] `.env.example`: new file.
-- [ ] `partner-tests/README.md`, `partner-tests/sherehe_openapi.yaml`: replace the Shamba Direct files.
+- [x] `.env.example`: new file.
+- [x] `partner-tests/README.md`, `partner-tests/sherehe_openapi.yaml`: replace the Shamba Direct files.
 - [ ] `evidence/ring/README.md`: new folder for the end-to-end demo.
 
 ## Stage 1: Sherehe integration
 
-- [ ] `openapi.yaml`: merge `openapi_1.3.0_additions.yaml` (endpoints 22-25, `PartnerUnavailable`, `EventOpening`, `NewStaffingOffer`, `StaffingOffer`); set `info.version: 1.3.0`. Delete the additions file afterwards.
-- [ ] New: `clients/fetcher`, `clients/shereheClient`, `eventWorkRoutes`, `offerPoller`.
-- [ ] `pgStore` and `memoryStore`: `staffing_offers` table and functions; internal `jobs.source_role_id`.
-- [ ] `mappers`, `validation`: Sherehe mappers, `validateStaffingOffer`.
-- [ ] `server`: start the poller. `app`: mount the new routes.
-- [ ] Tests: `eventWork` tests and `helpers/shereheStub`; `partner-tests/sherehe.partner` replaces `shambaDirect.partner.js`; delete `shamba_openapi.yaml`.
-- [ ] `verifyContract`: cover 22-25 against the stub; regenerate `VERIFICATION.md` with `npm run verify`.
-- [ ] Website: Event work page for employers.
+- [x] `openapi.yaml`: merge `openapi_1.3.0_additions.yaml` (endpoints 22-25, `PartnerUnavailable`, `EventOpening`, `NewStaffingOffer`, `StaffingOffer`); set `info.version: 1.3.0`. Delete the additions file afterwards. Done. The additions file stayed in the starter folder and was never copied into this repository, so there is nothing to delete here.
+- [x] New: `clients/fetcher`, `clients/shereheClient`, `eventWorkRoutes`, `offerPoller`. Also `clients/upstreamError` and `sharedLists`.
+- [x] `pgStore` and `memoryStore`: `staffing_offers` table and functions; internal `jobs.source_role_id`. The table has one extra column, `job_draft`, so the job can be opened without calling Sherehe again.
+- [x] `mappers`, `validation`: Sherehe mappers, `validateStaffingOffer`.
+- [x] `server`: start the poller. `app`: mount the new routes.
+- [x] Tests: `eventWork` tests and `helpers/shereheStub`; `partner-tests/sherehe.partner` replaces `shambaDirect.partner.js`; delete `shamba_openapi.yaml`. `sherehe.partner` is written and dry-run against the local stand-in only. It has not been run against the live Sherehe, and no result is recorded anywhere.
+- [x] `verifyContract`: cover 22-25 against the stub; regenerate `VERIFICATION.md` with `npm run verify`.
+- [x] Website: Event work page for employers. Checked by script in a headless DOM, not by eye in a browser. Stage 2 must port it.
 
 ## Stage 2: Next.js, TypeScript, Tailwind v4
 

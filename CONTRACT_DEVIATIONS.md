@@ -126,3 +126,40 @@ Nothing a client sends or receives has changed: every path, method, field and st
 1. **Endpoint 6 now shows its message shape.** Its `101` response lists the `ApplicationStatus` object every message carries, with an example, so the docs page shows a response shape for every endpoint, as Week 8 Part A asks.
 2. **The login token description is complete.** It read `Bearer <token>`, and the docs page hid `<token>` as if it were code, leaving "Bearer ." It now reads `Bearer YOUR_TOKEN` and says to paste only the token.
 3. **One name for the website.** Descriptions now say "Kazi Connect website" instead of the old name FundiLink, and the website's needs are labelled W1 to W6 instead of F1 to F6, matching API_NEEDS.md and ENDPOINT_LIST.md.
+
+# New ring: version 1.2.1 to 1.3.0 (Stage 1 done; complete when 1.3.0 ships)
+
+Nothing a client sends to or receives from Endpoints 1 to 21 changes. Ujuzi, which replaces SettleIn, uses Endpoints 1 to 9 exactly as SettleIn did. Every change in 1.3.0 is an addition.
+
+## Changes that affect Ujuzi
+
+No request, response, field or status code of Endpoints 1 to 9 changes. One thing Ujuzi will notice, and no more: when a Sherehe organiser accepts an offer from one of our employers, Kazi Connect opens a job for that employer, and that job appears in Endpoints 1, 2 and 3 like any other. It has exactly the same fields as every other Job. Its `category` is one of the shared categories (for example `catering`, `security` or `events`), its `county` is spelled as in the shared list of 47 counties, and its `payRange` has the same `min` and `max`, because Sherehe pays one amount per shift. Where the job came from is never shown. Ujuzi can apply to it with Endpoint 7 like any other job.
+
+TODO: record the date Ujuzi's sub-team was told, before 1.3.0 is deployed.
+
+## New endpoints
+
+| # | Request | Who | Serves |
+|---|---|---|---|
+| 22 | `GET /api/event-openings` | employers | W7 (K1, K2) |
+| 23 | `POST /api/staffing-offers` | employers | W7 (K3) |
+| 24 | `GET /api/me/staffing-offers` | employers | W7 (K4) |
+| 25 | `DELETE /api/staffing-offers/{offerId}` | the employer who made the offer | W7 (K5) |
+
+New schemas: `EventOpening`, `NewStaffingOffer`, `StaffingOffer`. New response: `PartnerUnavailable` (502), used when Sherehe does not answer.
+
+How they behave, inside the contract:
+
+1. **Sherehe failures are a 502 with our own message.** Endpoints 22, 23 and 25 answer `502` with `{ "message": "Event information is unavailable right now. Try again in a minute." }` whenever Sherehe cannot be used: it is down, too slow (10 seconds when a person is waiting), refuses our key, redirects, sends something that is not JSON, or sends a shape its contract does not promise. What Sherehe said is never passed on. When Sherehe is down, Endpoints 1 to 21 are not affected, and Endpoint 24 still works because it reads only our own database.
+2. **A withdrawn offer is deleted.** Endpoint 25 withdraws the offer at Sherehe and deletes it here, so `StaffingOffer.status` only ever has `pending`, `accepted` or `declined`.
+3. **One waiting offer per role.** Endpoint 23 answers `409` if the role is full at Sherehe, or if Kazi already has a pending offer on it (from any employer). Once that offer is accepted, declined or withdrawn, a new offer is possible.
+4. **Status changes arrive by polling.** Sherehe cannot call us, so Kazi Connect asks Sherehe about each pending offer every 3 minutes (and shortly after the server starts). When the organiser accepts, the job opens and the offer's `jobId` is filled in, within about 3 minutes. On the free host the check only runs while the server is awake.
+5. **Dates** in the new schemas are whole seconds, like every other date in the API (`2026-12-05T13:00:00Z`).
+
+## Changes to the data store (no effect on clients)
+
+PostgreSQL gets a new table, `staffing_offers`, and an internal column, `jobs.source_role_id`, created by an additive migration when the server starts. Nothing existing is changed or dropped. `source_role_id` is never part of any response.
+
+## Implementation changes with no effect on clients
+
+TODO when done: the move from Express and JavaScript to Next.js route handlers in TypeScript. Record here that every request and response for Endpoints 1 to 21 stayed the same, with the evidence (156 existing tests and `npm run verify` passing unchanged).
