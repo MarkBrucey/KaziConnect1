@@ -159,7 +159,21 @@ function validateNewPassword(body) {
     || (body.password.length > 128 ? 'password must be 128 characters or fewer' : null);
 }
 
+// POST /api/staffing-offers body: NewStaffingOffer (Event work)
+// The cap on workersOffered only guards against absurd numbers. Sherehe decides how many
+// slots are really free, and its refusal comes back as a 400 from the route.
+function validateStaffingOffer(body) {
+  return checkFields(body, ['roleId', 'workersOffered', 'note'], ['roleId', 'workersOffered'])
+    || checkRequiredText(body, 'roleId')
+    || (body.roleId.trim().length > 80 ? 'roleId must be 80 characters or fewer' : null)
+    || (!Number.isInteger(body.workersOffered) ? 'workersOffered must be a whole number' : null)
+    || (body.workersOffered < 1 ? 'workersOffered must be at least 1' : null)
+    || (body.workersOffered > 10000 ? 'workersOffered must be 10,000 or fewer' : null)
+    || checkNote(body);
+}
+
 module.exports = {
+  validateStaffingOffer,
   validatePasswordResetRequest, validateNewPassword,
   validateNewApplication, validateApplicationUpdate, isRealDateTime,
   validateRegistration, validateLogin, validateNewJob, validateJobStatusUpdate, validateApplicationDecision,

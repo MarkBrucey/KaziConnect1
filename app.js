@@ -8,6 +8,7 @@ const YAML = require('yaml');
 const jobsRouter = require('./jobsRoutes');
 const applicationsRouter = require('./applicationsRoutes');
 const accountRoutes = require('./accountRoutes');
+const eventWork = require('./eventWorkRoutes');
 const { attachRealtime } = require('./realtime');
 
 const CONTRACT_PATH = path.join(__dirname, 'openapi.yaml');
@@ -44,6 +45,9 @@ function createServer() {
   app.use('/api/jobs', jobsRouter);
   app.use('/api/applications', applicationsRouter);
   app.use('/api/auth', accountRoutes.auth);
+  app.use('/api/event-openings', eventWork.openings);
+  app.use('/api/staffing-offers', eventWork.offers);
+  app.use('/api/me/staffing-offers', eventWork.mine);
   app.use('/api/me', accountRoutes.me);
 
   // Anything else: 404 with no body.

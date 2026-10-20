@@ -148,6 +148,10 @@ function fromShereheOffer(raw) {
   return { id: raw.id, roleId: raw.roleId, eventId: typeof raw.eventId === 'string' ? raw.eventId : '', workersOffered: raw.workersOffered, status: raw.status };
 }
 
+// Whole seconds, like every other date the API sends (2026-11-20T09:15:00Z). toIsoDateTime above
+// is left exactly as it was, because Endpoints 1 to 21 use it.
+const toWholeSecondsIso = (date) => toIsoDateTime(new Date(Math.floor(date.getTime() / 1000) * 1000));
+
 // Event + Role -> EventOpening schema (Endpoint 22)
 function toEventOpening(event, role) {
   return {
@@ -155,7 +159,7 @@ function toEventOpening(event, role) {
     eventName: event.name,
     county: event.county,
     area: event.area,
-    startsAt: toIsoDateTime(new Date(role.shiftStart)),  // when this role's shift starts
+    startsAt: toWholeSecondsIso(new Date(role.shiftStart)),  // when this role's shift starts
     title: role.title,
     category: role.category,
     openSlots: role.openSlots,
@@ -172,7 +176,7 @@ function toStaffingOffer(row) {
     workersOffered: row.workers_offered,           // workers_offered -> workersOffered
     status: row.status,
     jobId: row.job_id || null,                     // job_id: null until the offer is accepted
-    createdAt: toIsoDateTime(row.created_at),      // created_at -> createdAt
+    createdAt: toWholeSecondsIso(row.created_at),  // created_at -> createdAt
     // sherehe_offer_id and job_draft are internal and are left out on purpose.
   };
 }

@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Kazi Connect API
-  version: 1.2.1
+  version: 1.3.0
   description: >
     Kazi Connect job listings and job applications for SettleIn students, plus accounts and
     employer tools for the Kazi Connect website. Endpoint numbers match ENDPOINT_LIST.md, and each
@@ -669,6 +669,145 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  #---ENDPOINT 22---
+  /api/event-openings:
+    get:
+      summary: Lists open staffing roles on upcoming Sherehe events
+      description: >
+        Kazi Connect website need W7 (served from Sherehe, needs K1 and K2). Only roles with open slots
+        on upcoming events. Empty list if none. Answers 502 when Sherehe cannot be reached.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: county
+          in: query
+          required: false
+          description: One of Kenya's 47 counties; matching ignores case.
+          schema:
+            type: string
+            example: Nairobi
+      responses:
+        '200':
+          description: Open roles as Kazi event openings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventOpening'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          $ref: '#/components/responses/PartnerUnavailable'
+
+  #---ENDPOINT 23---
+  /api/staffing-offers:
+    post:
+      summary: Offers Kazi workers for a Sherehe role
+      description: >
+        Kazi Connect website need W7 (calls Sherehe, need K3). The logged in employer offers workers;
+        when the organiser accepts, Kazi opens a job for this employer with the role's category and pay.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewStaffingOffer'
+      responses:
+        '201':
+          description: Offer sent to Sherehe and waiting for the organiser.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffingOffer'
+        '400':
+          description: Missing field, wrong type, or more workers than open slots.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No open role with that roleId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The role is full, or Kazi already has a pending offer on it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          $ref: '#/components/responses/PartnerUnavailable'
+
+  #---ENDPOINT 25---
+  /api/staffing-offers/{offerId}:
+    delete:
+      summary: Withdraws a pending staffing offer
+      description: >
+        Kazi Connect website need W7 (calls Sherehe, need K5). Only the employer who made the offer,
+        and only while it is pending. The offer is withdrawn at Sherehe and deleted here.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: sof_1001
+      responses:
+        '204':
+          description: Withdrawn. The offer no longer exists.
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No staffing offer with that id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The organiser has already accepted or declined it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          $ref: '#/components/responses/PartnerUnavailable'
+
+  #---ENDPOINT 24---
+  /api/me/staffing-offers:
+    get:
+      summary: Lists the logged in employer's staffing offers
+      description: Kazi Connect website need W7 (need K4). Newest first. Empty list if none.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The employer's offers with their latest known status.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffingOffer'
+        '401':
+          $ref: '#/components/responses/NotLoggedIn'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -692,6 +831,14 @@ components:
             $ref: '#/components/schemas/Error'
           example:
             message: 'You can only manage jobs you posted.'
+    PartnerUnavailable:
+      description: Sherehe did not answer in time or answered with an error. Nothing was changed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Event information is unavailable right now. Try again in a minute.
   schemas:
     Job:
       type: object
@@ -1071,3 +1218,83 @@ components:
           type: string
           enum: [accepted]
           example: accepted
+    EventOpening:
+      type: object
+      required: [roleId, eventName, county, area, startsAt, title, category, openSlots, payPerShift]
+      properties:
+        roleId:
+          type: string
+          example: rol_3001
+        eventName:
+          type: string
+          example: Wanjiku and Otieno wedding
+        county:
+          type: string
+          example: Nairobi
+        area:
+          type: string
+          example: Westlands
+        startsAt:
+          type: string
+          format: date-time
+          example: '2026-12-05T13:00:00Z'
+        title:
+          type: string
+          example: Waiters
+        category:
+          type: string
+          example: catering
+        openSlots:
+          type: integer
+          minimum: 1
+          example: 6
+        payPerShift:
+          type: number
+          description: KES per worker per shift.
+          example: 1500
+    NewStaffingOffer:
+      type: object
+      additionalProperties: false
+      required: [roleId, workersOffered]
+      properties:
+        roleId:
+          type: string
+          example: rol_3001
+        workersOffered:
+          type: integer
+          minimum: 1
+          example: 6
+        note:
+          type: string
+          maxLength: 500
+          example: Six catering students with food-hygiene certificates
+    StaffingOffer:
+      type: object
+      required: [id, roleId, eventName, workersOffered, status, jobId, createdAt]
+      properties:
+        id:
+          type: string
+          example: sof_1001
+        roleId:
+          type: string
+          example: rol_3001
+        eventName:
+          type: string
+          example: Wanjiku and Otieno wedding
+        workersOffered:
+          type: integer
+          example: 6
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+          description: Kazi's own status for the offer; accepted means a job has been opened.
+          example: accepted
+        jobId:
+          type: string
+          nullable: true
+          description: The Kazi job opened when the offer was accepted; null until then.
+          example: job_12360
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-20T09:15:00Z'
