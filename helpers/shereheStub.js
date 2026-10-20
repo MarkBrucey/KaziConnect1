@@ -60,37 +60,41 @@ function createShereheStub({ apiKey = KEY } = {}) {
     });
   }
 
-  function newOffer(body) {
-    const role = state.roles.find((r) => r.id === body.roleId);
-    const event = role && state.events.find((e) => e.id === role.eventId);
+  function newOffer(st, body) {
+    const role = st.roles.find((r) => r.id === body.roleId);
+    const event = role && st.events.find((e) => e.id === role.eventId);
     if (!role || !event || event.status !== 'upcoming') return { status: 404, text: `Role ${body.roleId} not found` };
     const open = role.headcount - role.filled;
     if (open === 0) return { status: 409, text: `Role ${role.id} is full` };
     if (body.workersOffered > open) return { status: 400, text: 'workersOffered must be a whole number from 1 to the open slots' };
     const offer = {
-      id: `ofr_${state.nextOffer++}`, roleId: role.id, eventId: role.eventId, workersOffered: body.workersOffered,
+      id: `ofr_${st.nextOffer++}`, roleId: role.id, eventId: role.eventId, workersOffered: body.workersOffered,
       note: body.note === undefined ? '' : body.note, status: 'pending', createdAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
     };
-    state.offers.set(offer.id, offer);
+    st.offers.set(offer.id, offer);
     return { status: 201, offer };
   }
 
   async function handle(req, res) {
+    // A request keeps working on the state that existed when it arrived. After stub.reset() a slow
+    // request that is still waiting (a client that timed out) can then never write into the next
+    // test's data. That is also how a real Sherehe behaves: the offer may exist although we gave up.
+    const st = state;
     const url = new URL(req.url, 'http://stub');
     const raw = await readBody(req);
     let body;
     try { body = raw ? JSON.parse(raw) : undefined; } catch (err) { body = Symbol.for('invalid-json'); }
-    state.requests.push({ method: req.method, path: url.pathname, search: url.search, key: req.headers['x-api-key'] || null, body: typeof body === 'symbol' ? raw : body });
-    if (state.delayMs) await sleep(state.delayMs);
+    st.requests.push({ method: req.method, path: url.pathname, search: url.search, key: req.headers['x-api-key'] || null, body: typeof body === 'symbol' ? raw : body });
+    if (st.delayMs) await sleep(st.delayMs);
 
     // Misbehaviour comes first, so it applies whatever was asked.
-    if (state.mode === 'drop') return req.socket.destroy();
-    if (state.mode === 'error') return message(res, 503, 'stub internal failure: database password is hunter2');
-    if (state.mode === 'garbage') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html>maintenance page</html>'); }
-    if (state.mode === 'wrongShape') return send(res, 200, { unexpected: true });
-    if (state.mode === 'redirect') { res.writeHead(302, { Location: 'http://127.0.0.1:9/elsewhere' }); return res.end(); }
+    if (st.mode === 'drop') return req.socket.destroy();
+    if (st.mode === 'error') return message(res, 503, 'stub internal failure: database password is hunter2');
+    if (st.mode === 'garbage') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<html>maintenance page</html>'); }
+    if (st.mode === 'wrongShape') return send(res, 200, { unexpected: true });
+    if (st.mode === 'redirect') { res.writeHead(302, { Location: 'http://127.0.0.1:9/elsewhere' }); return res.end(); }
 
-    if (state.failOn && url.pathname.includes(state.failOn)) return message(res, 503, 'stub internal failure');
+    if (st.failOn && url.pathname.includes(st.failOn)) return message(res, 503, 'stub internal failure');
     if (req.headers['x-api-key'] !== apiKey) return message(res, 401, 'Send your partner key as X-API-Key');
 
     const path = url.pathname;
@@ -100,15 +104,15 @@ function createShereheStub({ apiKey = KEY } = {}) {
       if (url.searchParams.get('status') !== 'upcoming') return message(res, 400, 'status must be upcoming');
       const county = url.searchParams.get('county');
       if (county !== null && !COUNTIES.some((c) => c.toLowerCase() === county.trim().toLowerCase())) return message(res, 400, "county must be one of Kenya's 47 counties");
-      return send(res, 200, state.events.filter((e) => e.status === 'upcoming' && (county === null || e.county.toLowerCase() === county.trim().toLowerCase())));
+      return send(res, 200, st.events.filter((e) => e.status === 'upcoming' && (county === null || e.county.toLowerCase() === county.trim().toLowerCase())));
     }
     if (req.method === 'GET' && (m = /^\/api\/events\/([^/]+)$/.exec(path))) {
-      const event = state.events.find((e) => e.id === m[1]);
+      const event = st.events.find((e) => e.id === m[1]);
       return event ? send(res, 200, event) : message(res, 404, `Event ${m[1]} not found`);
     }
     if (req.method === 'GET' && (m = /^\/api\/events\/([^/]+)\/roles$/.exec(path))) {
-      if (!state.events.some((e) => e.id === m[1])) return message(res, 404, `Event ${m[1]} not found`);
-      return send(res, 200, state.roles.filter((r) => r.eventId === m[1]));
+      if (!st.events.some((e) => e.id === m[1])) return message(res, 404, `Event ${m[1]} not found`);
+      return send(res, 200, st.roles.filter((r) => r.eventId === m[1]));
     }
 
     if (req.method === 'POST' && path === '/api/offers') {
@@ -118,17 +122,17 @@ function createShereheStub({ apiKey = KEY } = {}) {
       if (typeof body.roleId !== 'string' || body.roleId.trim() === '') return message(res, 400, 'roleId is required');
       if (!isWhole(body.workersOffered) || body.workersOffered < 1) return message(res, 400, 'workersOffered must be a whole number from 1 to the open slots');
       if (body.note !== undefined && (typeof body.note !== 'string' || body.note.length > 500)) return message(res, 400, 'note must be a string of 500 characters or fewer');
-      const made = newOffer(body);
+      const made = newOffer(st, body);
       if (made.status !== 201) return message(res, made.status, made.text);
       return send(res, 201, made.offer, { Location: `/api/offers/${made.offer.id}` });
     }
     if (m = /^\/api\/offers\/([^/]+)$/.exec(path)) {
-      const offer = state.offers.get(m[1]);
+      const offer = st.offers.get(m[1]);
       if (req.method === 'GET') return offer ? send(res, 200, offer) : message(res, 404, `Offer ${m[1]} not found`);
       if (req.method === 'DELETE') {
         if (!offer) return message(res, 404, `Offer ${m[1]} not found`);
         if (offer.status !== 'pending') return message(res, 409, `Offer ${offer.id} is ${offer.status}`);
-        state.offers.delete(offer.id);
+        st.offers.delete(offer.id);
         return send(res, 204);
       }
     }
