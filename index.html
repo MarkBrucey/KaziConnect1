@@ -134,6 +134,7 @@
   .status.accepted { background: #E3F2E8; color: var(--green); }
   .status.filled { background: var(--tag); color: #5A5550; }
   .status.cancelled { background: #F7E4E1; color: var(--red); }
+  .status.declined { background: #F7E4E1; color: var(--red); }
   .app .explain { margin: 10px 0 0; }
   .live { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); margin-top: 12px; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: #B7B2AC; }
@@ -208,6 +209,16 @@
   .checkbox { display: flex !important; flex-direction: row; align-items: center; gap: 10px; font-weight: 600; }
   .checkbox input { width: auto; accent-color: var(--brown); }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  /* Event work: open roles on Sherehe events, and the employer's offers */
+  .dash-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 28px; }
+  /* Looks like .chip, but is its own class: the job filters rewrite aria-pressed on every .chip */
+  .dash-tab { font: inherit; font-size: 17px; font-weight: 500; color: #555; background: var(--white); border: 1px solid #CFCAC4; border-radius: 999px; padding: 7px 20px; cursor: pointer; }
+  .dash-tab:hover { border-color: var(--brown); color: var(--ink); }
+  .dash-tab[aria-pressed="true"] { background: var(--brown); border-color: var(--brown); color: var(--white); font-weight: 600; }
+  .ev-intro { margin: 6px 0 0; color: var(--muted); max-width: 640px; }
+  .ev-pick { display: grid; gap: 6px; font-weight: 600; min-width: 240px; }
+  .ev-heading { margin: 34px 0 14px; font-size: 20px; }
+  .ev-wait { color: var(--muted); margin: 0; }
   #post-dialog { width: min(600px, calc(100vw - 28px)); }
   @media (max-width: 760px) {
     .roles, .two { grid-template-columns: 1fr; }
@@ -246,12 +257,34 @@
         </div>
       </div>
       <div class="wrap dash-body">
-        <div class="dash-tools">
-          <h3>Your job postings</h3>
-          <button class="btn" type="button" data-post-job>Post a Job</button>
+        <div class="dash-tabs" role="group" aria-label="Dashboard sections">
+          <button class="dash-tab" type="button" data-dash-tab="jobs" aria-pressed="true">Your job postings</button>
+          <button class="dash-tab" type="button" data-dash-tab="events" aria-pressed="false">Event work</button>
         </div>
-        <p class="success" id="dash-message" hidden></p>
-        <div id="dash-area"></div>
+        <div id="panel-jobs">
+          <div class="dash-tools">
+            <h3>Your job postings</h3>
+            <button class="btn" type="button" data-post-job>Post a Job</button>
+          </div>
+          <p class="success" id="dash-message" hidden></p>
+          <div id="dash-area"></div>
+        </div>
+        <div id="panel-events" hidden>
+          <div class="dash-tools">
+            <div>
+              <h3>Event work</h3>
+              <p class="ev-intro">Staffing roles on upcoming events, from Sherehe. Offer your workers for a role. If the organiser accepts, a job opens in your postings with the role's pay.</p>
+            </div>
+            <label class="ev-pick">County
+              <select id="ev-county"><option value="">All counties</option></select>
+            </label>
+          </div>
+          <p class="success" id="ev-message" role="status" hidden></p>
+          <h4 class="ev-heading" style="margin-top:0">Open roles</h4>
+          <div id="ev-openings"></div>
+          <h4 class="ev-heading">Your offers</h4>
+          <div id="ev-offers"></div>
+        </div>
       </div>
     </section>
 
@@ -311,6 +344,7 @@
   <dialog id="apply-dialog" aria-labelledby="apply-title"></dialog>
   <dialog id="auth-dialog" aria-labelledby="auth-title"></dialog>
   <dialog id="post-dialog" aria-labelledby="post-title"></dialog>
+  <dialog id="offer-dialog" aria-labelledby="offer-title"></dialog>
 
 <script>
 (() => {
@@ -329,6 +363,8 @@
   };
   const KINDS = ['accommodation', 'campus', 'catering', 'cleaning', 'cooking', 'driving', 'electrical', 'gardening', 'moving', 'painting', 'plumbing', 'security', 'tutoring'];
   const COUNTIES = ['Kiambu', 'Kajiado', 'Kisumu', 'Machakos', 'Mombasa', 'Nairobi', 'Nakuru', 'Uasin Gishu'];
+  // Kenya's 47 counties, as in sharedLists.js (a test keeps the two the same). Event work uses all of them.
+  const KENYA_COUNTIES = ['Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo-Marakwet', 'Embu', 'Garissa', 'Homa Bay', 'Isiolo', 'Kajiado', 'Kakamega', 'Kericho', 'Kiambu', 'Kilifi', 'Kirinyaga', 'Kisii', 'Kisumu', 'Kitui', 'Kwale', 'Laikipia', 'Lamu', 'Machakos', 'Makueni', 'Mandera', 'Marsabit', 'Meru', 'Migori', 'Mombasa', "Murang'a", 'Nairobi', 'Nakuru', 'Nandi', 'Narok', 'Nyamira', 'Nyandarua', 'Nyeri', 'Samburu', 'Siaya', 'Taita-Taveta', 'Tana River', 'Tharaka-Nithi', 'Trans-Nzoia', 'Turkana', 'Uasin Gishu', 'Vihiga', 'Wajir', 'West Pokot'];
   let category = '';
   let user = null;
 
@@ -419,7 +455,7 @@
 
   async function refreshForUser() {
     renderNav();
-    if (user && user.role === 'employer') loadDashboard();
+    if (user && user.role === 'employer') { showDashTab('jobs'); loadDashboard(); }
     if (!user || user.role === 'student') { await loadMyApplications(); renderApps(); checkAll(); }
     showJobs();
   }
@@ -881,6 +917,155 @@
     loadFilters().then(showJobs);
   }
 
+  // Event work: open roles on upcoming events (Endpoint 22, read from Sherehe) and the employer's
+  // own offers (Endpoints 23 to 25). Everything that came from Sherehe goes through esc().
+
+  const EV_UNAVAILABLE = 'Event work is unavailable right now. Your jobs are not affected. Try again in a minute.';
+  const OFFER_STATUS = {
+    pending: { word: 'Waiting for the organiser', note: 'The organiser has not decided yet.' },
+    accepted: { word: 'Accepted', note: 'The organiser accepted, and a job was opened in your postings.' },
+    declined: { word: 'Declined', note: 'The organiser declined this offer.' },
+  };
+  let openings = [];
+
+  function evMessage(text) {
+    const el = $('ev-message');
+    el.textContent = text || '';
+    el.hidden = !text;
+  }
+
+  function showDashTab(tab) {
+    document.querySelectorAll('[data-dash-tab]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dashTab === tab)));
+    $('panel-jobs').hidden = tab !== 'jobs';
+    $('panel-events').hidden = tab !== 'events';
+  }
+
+  // Going back to the jobs tab reloads it, so a job opened by an accepted offer is there.
+  function openDashTab(tab) {
+    showDashTab(tab);
+    if (tab === 'events') loadEventWork(); else loadDashboard();
+  }
+
+  function openingCard(o) {
+    const slots = Number(o.openSlots);
+    return `
+      <li class="emp-job" id="op-${esc(o.roleId)}">
+        <div class="emp-head">
+          <div>
+            <div class="card-top" style="justify-content:flex-start"><span class="tag">${esc(cap(o.category))}</span></div>
+            <h4>${esc(o.title)}</h4>
+            <p class="meta">${esc(o.eventName)}. ${esc(o.area)}, ${esc(o.county)}. ${esc(readable(o.startsAt))}</p>
+            <p class="meta">${slots} ${slots === 1 ? 'place' : 'places'} open. KES ${num(o.payPerShift)} per worker per shift</p>
+          </div>
+        </div>
+        <div class="row"><button class="btn" type="button" data-offer-role="${esc(o.roleId)}">Offer workers</button></div>
+      </li>`;
+  }
+
+  function offerCard(o) {
+    const s = OFFER_STATUS[o.status] || { word: o.status, note: '' };
+    const workers = Number(o.workersOffered);
+    return `
+      <li class="emp-job" id="of-${esc(o.id)}">
+        <div class="emp-head">
+          <div>
+            <h4>${esc(o.eventName)}</h4>
+            <p class="meta">${workers} ${workers === 1 ? 'worker' : 'workers'} offered on ${esc(readable(o.createdAt))}</p>
+            <p class="meta">${esc(s.note)}${o.jobId ? ` Job ${esc(o.jobId)}.` : ''}</p>
+          </div>
+          <span class="status ${esc(o.status)}">${esc(s.word)}</span>
+        </div>
+        <div class="row">
+          ${o.status === 'pending' ? `<button class="btn danger" type="button" data-withdraw="${esc(o.id)}">Withdraw offer</button>` : ''}
+          ${o.status === 'accepted' ? '<button class="btn outline" type="button" data-goto-jobs>See it in your job postings</button>' : ''}
+        </div>
+        <p class="error" data-error hidden></p>
+      </li>`;
+  }
+
+  async function loadOpenings() {
+    const county = $('ev-county').value;
+    const area = $('ev-openings');
+    area.innerHTML = '<p class="ev-wait">Looking for open roles...</p>';
+    const res = await api(`/api/event-openings${county ? `?county=${encodeURIComponent(county)}` : ''}`);
+    if (res.status !== 200) {
+      openings = [];
+      const why = res.status === 502 ? EV_UNAVAILABLE : 'The open roles could not be loaded. Try again.';
+      area.innerHTML = `<div class="empty-box"><h3>Open roles are not available</h3><p>${esc(why)}</p><button class="btn" type="button" data-ev-refresh>Try again</button></div>`;
+      return;
+    }
+    openings = res.body;
+    area.innerHTML = openings.length
+      ? `<ul class="emp-jobs">${openings.map(openingCard).join('')}</ul>`
+      : `<div class="empty-box"><h3>No open roles${county ? ` in ${esc(county)}` : ''}</h3><p>${county ? 'Try another county, or all counties.' : 'Check again later.'}</p></div>`;
+  }
+
+  async function loadOffers() {
+    const res = await api('/api/me/staffing-offers');
+    const area = $('ev-offers');
+    if (res.status !== 200) { area.innerHTML = '<p class="error">Your offers could not be loaded. Try again.</p>'; return; }
+    area.innerHTML = res.body.length
+      ? `<ul class="emp-jobs">${res.body.map(offerCard).join('')}</ul>`
+      : '<div class="empty-box"><h3>No offers yet</h3><p>Pick a role above and offer your workers for it.</p></div>';
+  }
+
+  function loadEventWork() {
+    evMessage('');
+    return Promise.all([loadOpenings(), loadOffers()]);
+  }
+
+  function openOfferDialog(roleId) {
+    const o = openings.find((x) => x.roleId === roleId);
+    if (!o) return;
+    const slots = Number(o.openSlots);
+    const dialog = $('offer-dialog');
+    dialog.innerHTML = `
+      <div class="dialog-head">
+        <h3 id="offer-title">Offer workers</h3>
+        <p>${esc(o.title)} at ${esc(o.eventName)}. ${slots} ${slots === 1 ? 'place' : 'places'} open.</p>
+      </div>
+      <form class="stack" id="offer-form" novalidate>
+        <label>How many workers? <span class="hint">1 to ${slots}</span>
+          <input name="workersOffered" type="number" required min="1" max="${slots}" step="1" value="1">
+        </label>
+        <label>Note for the organiser <span class="hint">Optional, up to 500 characters</span>
+          <textarea name="note" maxlength="500" rows="3" placeholder="For example, Six catering students with food-hygiene certificates"></textarea>
+        </label>
+        <p class="error" id="offer-error" role="alert" hidden></p>
+        <button class="btn full" type="submit">Send offer</button>
+      </form>
+      <p class="dialog-foot"><button class="link-btn" type="button" data-close>Not now</button></p>`;
+    dialog.showModal();
+    $('offer-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const d = new FormData(e.target);
+      const body = { roleId, workersOffered: Number(d.get('workersOffered')) };
+      const note = String(d.get('note') || '').trim();
+      if (note) body.note = note;
+      const button = e.target.querySelector('[type=submit]');
+      button.disabled = true;
+      const res = await api('/api/staffing-offers', { method: 'POST', body: JSON.stringify(body) });
+      button.disabled = false;
+      if (res.status !== 201) { const err = $('offer-error'); err.textContent = (res.body && res.body.message) || 'The offer was not sent. Try again.'; err.hidden = false; return; }
+      dialog.close();
+      evMessage(`Offer sent to the organiser of ${res.body.eventName}. If they accept, a job opens in your postings.`);
+      await Promise.all([loadOpenings(), loadOffers()]);
+    });
+  }
+
+  async function withdrawOffer(id) {
+    if (!confirm('Withdraw this offer? The organiser will no longer see it.')) return;
+    const res = await api(`/api/staffing-offers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.status !== 204) {
+      const err = $(`of-${id}`).querySelector('[data-error]');
+      err.textContent = (res.body && res.body.message) || 'That did not work. Try again.';
+      err.hidden = false;
+      return;
+    }
+    evMessage('Offer withdrawn.');
+    await Promise.all([loadOpenings(), loadOffers()]);
+  }
+
   function openPostJob() {
     const dialog = $('post-dialog');
     dialog.innerHTML = `
@@ -956,6 +1141,11 @@
     if (e.target.closest('[data-post-job]')) { openPostJob(); return; }
     const applicants = e.target.closest('[data-applicants]'); if (applicants) { toggleApplicants(applicants.dataset.applicants); return; }
     const accept = e.target.closest('[data-accept]'); if (accept) { acceptApplicant(accept.dataset.accept, accept.dataset.job); return; }
+    const dashTab = e.target.closest('[data-dash-tab]'); if (dashTab) { openDashTab(dashTab.dataset.dashTab); return; }
+    const offerRole = e.target.closest('[data-offer-role]'); if (offerRole) { openOfferDialog(offerRole.dataset.offerRole); return; }
+    const withdraw = e.target.closest('[data-withdraw]'); if (withdraw) { withdrawOffer(withdraw.dataset.withdraw); return; }
+    if (e.target.closest('[data-ev-refresh]')) { loadEventWork(); return; }
+    if (e.target.closest('[data-goto-jobs]')) { openDashTab('jobs'); return; }
     const jobStatus = e.target.closest('[data-job-status]'); if (jobStatus) { setJobStatus(jobStatus.dataset.job, jobStatus.dataset.jobStatus); return; }
     const close = e.target.closest('[data-close]'); if (close) { close.closest('dialog').close(); return; }
     if (e.target.tagName === 'DIALOG') e.target.close();
@@ -968,6 +1158,8 @@
     showJobs();
   });
   $('county').addEventListener('change', showJobs);
+  KENYA_COUNTIES.forEach((c) => $('ev-county').insertAdjacentHTML('beforeend', `<option>${esc(c)}</option>`));
+  $('ev-county').addEventListener('change', loadOpenings);
   $('job-grid').addEventListener('click', (e) => {
     const apply = e.target.closest('[data-apply]');
     if (apply) openApply(apply.dataset.apply);
