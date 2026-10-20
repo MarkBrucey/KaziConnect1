@@ -155,6 +155,16 @@ describe('Endpoint 22: GET /api/event-openings', () => {
     expect(res.body).toEqual([]);
   });
 
+  it('answers a county name too long to be real with an empty list, without asking Sherehe', async () => {
+    const token = await employer();
+
+    const res = await request(server).get(`/api/event-openings?county=${'x'.repeat(61)}`).set(bearer(token));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+    expect(stub.requests).toHaveLength(0);
+  });
+
   it('treats a blank county as no filter', async () => {
     const token = await employer();
 
@@ -487,6 +497,21 @@ describe('Endpoint 23: POST /api/staffing-offers', () => {
     expectErrorBody(res);
     expect(await db.findStaffingOffersByEmployer('usr_1001')).toEqual([]);
     expect(stub.offers).toEqual([]);
+  });
+
+  it('answers 502 and withdraws nothing when Sherehe hands back an offer id we already hold', async () => {
+    const token = await employer();
+    const first = await offerFor(token, validOffer()); // Sherehe calls it ofr_4001
+    stub.reset(); // Sherehe restarts and forgets everything; its numbering starts again
+    fetcher.clearCache();
+
+    const res = await offerFor(token, validOffer({ roleId: 'rol_3004', workersOffered: 2 })); // Sherehe says ofr_4001 again
+
+    expect(res.status).toBe(502);
+    expectErrorBody(res, PARTNER_UNAVAILABLE);
+    expect(stub.requests.filter((r) => r.method === 'DELETE')).toHaveLength(0); // nobody's offer was withdrawn
+    expect(await db.findPendingStaffingOffers()).toHaveLength(1);
+    expect((await db.findStaffingOfferById(first.body.id)).role_id).toBe('rol_3001'); // the first offer is untouched
   });
 
   it('when two employers offer on a role at the same moment, one wins and the other is taken back from Sherehe', async () => {

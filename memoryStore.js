@@ -209,10 +209,11 @@ async function completePasswordReset({ tokenHash, userId, passwordHash }) {
 
 const hasPendingOffer = (roleId) => staffingOffers.some((o) => o.role_id === roleId && o.status === 'pending');
 
-// Returns null when the role already has a pending offer (the database does the
-// same with a unique index), so two requests can never both make one.
+// Returns null when the role already has a pending offer, or when this Sherehe offer is
+// already held (the database does the same with unique indexes), so two requests can never
+// both make an offer on a role, and one Sherehe offer is never stored twice.
 async function createStaffingOffer({ employerId, shereheOfferId, roleId, eventName, workersOffered, jobDraft }) {
-  if (hasPendingOffer(roleId)) return null;
+  if (hasPendingOffer(roleId) || staffingOffers.some((o) => o.sherehe_offer_id === shereheOfferId)) return null;
   const row = {
     _id: `sof_${next.staffingOffer++}`, employer_id: employerId, sherehe_offer_id: shereheOfferId,
     role_id: roleId, event_name: eventName, workers_offered: workersOffered, status: 'pending',

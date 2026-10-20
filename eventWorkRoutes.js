@@ -30,6 +30,7 @@ const ROLE_TAKEN = 'This role is full, or an offer is already waiting on it.';
 // ENDPOINT 22: GET /api/event-openings?county=Nairobi   (website need W7, Sherehe needs K1 and K2)
 openings.get('/', ...employersOnly, async (req, res) => {
   const county = typeof req.query.county === 'string' ? req.query.county.trim() : '';
+  if (county.length > 60) return res.status(200).json([]); // no county has a name this long, so nothing matches
   const found = await shereheClient.findOpenings({ county: county || undefined });
   res.status(200).json(found.map(({ event, role }) => toEventOpening(event, role)));
 });
@@ -68,10 +69,16 @@ offers.post('/', ...employersOnly, async (req, res) => {
     jobDraft: toJobInput(opening.event, opening.role),
   });
   if (!row) {
-    // Two requests made an offer on this role at the same moment and the other one won:
-    // take ours back from Sherehe so the organiser is not shown two.
-    await shereheClient.withdrawOffer(made.id).catch((err) => logUpstream(err, 'withdrawing a duplicate offer'));
-    return fail(res, 409, ROLE_TAKEN);
+    // The data store refused the new row. Normally another request made an offer on this role at
+    // the same moment and won: take ours back from Sherehe so the organiser is not shown two.
+    if (await db.findPendingStaffingOffer(roleId)) {
+      await shereheClient.withdrawOffer(made.id).catch((err) => logUpstream(err, 'withdrawing a duplicate offer'));
+      return fail(res, 409, ROLE_TAKEN);
+    }
+    // Otherwise Sherehe gave us an offer id we already hold (for example after it restarted and
+    // began numbering again). We cannot tell whose offer that id is now, so we withdraw nothing.
+    logUpstream(new UpstreamError('shape', { detail: 'Sherehe returned an offer id we already hold' }), 'POST /api/staffing-offers');
+    return fail(res, 502, PARTNER_UNAVAILABLE);
   }
   res.status(201).json(toStaffingOffer(row));
 });
