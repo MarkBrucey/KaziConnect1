@@ -80,4 +80,129 @@ function toApplicant(row, account) {
   return { ...toApplication(row), studentName: account ? account.full_name : '' };
 }
 
-module.exports = { toJob, toJobStatus, toEmployerJob, toUser, toApplicationStatus, toApplication, toApplicant, toIsoDateTime };
+// Event work (Endpoints 22 to 25). Sherehe's words (events, roles, offers) stop here.
+//
+//   fromShereheEvent / fromShereheRole / fromShereheOffer   Sherehe JSON -> our own plain objects
+//   toEventOpening, toStaffingOffer                          our objects -> the contract's schemas
+//   toJobInput                                               our objects -> the job opened on acceptance
+//
+// The from... functions check what Sherehe sent. If a field is missing or the wrong type they
+// throw an UpstreamError, which the API turns into a 502, so an unexpected reply never reaches
+// a client as undefined values.
+
+const { UpstreamError } = require('./clients/upstreamError');
+const { CATEGORIES, COUNTIES } = require('./sharedLists');
+
+function expectShape(ok, what) {
+  if (!ok) throw new UpstreamError('shape', { detail: what });
+}
+const isText = (v) => typeof v === 'string' && v.trim() !== '';
+const isWhole = (v, min) => Number.isInteger(v) && v >= min;
+const isDateText = (v) => typeof v === 'string' && !Number.isNaN(Date.parse(v));
+
+// Counties use the shared spelling when we know it ("nairobi" -> "Nairobi").
+function sharedCounty(name) {
+  const text = name.trim();
+  return COUNTIES.find((county) => county.toLowerCase() === text.toLowerCase()) || text;
+}
+
+// A category outside the shared list becomes "events", since this is event work.
+function sharedCategory(name) {
+  const text = String(name).trim().toLowerCase();
+  return CATEGORIES.includes(text) ? text : 'events';
+}
+
+// Sherehe Event -> { id, name, county, area, startsAt, status }
+function fromShereheEvent(raw) {
+  expectShape(raw && typeof raw === 'object', 'an event is not an object');
+  expectShape(isText(raw.id) && isText(raw.name), 'an event has no id or name');
+  expectShape(isText(raw.county) && isText(raw.area), 'an event has no county or area');
+  expectShape(isDateText(raw.startsAt), 'an event has no valid startsAt');
+  expectShape(isText(raw.status), 'an event has no status');
+  return { id: raw.id, name: raw.name.trim(), county: sharedCounty(raw.county), area: raw.area.trim(), startsAt: raw.startsAt, status: raw.status };
+}
+
+// Sherehe Role -> { id, eventId, title, category, openSlots, shiftStart, shiftEnd, payPerShift }
+function fromShereheRole(raw) {
+  expectShape(raw && typeof raw === 'object', 'a role is not an object');
+  expectShape(isText(raw.id) && isText(raw.eventId) && isText(raw.title), 'a role has no id, eventId or title');
+  expectShape(isText(raw.category), 'a role has no category');
+  expectShape(isWhole(raw.headcount, 1) && isWhole(raw.filled, 0), 'a role has no valid headcount or filled');
+  expectShape(isDateText(raw.shiftStart) && isDateText(raw.shiftEnd), 'a role has no valid shift times');
+  expectShape(typeof raw.payPerShift === 'number' && Number.isFinite(raw.payPerShift) && raw.payPerShift >= 0, 'a role has no valid payPerShift');
+  return {
+    id: raw.id, eventId: raw.eventId, title: raw.title.trim(), category: sharedCategory(raw.category),
+    openSlots: Math.max(0, raw.headcount - raw.filled),   // headcount - filled -> openSlots
+    shiftStart: raw.shiftStart, shiftEnd: raw.shiftEnd, payPerShift: raw.payPerShift,
+  };
+}
+
+const OFFER_STATUSES = ['pending', 'accepted', 'declined'];
+
+// Sherehe Offer -> { id, roleId, eventId, workersOffered, status }
+function fromShereheOffer(raw) {
+  expectShape(raw && typeof raw === 'object', 'an offer is not an object');
+  expectShape(isText(raw.id) && isText(raw.roleId), 'an offer has no id or roleId');
+  expectShape(isWhole(raw.workersOffered, 1), 'an offer has no valid workersOffered');
+  expectShape(OFFER_STATUSES.includes(raw.status), 'an offer has an unknown status');
+  return { id: raw.id, roleId: raw.roleId, eventId: typeof raw.eventId === 'string' ? raw.eventId : '', workersOffered: raw.workersOffered, status: raw.status };
+}
+
+// Event + Role -> EventOpening schema (Endpoint 22)
+function toEventOpening(event, role) {
+  return {
+    roleId: role.id,
+    eventName: event.name,
+    county: event.county,
+    area: event.area,
+    startsAt: toIsoDateTime(new Date(role.shiftStart)),  // when this role's shift starts
+    title: role.title,
+    category: role.category,
+    openSlots: role.openSlots,
+    payPerShift: role.payPerShift,
+  };
+}
+
+// staffing_offers row -> StaffingOffer schema (Endpoints 23 and 24)
+function toStaffingOffer(row) {
+  return {
+    id: String(row._id),                           // _id        -> id
+    roleId: row.role_id,                           // role_id    -> roleId
+    eventName: row.event_name,                     // event_name -> eventName
+    workersOffered: row.workers_offered,           // workers_offered -> workersOffered
+    status: row.status,
+    jobId: row.job_id || null,                     // job_id: null until the offer is accepted
+    createdAt: toIsoDateTime(row.created_at),      // created_at -> createdAt
+    // sherehe_offer_id and job_draft are internal and are left out on purpose.
+  };
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "One shift, 5 Dec 2026, about 10 hours". Kenya is UTC+3 all year, so the date is the Kenyan one.
+function shiftDuration(shiftStart, shiftEnd) {
+  const start = new Date(shiftStart);
+  const kenya = new Date(start.getTime() + 3 * 60 * 60 * 1000);
+  const hours = Math.max(1, Math.round((new Date(shiftEnd) - start) / (60 * 60 * 1000)));
+  return `One shift, ${kenya.getUTCDate()} ${MONTHS[kenya.getUTCMonth()]} ${kenya.getUTCFullYear()}, about ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+}
+
+// Event + Role -> the job Kazi opens when the organiser accepts. The field names are the
+// ones db.createJob takes. The pay is one amount: payPerShift for both ends of the range.
+function toJobInput(event, role) {
+  return {
+    title: `${role.title}, ${event.name}`.slice(0, 100),
+    category: role.category,
+    county: event.county,
+    area: event.area,
+    duration: shiftDuration(role.shiftStart, role.shiftEnd),
+    urgent: false,
+    payMin: role.payPerShift,
+    payMax: role.payPerShift,
+  };
+}
+
+module.exports = {
+  toJob, toJobStatus, toEmployerJob, toUser, toApplicationStatus, toApplication, toApplicant, toIsoDateTime,
+  fromShereheEvent, fromShereheRole, fromShereheOffer, toEventOpening, toStaffingOffer, toJobInput,
+};
