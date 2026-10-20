@@ -9,6 +9,7 @@
 //   stub.setDelay(ms)                  answer slowly
 //   stub.decide(offerId, 'accepted' | 'declined')   what the organiser would do on Sherehe's website
 //   stub.fillRole(roleId)              make a role full
+//   stub.dropOffer(offerId)            Sherehe loses an offer behind Kazi's back
 //   stub.requests                      every request received (method, path, key, body)
 //
 // Run it by hand with: node helpers/shereheStub.js   (it prints the address and the key)
@@ -160,6 +161,7 @@ function createShereheStub({ apiKey = KEY } = {}) {
         role.filled = Math.min(role.headcount, role.filled + offer.workersOffered);
       }
     },
+    dropOffer(offerId) { state.offers.delete(offerId); },
     fillRole(roleId) {
       const role = state.roles.find((r) => r.id === roleId);
       role.filled = role.headcount;
