@@ -11,6 +11,10 @@
 // unusable values, unknown IDs) and confirm the data store was left exactly
 // as it was. Every success is confirmed by re-fetching with a Week 5 GET.
 //
+// Endpoints 22 to 25 (Event work) call Sherehe, so they are checked against a local stand-in
+// for it (helpers/shereheStub.js, built from partner-tests/sherehe_openapi.yaml): no real
+// Sherehe and no API key are needed. They include what happens when Sherehe is down.
+//
 // Run with: npm run verify   Results are written to VERIFICATION.md.
 
 // Always check against the in-memory sample data, never a real database:
@@ -24,6 +28,10 @@ const WebSocket = require('ws');
 const { createServer } = require('./app');
 const db = require('./db');
 const { isRealDateTime } = require('./validation');
+const fetcher = require('./clients/fetcher');
+const { runOnce } = require('./jobs/offerPoller');
+const { createShereheStub } = require('./helpers/shereheStub');
+const { DEMO_PASSWORD } = require('./seedData');
 
 const ROOT = __dirname;
 const contract = YAML.parse(fs.readFileSync(path.join(ROOT, 'openapi.yaml'), 'utf8'));
@@ -41,11 +49,12 @@ function resolve(schema) {
 
 function declaredResponse(pathTemplate, method, status) {
   const op = contract.paths[pathTemplate] && contract.paths[pathTemplate][method.toLowerCase()];
-  return op && op.responses ? op.responses[String(status)] || null : null;
+  return op && op.responses ? resolve(op.responses[String(status)]) || null : null;
 }
 
 function schemaCheck(value, schema, where, problems) {
   schema = resolve(schema);
+  if (value === null && schema.nullable) return; // for example jobId, which is null until an offer is accepted
   if (schema.type === 'array') {
     if (!Array.isArray(value)) return problems.push(`${where} should be an array`);
     value.forEach((item, i) => schemaCheck(item, schema.items, `${where}[${i}]`, problems));
@@ -77,7 +86,7 @@ function schemaCheck(value, schema, where, problems) {
 
 async function checkHttp(base, c) {
   const method = c.method || 'GET';
-  const init = { method, headers: { Accept: 'application/json' } };
+  const init = { method, headers: { Accept: 'application/json', ...(c.headers || {}) } };
   if (c.rawBody !== undefined) {
     init.headers['Content-Type'] = 'application/json';
     init.body = c.rawBody;
@@ -85,9 +94,16 @@ async function checkHttp(base, c) {
     init.headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(c.body);
   }
+  if (c.before) await c.before(); // for example: make the Sherehe stand-in go down
   const before = c.snapshot ? await c.snapshot() : null;
-  const res = await fetch(base + c.url, init);
-  const text = await res.text();
+  let res;
+  let text;
+  try {
+    res = await fetch(base + c.url, init);
+    text = await res.text();
+  } finally {
+    if (c.after) await c.after(); // and bring it back
+  }
   const problems = [];
   const declared = declaredResponse(c.path, method, res.status);
   let body = null;
@@ -307,6 +323,129 @@ const writeCases = [
   { ep: 9, kind: 'wsCancelled', path: P_SUB, url: '/api/applications/app_1004/subscribe', expect: 204, good: true, what: 'subscriber told "cancelled" when app_1004 is deleted' },
 ];
 
+// Event work cases: Endpoints 22 to 25, against the local Sherehe stand-in
+
+const P_OPENINGS = '/api/event-openings';
+const P_OFFERS = '/api/staffing-offers';
+const P_OFFER = '/api/staffing-offers/{offerId}';
+const P_MYOFFERS = '/api/me/staffing-offers';
+
+async function login(base, email, password) {
+  const res = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  return (await res.json()).token;
+}
+
+async function buildEventCases(base, stub) {
+  const employer = await login(base, 'employer@kaziconnect.demo', DEMO_PASSWORD);
+  const student = await login(base, 'student@kaziconnect.demo', DEMO_PASSWORD);
+  const registered = await (await fetch(`${base}/api/auth/register`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Other Employer', email: 'other.employer@example.com', password: 'safe-password-1', role: 'employer' }),
+  })).json();
+  const as = (token) => ({ Authorization: `Bearer ${token}` });
+  const otherEmployer = registered.token;
+
+  // Everything an offer touches: our rows for both employers, and what the stand-in holds
+  const offerState = async () => ({
+    ours: [...await db.findStaffingOffersByEmployer('usr_1001'), ...await db.findStaffingOffersByEmployer(registered.user.id)].map((o) => [o._id, o.status, o.job_id]),
+    sherehe: stub.offers.map((o) => [o.id, o.status]),
+  });
+  const down = { before: () => { stub.setMode('drop'); fetcher.clearCache(); }, after: () => stub.setMode('up') };
+  const refetchOffers = async (token) => (await (await fetch(`${base}${P_MYOFFERS}`, { headers: { Accept: 'application/json', ...as(token) } })).json());
+  const sorted = (list, key) => list.every((x, i) => i === 0 || list[i - 1][key] <= x[key]);
+
+  const openingBody = { roleId: 'rol_3001', workersOffered: 4, note: 'Four trained catering students' };
+  const http = (c) => ({ kind: 'http', ...c });
+
+  return [
+    // Endpoint 22: read
+    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', headers: as(employer), expect: 200, what: 'open roles on upcoming events',
+      also: ({ body, problems }) => {
+        if (body.length === 0) problems.push('expected at least one opening');
+        if (body.some((o) => o.openSlots < 1)) problems.push('an opening has no free slot');
+        if (!sorted(body, 'startsAt')) problems.push('openings are not soonest first');
+        if (body.some((o) => ['rol_3002', 'rol_3005'].includes(o.roleId))) problems.push('a full role or a role on a finished event was listed');
+      } }),
+    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings?county=mombasa', headers: as(employer), expect: 200, what: 'filtered by county, any letter case',
+      also: ({ body, problems }) => { allMatch('county', 'mombasa')({ body, problems }); if (body.length !== 1) problems.push('expected exactly one Mombasa opening'); } }),
+    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings?county=Lamu', headers: as(employer), expect: 200, what: 'no events there, empty list',
+      also: ({ body, problems }) => { if (body.length !== 0) problems.push('expected an empty list'); } }),
+    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', expect: 401, what: 'no login token' }),
+    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', headers: as(student), expect: 403, what: 'a student is not allowed' }),
+    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', headers: as(employer), expect: 502, what: 'Sherehe is down', ...down,
+      also: ({ body, problems }) => { if (/hunter2|X-API-Key|stub/i.test(JSON.stringify(body))) problems.push("Sherehe's own words reached the client"); } }),
+
+    // Endpoint 23: write
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body: openingBody, expect: 201, good: true, what: 'valid offer',
+      also: async ({ body, problems }) => {
+        if (body.status !== 'pending' || body.jobId !== null) problems.push('a new offer should be pending with no job yet');
+        if (stub.offers.length !== 1 || stub.offers[0].roleId !== 'rol_3001') problems.push('the offer was not made at Sherehe');
+        const mine = await refetchOffers(employer);
+        if (mine.length !== 1 || mine[0].id !== body.id) problems.push('re-fetch with Endpoint 24 did not find the new offer');
+      } }),
+    ...[
+      ['missing required field roleId', { workersOffered: 2 }],
+      ['wrong type: workersOffered is text', { roleId: 'rol_3004', workersOffered: '3' }],
+      ['unusable: workersOffered is 0', { roleId: 'rol_3004', workersOffered: 0 }],
+      ['unusable: roleId is empty', { roleId: '  ', workersOffered: 1 }],
+      ['field not allowed: client sets status', { roleId: 'rol_3004', workersOffered: 1, status: 'accepted' }],
+      ['unusable: more workers than Sherehe has free slots', { roleId: 'rol_3004', workersOffered: 9 }],
+    ].map(([what, body]) => http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body, expect: 400, what, snapshot: offerState })),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), rawBody: '{"roleId": "rol_3004",', expect: 400, what: 'body is not valid JSON', snapshot: offerState }),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', body: { roleId: 'rol_3004', workersOffered: 1 }, expect: 401, what: 'no login token', snapshot: offerState }),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(student), body: { roleId: 'rol_3004', workersOffered: 1 }, expect: 403, what: 'a student is not allowed', snapshot: offerState }),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body: { roleId: 'rol_9999', workersOffered: 1 }, expect: 404, what: 'no such role', snapshot: offerState }),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body: { roleId: 'rol_3002', workersOffered: 1 }, expect: 404, what: 'role is already full, so not open', snapshot: offerState }),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(otherEmployer), body: { roleId: 'rol_3001', workersOffered: 1 }, expect: 409, what: 'an offer is already waiting on the role', snapshot: offerState }),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body: { roleId: 'rol_3004', workersOffered: 1 }, expect: 409, what: 'role filled up at Sherehe after it was listed', snapshot: offerState,
+      before: async () => { await fetch(`${base}/api/event-openings`, { headers: as(employer) }); stub.fillRole('rol_3004'); } }),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body: { roleId: 'rol_3003', workersOffered: 1 }, expect: 502, what: 'Sherehe is down, nothing is kept', snapshot: offerState,
+      before: async () => { await fetch(`${base}/api/event-openings`, { headers: as(employer) }); stub.setMode('drop'); }, after: down.after }),
+    http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body: { roleId: 'rol_3003', workersOffered: 1 }, expect: 201, good: true, what: 'a second offer, on another role',
+      also: ({ body, problems }) => { if (body.id !== 'sof_1002') problems.push(`expected sof_1002, got ${body.id}`); } }),
+
+    // Endpoint 24: read
+    http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(employer), expect: 200, what: 'my offers, newest first',
+      also: ({ body, problems }) => { if (body.map((o) => o.id).join() !== 'sof_1002,sof_1001') problems.push(`expected sof_1002,sof_1001, got ${body.map((o) => o.id)}`); } }),
+    http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(otherEmployer), expect: 200, what: "another employer sees none of them",
+      also: ({ body, problems }) => { if (body.length !== 0) problems.push('expected an empty list'); } }),
+    http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(employer), expect: 200, what: 'still works when Sherehe is down', ...down,
+      also: ({ body, problems }) => { if (body.length !== 2) problems.push('expected both offers'); } }),
+    http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', expect: 401, what: 'no login token' }),
+    http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(student), expect: 403, what: 'a student is not allowed' }),
+
+    // Endpoint 25: withdraw
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1002', headers: as(employer), expect: 204, good: true, what: 'withdraw a pending offer',
+      also: async ({ problems }) => {
+        if (stub.offers.some((o) => o.roleId === 'rol_3003')) problems.push('the offer is still at Sherehe');
+        if (await db.findStaffingOfferById('sof_1002')) problems.push('the offer is still in our data store');
+        if ((await refetchOffers(employer)).some((o) => o.id === 'sof_1002')) problems.push('Endpoint 24 still lists it');
+      } }),
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1002', headers: as(employer), expect: 404, what: 'withdraw the same offer again', snapshot: offerState }),
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_9999', headers: as(employer), expect: 404, what: 'no such offer', snapshot: offerState }),
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1001', headers: as(otherEmployer), expect: 403, what: "someone else's offer", snapshot: offerState }),
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1001', expect: 401, what: 'no login token', snapshot: offerState }),
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1001', headers: as(student), expect: 403, what: 'a student is not allowed', snapshot: offerState }),
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1001', headers: as(employer), expect: 502, what: 'Sherehe is down, the offer stays', snapshot: offerState, ...down }),
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1001', headers: as(employer), expect: 409, what: 'organiser accepted it just now, before we noticed', snapshot: offerState,
+      before: () => stub.decide('ofr_4001', 'accepted') }),
+
+    // The poller notices the acceptance and opens the job (read back with Endpoints 24, 3 and 1)
+    http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(employer), expect: 200, what: 'after the poller runs: accepted, with the job it opened',
+      before: async () => { await runOnce(); },
+      also: async ({ body, problems }) => {
+        const offer = body.find((o) => o.id === 'sof_1001');
+        if (!offer || offer.status !== 'accepted' || !offer.jobId) return problems.push('sof_1001 should be accepted with a jobId');
+        const job = await (await fetch(`${base}/api/jobs/${offer.jobId}`)).json();
+        if (job.status !== 'active' || job.category !== 'catering' || job.payRange.min !== 1500 || job.payRange.max !== 1500) problems.push('the job opened does not have the role\'s category and pay');
+        if (Object.keys(job).some((k) => /role|source|sherehe/i.test(k))) problems.push('the job shows where it came from');
+        const listed = await (await fetch(`${base}/api/jobs?status=active&category=catering&county=Nairobi`)).json();
+        if (!listed.some((j) => j.id === offer.jobId)) problems.push('the job is not in the public listing (Endpoints 1 and 2)');
+      } }),
+    http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1001', headers: as(employer), expect: 409, what: 'offer is already accepted', snapshot: offerState }),
+  ];
+}
+
 // Report
 
 function sample(body) {
@@ -321,13 +460,13 @@ const ok = (r) => r.problems.length === 0;
 const requestLabel = (r) => (r.kind === 'http' ? `${r.method} ${r.url}` : `WebSocket ${r.url}`);
 const mark = (bool) => (bool ? 'Yes' : 'No');
 
-function writeReport(reads, writes) {
-  const all = reads.concat(writes);
+function writeReport(reads, writes, events) {
+  const all = reads.concat(writes, events);
   const lines = [];
   lines.push('# Kazi Connect API: Contract Verification', '');
   lines.push(`Generated by \`npm run verify\` on ${new Date().toISOString()}.`);
   lines.push('Every request below was sent to the running server, and its real response was checked against `openapi.yaml` field by field: status code, exact field names, types, enums, date-time format, no extra fields and no missing fields.', '');
-  lines.push(`**Result: ${all.filter(ok).length} of ${all.length} checks passed** (Week 5: ${reads.filter(ok).length} of ${reads.length}; Week 6: ${writes.filter(ok).length} of ${writes.length}).`, '');
+  lines.push(`**Result: ${all.filter(ok).length} of ${all.length} checks passed** (Week 5: ${reads.filter(ok).length} of ${reads.length}; Week 6: ${writes.filter(ok).length} of ${writes.length}; Event work: ${events.filter(ok).length} of ${events.length}).`, '');
 
   lines.push('## Week 5: GET endpoints', '');
   lines.push('| Endpoint | Request | Case | Contract expects | Got | Result |', '|---|---|---|---|---|---|');
@@ -352,6 +491,19 @@ function writeReport(reads, writes) {
   lines.push(`* A rejected request leaves no partial or garbage data behind: **${mark(bad.every((r) => !r.problems.some((p) => /stored data changed/.test(p))))}**`);
   lines.push(`* Sending the same valid PUT twice produces the same end state: **${mark(w((r) => /same PUT again/.test(r.what)).every(ok))}**`);
   lines.push(`* Bad input cases tested: **${bad.length}**, good input cases tested: **${writes.length - bad.length}**`);
+
+  lines.push('', '## Event work: Endpoints 22 to 25, against a local Sherehe stand-in', '');
+  lines.push('These endpoints call Sherehe. They are checked against `helpers/shereheStub.js`, a local stand-in built from `partner-tests/sherehe_openapi.yaml`, so this report never needs the real Sherehe or its API key. The stand-in is taken down on purpose in some cases, to prove what Kazi Connect does when Sherehe cannot be used.', '');
+  lines.push('| Endpoint | Request | Case | Contract expects | Got | Result |', '|---|---|---|---|---|---|');
+  for (const r of events) lines.push(`| ${r.ep} | \`${requestLabel(r)}\` | ${r.what} | ${r.expect} | ${r.status} | ${ok(r) ? 'Pass' : 'FAIL'} |`);
+  const e = (fn) => events.filter(fn);
+  const eventBad = e((r) => (r.method === 'POST' || r.method === 'DELETE') && !r.good);
+  lines.push('', '### Event work checklist', '');
+  lines.push(`* Every Sherehe failure answers 502 with Kazi's own message, and nothing Sherehe said reaches the client: **${mark(e((r) => r.expect === 502).every(ok))}**`);
+  lines.push(`* Every success returns the correct status code (200 / 201 / 204): **${mark(e((r) => r.good || r.expect === 200).every(ok))}**`);
+  lines.push(`* A rejected or failed request leaves our data and Sherehe's exactly as they were: **${mark(eventBad.every((r) => !r.problems.some((p) => /stored data changed/.test(p))))}**`);
+  lines.push(`* Endpoint 24 still works while Sherehe is down: **${mark(e((r) => /still works when Sherehe is down/.test(r.what)).every(ok))}**`);
+  lines.push(`* An accepted offer becomes a job with the role's category and pay, listed by Endpoints 1 and 2: **${mark(e((r) => /after the poller runs/.test(r.what)).every(ok))}**`);
 
   lines.push('', '## Details', '');
   for (const r of all) {
@@ -400,8 +552,16 @@ async function main() {
   console.log('\nWeek 6: write endpoints, good and bad input');
   const writes = await run(writeCases, base, wsBase);
 
-  writeReport(reads, writes);
-  const all = reads.concat(writes);
+  console.log('\nEvent work: Endpoints 22 to 25, against a local Sherehe stand-in');
+  const stub = createShereheStub();
+  await stub.start();
+  process.env.SHEREHE_API_URL = stub.url;
+  process.env.SHEREHE_API_KEY = stub.apiKey;
+  const events = await run(await buildEventCases(base, stub), base, wsBase);
+  await stub.stop();
+
+  writeReport(reads, writes, events);
+  const all = reads.concat(writes, events);
   const passed = all.filter(ok).length;
   console.log(`\n${passed} of ${all.length} checks passed. Full report written to VERIFICATION.md`);
   server.close();
