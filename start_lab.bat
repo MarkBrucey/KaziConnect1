@@ -22,10 +22,16 @@ if not exist package.json (
   exit /b
 )
 
-echo Step 1 of 3: installing packages...
+echo Step 1 of 3: installing packages and building the app...
 call npm install
 if errorlevel 1 (
   echo npm install failed. If the message mentions ETIMEDOUT or CERT, connect to your phone hotspot and run this again.
+  pause
+  exit /b
+)
+call npm run build
+if errorlevel 1 (
+  echo npm run build failed. Read the message above, then run this again.
   pause
   exit /b
 )

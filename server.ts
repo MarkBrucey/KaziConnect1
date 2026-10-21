@@ -1,6 +1,7 @@
-const { createServer } = require('./app');
-const db = require('./db');
-const { startOfferPoller } = require('./jobs/offerPoller');
+import './bootstrapEnv';
+import { createServer } from './app';
+import * as db from './db';
+import { startOfferPoller } from './jobs/offerPoller';
 
 const PORT = process.env.PORT || 3000;
 
@@ -17,7 +18,7 @@ db.init()
       startOfferPoller(); // follows pending staffing offers until the organiser decides
     });
   })
-  .catch((err) => {
-    console.error('Could not start: the database is not reachable.', err.message);
+  .catch((err: unknown) => {
+    console.error('Could not start: the database is not reachable.', err instanceof Error ? err.message : err);
     process.exit(1);
   });

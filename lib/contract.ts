@@ -12,6 +12,7 @@ export type ApplicationStatus = Schemas['ApplicationStatus'];
 export type Application = Schemas['Application'];
 export type Applicant = Schemas['Applicant'];
 export type User = Schemas['User'];
+export type AuthResponse = Schemas['AuthResponse'];
 export type EventOpening = Schemas['EventOpening'];
 export type StaffingOffer = Schemas['StaffingOffer'];
 export type NewJob = Schemas['NewJob'];

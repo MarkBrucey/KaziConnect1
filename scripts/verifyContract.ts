@@ -12,57 +12,109 @@
 // as it was. Every success is confirmed by re-fetching with a Week 5 GET.
 //
 // Endpoints 22 to 25 (Event work) call Sherehe, so they are checked against a local stand-in
-// for it (helpers/shereheStub.js, built from partner-tests/sherehe_openapi.yaml): no real
+// for it (helpers/shereheStub.ts, built from partner-tests/sherehe_openapi.yaml): no real
 // Sherehe and no API key are needed. They include what happens when Sherehe is down.
 //
 // Run with: npm run verify   Results are written to VERIFICATION.md.
 
 // Always check against the in-memory sample data, never a real database:
 // the checks create and delete applications, which must not touch live data.
+import '../bootstrapEnv';
 delete process.env.DATABASE_URL;
 
-const fs = require('fs');
-const path = require('path');
-const YAML = require('yaml');
-const WebSocket = require('ws');
-const { createServer } = require('./app');
-const db = require('./db');
-const { isRealDateTime } = require('./validation');
-const fetcher = require('./clients/fetcher');
-const { runOnce } = require('./jobs/offerPoller');
-const { createShereheStub } = require('./helpers/shereheStub');
-const { DEMO_PASSWORD } = require('./seedData');
+import fs from 'fs';
+import path from 'path';
+import YAML from 'yaml';
+import type { AddressInfo } from 'net';
+import WebSocket from 'ws';
+import { createServer } from '../app';
+import * as db from '../db';
+import { isRealDateTime } from '../validation';
+import * as fetcher from '../clients/fetcher';
+import { runOnce } from '../jobs/offerPoller';
+import { createShereheStub } from '../helpers/shereheStub';
+import type { ShereheStub } from '../helpers/shereheStub';
+import { DEMO_PASSWORD } from '../seedData';
 
-const ROOT = __dirname;
-const contract = YAML.parse(fs.readFileSync(path.join(ROOT, 'openapi.yaml'), 'utf8'));
+// The replies being checked are arbitrary JSON, read by field name in many small checks. One named
+// alias, with this reason, instead of a cast at each of the dozens of field reads below.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Json = any;
+
+interface SchemaNode {
+  $ref?: string;
+  type?: string;
+  properties?: Record<string, SchemaNode>;
+  items?: SchemaNode;
+  enum?: unknown[];
+  format?: string;
+  nullable?: boolean;
+  content?: Record<string, { schema?: SchemaNode }>;
+}
+interface Contract {
+  paths: Record<string, Record<string, { responses?: Record<string, SchemaNode> }>>;
+  components: { schemas: Record<string, SchemaNode> };
+}
+
+// One thing to check. kind 'http' is a plain request; the ws kinds open a WebSocket.
+interface CaseContext { body: Json; res: Response; problems: string[]; base: string }
+interface Case {
+  ep: number;
+  kind: 'http' | 'ws' | 'wsCancelled' | 'wsRefused';
+  method?: string;
+  path: string;
+  url: string;
+  expect: number;
+  what: string;
+  good?: boolean;
+  headers?: Record<string, string>;
+  body?: Json;
+  rawBody?: string;
+  snapshot?: () => Promise<unknown>;
+  before?: () => unknown;
+  after?: () => unknown;
+  also?: (ctx: CaseContext) => unknown;
+}
+interface Result extends Case {
+  method: string;
+  status: number | null;
+  response: Json;
+  problems: string[];
+}
+
+const ROOT = path.join(__dirname, '..');
+const contract = YAML.parse(fs.readFileSync(path.join(ROOT, 'openapi.yaml'), 'utf8')) as Contract;
 const DAY = 24 * 60 * 60 * 1000;
-const future = (days) => new Date(Date.now() + days * DAY).toISOString().replace(/\.\d{3}Z$/, 'Z');
+const future = (days: number): string => new Date(Date.now() + days * DAY).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // Contract helpers
 
-function resolve(schema) {
-  while (schema && schema.$ref) {
-    schema = schema.$ref.replace('#/', '').split('/').reduce((node, key) => node[key], contract);
+function resolve(node: SchemaNode | undefined): SchemaNode | undefined {
+  let current = node;
+  while (current && current.$ref) {
+    current = current.$ref.replace('#/', '').split('/').reduce<Json>((found, key) => found[key], contract) as SchemaNode;
   }
-  return schema;
+  return current;
 }
 
-function declaredResponse(pathTemplate, method, status) {
+function declaredResponse(pathTemplate: string, method: string, status: number): SchemaNode | null {
   const op = contract.paths[pathTemplate] && contract.paths[pathTemplate][method.toLowerCase()];
   return op && op.responses ? resolve(op.responses[String(status)]) || null : null;
 }
 
-function schemaCheck(value, schema, where, problems) {
-  schema = resolve(schema);
+function schemaCheck(value: Json, node: SchemaNode | undefined, where: string, problems: string[]): void {
+  const schema = resolve(node);
+  if (!schema) return;
   if (value === null && schema.nullable) return; // for example jobId, which is null until an offer is accepted
   if (schema.type === 'array') {
-    if (!Array.isArray(value)) return problems.push(`${where} should be an array`);
+    if (!Array.isArray(value)) { problems.push(`${where} should be an array`); return; }
     value.forEach((item, i) => schemaCheck(item, schema.items, `${where}[${i}]`, problems));
     return;
   }
   if (schema.type === 'object') {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-      return problems.push(`${where} should be an object`);
+      problems.push(`${where} should be an object`);
+      return;
     }
     const props = schema.properties || {};
     for (const key of Object.keys(props)) {
@@ -74,19 +126,19 @@ function schemaCheck(value, schema, where, problems) {
     }
     return;
   }
-  if (schema.type === 'string' && typeof value !== 'string') return problems.push(`${where} should be a string, got ${typeof value}`);
-  if (schema.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) return problems.push(`${where} should be a number, got ${typeof value}`);
-  if (schema.type === 'integer' && !Number.isInteger(value)) return problems.push(`${where} should be an integer`);
-  if (schema.type === 'boolean' && typeof value !== 'boolean') return problems.push(`${where} should be a boolean, got ${typeof value}`);
+  if (schema.type === 'string' && typeof value !== 'string') { problems.push(`${where} should be a string, got ${typeof value}`); return; }
+  if (schema.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) { problems.push(`${where} should be a number, got ${typeof value}`); return; }
+  if (schema.type === 'integer' && !Number.isInteger(value)) { problems.push(`${where} should be an integer`); return; }
+  if (schema.type === 'boolean' && typeof value !== 'boolean') { problems.push(`${where} should be a boolean, got ${typeof value}`); return; }
   if (schema.enum && !schema.enum.includes(value)) problems.push(`${where} is "${value}", which is not one of ${schema.enum.join(', ')}`);
   if (schema.format === 'date-time' && !isRealDateTime(value)) problems.push(`${where} "${value}" is not a date-time string`);
 }
 
 // One HTTP request, checked against the contract
 
-async function checkHttp(base, c) {
+async function checkHttp(base: string, c: Case): Promise<Result> {
   const method = c.method || 'GET';
-  const init = { method, headers: { Accept: 'application/json', ...(c.headers || {}) } };
+  const init: { method: string; headers: Record<string, string>; body?: string } = { method, headers: { Accept: 'application/json', ...(c.headers || {}) } };
   if (c.rawBody !== undefined) {
     init.headers['Content-Type'] = 'application/json';
     init.body = c.rawBody;
@@ -96,17 +148,17 @@ async function checkHttp(base, c) {
   }
   if (c.before) await c.before(); // for example: make the Sherehe stand-in go down
   const before = c.snapshot ? await c.snapshot() : null;
-  let res;
-  let text;
+  let res: Response;
+  let text: string;
   try {
     res = await fetch(base + c.url, init);
     text = await res.text();
   } finally {
     if (c.after) await c.after(); // and bring it back
   }
-  const problems = [];
+  const problems: string[] = [];
   const declared = declaredResponse(c.path, method, res.status);
-  let body = null;
+  let body: Json = null;
 
   if (res.status !== c.expect) problems.push(`status ${res.status}, expected ${c.expect}`);
   if (!declared) problems.push(`status ${res.status} is not declared in the contract for ${method} ${c.path}`);
@@ -129,31 +181,33 @@ async function checkHttp(base, c) {
     problems.push('the stored data changed, but this request should have written nothing');
   }
   if (c.also && problems.length === 0) await c.also({ body, res, problems, base });
-  return { ...c, method, status: res.status, body, problems };
+  return { ...c, method, status: res.status, body, response: body, problems };
 }
 
 // WebSocket helpers
 
-function nextMessage(ws, ms = 3000) {
+function nextMessage(ws: WebSocket, ms = 3000): Promise<Json> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('no message within 3 seconds')), ms);
     ws.once('message', (data) => { clearTimeout(timer); resolve(JSON.parse(data.toString())); });
   });
 }
 
-function openSocket(url) {
+interface OpenSocket { ws: WebSocket; status: number | null; first: Promise<Json> }
+
+function openSocket(url: string): Promise<OpenSocket> {
   return new Promise((resolve, reject) => {
-    let status = null;
+    let status: number | null = null;
     const ws = new WebSocket(url);
     const first = nextMessage(ws);
-    ws.on('upgrade', (res) => { status = res.statusCode; });
+    ws.on('upgrade', (res) => { status = res.statusCode ?? null; });
     ws.once('open', () => resolve({ ws, status, first }));
     ws.once('error', reject);
   });
 }
 
-async function checkWsSubscribe(wsBase, c) {
-  const problems = [];
+async function checkWsSubscribe(wsBase: string, c: Case): Promise<Result> {
+  const problems: string[] = [];
   const schema = contract.components.schemas.ApplicationStatus;
   const { ws, status, first } = await openSocket(wsBase + c.url);
   if (status !== 101) problems.push(`handshake status ${status}, expected 101`);
@@ -161,7 +215,7 @@ async function checkWsSubscribe(wsBase, c) {
 
   const onConnect = await first;
   schemaCheck(onConnect, schema, 'message on connect', problems);
-  const current = (await db.findApplicationById('app_1001')).application_status;
+  const current = (await db.findApplicationById('app_1001'))!.application_status;
   if (onConnect.status !== current) problems.push(`first message status "${onConnect.status}", expected "${current}"`);
 
   const pushed = nextMessage(ws);
@@ -171,15 +225,15 @@ async function checkWsSubscribe(wsBase, c) {
   if (update.status !== 'accepted') problems.push(`pushed status "${update.status}", expected "accepted"`);
   await db.setApplicationStatus('app_1001', current); // put the sample data back
   ws.close();
-  return { ...c, method: 'WS', status, body: [onConnect, update], problems };
+  return { ...c, method: 'WS', status, body: [onConnect, update], response: undefined, problems };
 }
 
-async function checkWsCancelled(base, wsBase, c) {
-  const problems = [];
+async function checkWsCancelled(base: string, wsBase: string, c: Case): Promise<Result> {
+  const problems: string[] = [];
   const schema = contract.components.schemas.ApplicationStatus;
   const { ws, first } = await openSocket(wsBase + c.url);
   await first;
-  const closed = new Promise((resolve) => ws.once('close', (code) => resolve(code)));
+  const closed = new Promise<number>((resolve) => ws.once('close', (code) => resolve(code)));
   const finalMessage = nextMessage(ws);
   const res = await fetch(`${base}/api/applications/app_1004`, { method: 'DELETE' });
   if (res.status !== 204) problems.push(`DELETE returned ${res.status}, expected 204`);
@@ -188,32 +242,32 @@ async function checkWsCancelled(base, wsBase, c) {
   if (message.status !== 'cancelled') problems.push(`final message status "${message.status}", expected "cancelled"`);
   const code = await closed;
   if (code !== 1000) problems.push(`socket closed with code ${code}, expected 1000`);
-  return { ...c, method: 'WS', status: res.status, body: message, problems };
+  return { ...c, method: 'WS', status: res.status, body: message, response: undefined, problems };
 }
 
-async function checkWsRefused(wsBase, c) {
-  const problems = [];
-  const status = await new Promise((resolve) => {
+async function checkWsRefused(wsBase: string, c: Case): Promise<Result> {
+  const problems: string[] = [];
+  const status = await new Promise<number | null>((resolve) => {
     const ws = new WebSocket(wsBase + c.url);
-    ws.on('unexpected-response', (req, res) => { resolve(res.statusCode); req.destroy(); });
+    ws.on('unexpected-response', (req, res) => { resolve(res.statusCode ?? null); req.destroy(); });
     ws.on('open', () => { resolve(101); ws.close(); });
     ws.on('error', () => resolve(null));
   });
   if (status !== c.expect) problems.push(`handshake status ${status}, expected ${c.expect}`);
-  if (!declaredResponse(c.path, 'GET', status)) problems.push(`status ${status} is not declared in the contract`);
-  return { ...c, method: 'WS', status, body: null, problems };
+  if (status === null || !declaredResponse(c.path, 'GET', status)) problems.push(`status ${status} is not declared in the contract`);
+  return { ...c, method: 'WS', status, body: null, response: undefined, problems };
 }
 
 // Helpers for Week 6 cases
 
-const store = async () => ({ count: await db.countApplications(), rows: await Promise.all(['app_1001', 'app_1002', 'app_1003', 'app_1004', 'app_1005'].map((id) => db.findApplicationById(id))) });
-const refetchStatus = async (base, id) => {
+const store = async (): Promise<unknown> => ({ count: await db.countApplications(), rows: await Promise.all(['app_1001', 'app_1002', 'app_1003', 'app_1004', 'app_1005'].map((id) => db.findApplicationById(id))) });
+const refetchStatus = async (base: string, id: string): Promise<{ status: number; body: Json }> => {
   const res = await fetch(`${base}/api/applications/${id}/status`);
   return { status: res.status, body: res.status === 200 ? await res.json() : null };
 };
-const allMatch = (field, value) => ({ body, problems }) => {
-  body.filter((job) => String(job[field]).toLowerCase() !== value)
-      .forEach((job) => problems.push(`${job.id} has ${field} "${job[field]}", filter asked for "${value}"`));
+const allMatch = (field: string, value: string) => ({ body, problems }: { body: Json; problems: string[] }): void => {
+  body.filter((job: Json) => String(job[field]).toLowerCase() !== value)
+      .forEach((job: Json) => problems.push(`${job.id} has ${field} "${job[field]}", filter asked for "${value}"`));
 };
 
 const P_JOBS = '/api/jobs';
@@ -226,11 +280,11 @@ const P_APP = '/api/applications/{applicationId}';
 
 const DATE_1 = future(60);
 const DATE_2 = future(67);
-let putFirstResult = null;
+let putFirstResult: Json = null;
 
 // Week 5 cases: reads (numbered as in ENDPOINT_LIST.md)
 
-const readCases = [
+const readCases: Case[] = [
   { ep: 1, kind: 'http', path: P_JOBS, url: '/api/jobs?status=active', expect: 200, what: 'active jobs', also: allMatch('status', 'active') },
   { ep: 1, kind: 'http', path: P_JOBS, url: '/api/jobs', expect: 400, what: 'status missing' },
   { ep: 2, kind: 'http', path: P_JOBS, url: '/api/jobs?county=Nairobi&category=accommodation&status=active', expect: 200, what: 'filtered by county and category',
@@ -261,9 +315,9 @@ const readCases = [
 // Week 6 cases: writes, good input and deliberately bad input
 
 const goodNew = { jobId: 'job_12345', studentId: 'stu_0500', preferredDate: DATE_1, note: 'Can start at 8am' };
-const without = (obj, key) => { const copy = { ...obj }; delete copy[key]; return copy; };
+const without = (obj: Record<string, unknown>, key: string): Record<string, unknown> => { const copy = { ...obj }; delete copy[key]; return copy; };
 
-const writeCases = [
+const writeCases: Case[] = [
   // POST
   { ep: 7, kind: 'http', method: 'POST', path: P_APPS, url: '/api/applications', body: goodNew, expect: 201, good: true, what: 'valid application',
     also: async ({ body, res, problems, base }) => {
@@ -293,7 +347,7 @@ const writeCases = [
       putFirstResult = body;
       if (body.preferredDate !== DATE_2 || body.note !== 'Rescheduled') problems.push('the new details were not applied');
       const row = await db.findApplicationById('app_1005');
-      if (row.preferred_at.getTime() !== Date.parse(DATE_2)) problems.push('the stored row was not updated');
+      if (!row || row.preferred_at.getTime() !== Date.parse(DATE_2)) problems.push('the stored row was not updated');
       const again = await refetchStatus(base, 'app_1005');
       if (again.status !== 200 || again.body.status !== 'pending') problems.push('re-fetch with GET /status failed');
     } },
@@ -330,41 +384,41 @@ const P_OFFERS = '/api/staffing-offers';
 const P_OFFER = '/api/staffing-offers/{offerId}';
 const P_MYOFFERS = '/api/me/staffing-offers';
 
-async function login(base, email, password) {
+async function login(base: string, email: string, password: string): Promise<string> {
   const res = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
   return (await res.json()).token;
 }
 
-async function buildEventCases(base, stub) {
+async function buildEventCases(base: string, stub: ShereheStub): Promise<Case[]> {
   const employer = await login(base, 'employer@kaziconnect.demo', DEMO_PASSWORD);
   const student = await login(base, 'student@kaziconnect.demo', DEMO_PASSWORD);
   const registered = await (await fetch(`${base}/api/auth/register`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Other Employer', email: 'other.employer@example.com', password: 'safe-password-1', role: 'employer' }),
   })).json();
-  const as = (token) => ({ Authorization: `Bearer ${token}` });
+  const as = (token: string): Record<string, string> => ({ Authorization: `Bearer ${token}` });
   const otherEmployer = registered.token;
 
   // Everything an offer touches: our rows for both employers, and what the stand-in holds
-  const offerState = async () => ({
+  const offerState = async (): Promise<unknown> => ({
     ours: [...await db.findStaffingOffersByEmployer('usr_1001'), ...await db.findStaffingOffersByEmployer(registered.user.id)].map((o) => [o._id, o.status, o.job_id]),
     sherehe: stub.offers.map((o) => [o.id, o.status]),
   });
   const down = { before: () => { stub.setMode('drop'); fetcher.clearCache(); }, after: () => stub.setMode('up') };
-  const refetchOffers = async (token) => (await (await fetch(`${base}${P_MYOFFERS}`, { headers: { Accept: 'application/json', ...as(token) } })).json());
-  const sorted = (list, key) => list.every((x, i) => i === 0 || list[i - 1][key] <= x[key]);
+  const refetchOffers = async (token: string): Promise<Json[]> => (await (await fetch(`${base}${P_MYOFFERS}`, { headers: { Accept: 'application/json', ...as(token) } })).json());
+  const sorted = (list: Json[], key: string): boolean => list.every((x, i) => i === 0 || list[i - 1][key] <= x[key]);
 
   const openingBody = { roleId: 'rol_3001', workersOffered: 4, note: 'Four trained catering students' };
-  const http = (c) => ({ kind: 'http', ...c });
+  const http = (c: Omit<Case, 'kind'>): Case => ({ kind: 'http', ...c });
 
   return [
     // Endpoint 22: read
     http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', headers: as(employer), expect: 200, what: 'open roles on upcoming events',
       also: ({ body, problems }) => {
         if (body.length === 0) problems.push('expected at least one opening');
-        if (body.some((o) => o.openSlots < 1)) problems.push('an opening has no free slot');
+        if (body.some((o: Json) => o.openSlots < 1)) problems.push('an opening has no free slot');
         if (!sorted(body, 'startsAt')) problems.push('openings are not soonest first');
-        if (body.some((o) => ['rol_3002', 'rol_3005'].includes(o.roleId))) problems.push('a full role or a role on a finished event was listed');
+        if (body.some((o: Json) => ['rol_3002', 'rol_3005'].includes(o.roleId))) problems.push('a full role or a role on a finished event was listed');
       } }),
     http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings?county=mombasa', headers: as(employer), expect: 200, what: 'filtered by county, any letter case',
       also: ({ body, problems }) => { allMatch('county', 'mombasa')({ body, problems }); if (body.length !== 1) problems.push('expected exactly one Mombasa opening'); } }),
@@ -383,14 +437,14 @@ async function buildEventCases(base, stub) {
         const mine = await refetchOffers(employer);
         if (mine.length !== 1 || mine[0].id !== body.id) problems.push('re-fetch with Endpoint 24 did not find the new offer');
       } }),
-    ...[
+    ...([
       ['missing required field roleId', { workersOffered: 2 }],
       ['wrong type: workersOffered is text', { roleId: 'rol_3004', workersOffered: '3' }],
       ['unusable: workersOffered is 0', { roleId: 'rol_3004', workersOffered: 0 }],
       ['unusable: roleId is empty', { roleId: '  ', workersOffered: 1 }],
       ['field not allowed: client sets status', { roleId: 'rol_3004', workersOffered: 1, status: 'accepted' }],
       ['unusable: more workers than Sherehe has free slots', { roleId: 'rol_3004', workersOffered: 9 }],
-    ].map(([what, body]) => http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body, expect: 400, what, snapshot: offerState })),
+    ] as Array<[string, Json]>).map(([what, body]) => http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), body, expect: 400, what, snapshot: offerState })),
     http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(employer), rawBody: '{"roleId": "rol_3004",', expect: 400, what: 'body is not valid JSON', snapshot: offerState }),
     http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', body: { roleId: 'rol_3004', workersOffered: 1 }, expect: 401, what: 'no login token', snapshot: offerState }),
     http({ ep: 23, method: 'POST', path: P_OFFERS, url: '/api/staffing-offers', headers: as(student), body: { roleId: 'rol_3004', workersOffered: 1 }, expect: 403, what: 'a student is not allowed', snapshot: offerState }),
@@ -406,7 +460,7 @@ async function buildEventCases(base, stub) {
 
     // Endpoint 24: read
     http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(employer), expect: 200, what: 'my offers, newest first',
-      also: ({ body, problems }) => { if (body.map((o) => o.id).join() !== 'sof_1002,sof_1001') problems.push(`expected sof_1002,sof_1001, got ${body.map((o) => o.id)}`); } }),
+      also: ({ body, problems }) => { if (body.map((o: Json) => o.id).join() !== 'sof_1002,sof_1001') problems.push(`expected sof_1002,sof_1001, got ${body.map((o: Json) => o.id)}`); } }),
     http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(otherEmployer), expect: 200, what: "another employer sees none of them",
       also: ({ body, problems }) => { if (body.length !== 0) problems.push('expected an empty list'); } }),
     http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(employer), expect: 200, what: 'still works when Sherehe is down', ...down,
@@ -419,7 +473,7 @@ async function buildEventCases(base, stub) {
       also: async ({ problems }) => {
         if (stub.offers.some((o) => o.roleId === 'rol_3003')) problems.push('the offer is still at Sherehe');
         if (await db.findStaffingOfferById('sof_1002')) problems.push('the offer is still in our data store');
-        if ((await refetchOffers(employer)).some((o) => o.id === 'sof_1002')) problems.push('Endpoint 24 still lists it');
+        if ((await refetchOffers(employer)).some((o: Json) => o.id === 'sof_1002')) problems.push('Endpoint 24 still lists it');
       } }),
     http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1002', headers: as(employer), expect: 404, what: 'withdraw the same offer again', snapshot: offerState }),
     http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_9999', headers: as(employer), expect: 404, what: 'no such offer', snapshot: offerState }),
@@ -434,13 +488,13 @@ async function buildEventCases(base, stub) {
     http({ ep: 24, path: P_MYOFFERS, url: '/api/me/staffing-offers', headers: as(employer), expect: 200, what: 'after the poller runs: accepted, with the job it opened',
       before: async () => { await runOnce(); },
       also: async ({ body, problems }) => {
-        const offer = body.find((o) => o.id === 'sof_1001');
-        if (!offer || offer.status !== 'accepted' || !offer.jobId) return problems.push('sof_1001 should be accepted with a jobId');
+        const offer = body.find((o: Json) => o.id === 'sof_1001');
+        if (!offer || offer.status !== 'accepted' || !offer.jobId) { problems.push('sof_1001 should be accepted with a jobId'); return; }
         const job = await (await fetch(`${base}/api/jobs/${offer.jobId}`)).json();
         if (job.status !== 'active' || job.category !== 'catering' || job.payRange.min !== 1500 || job.payRange.max !== 1500) problems.push('the job opened does not have the role\'s category and pay');
-        if (Object.keys(job).some((k) => /role|source|sherehe/i.test(k))) problems.push('the job shows where it came from');
+        if (Object.keys(job).some((k: string) => /role|source|sherehe/i.test(k))) problems.push('the job shows where it came from');
         const listed = await (await fetch(`${base}/api/jobs?status=active&category=catering&county=Nairobi`)).json();
-        if (!listed.some((j) => j.id === offer.jobId)) problems.push('the job is not in the public listing (Endpoints 1 and 2)');
+        if (!listed.some((j: Json) => j.id === offer.jobId)) problems.push('the job is not in the public listing (Endpoints 1 and 2)');
       } }),
     http({ ep: 25, method: 'DELETE', path: P_OFFER, url: '/api/staffing-offers/sof_1001', headers: as(employer), expect: 409, what: 'offer is already accepted', snapshot: offerState }),
   ];
@@ -448,7 +502,7 @@ async function buildEventCases(base, stub) {
 
 // Report
 
-function sample(body) {
+function sample(body: Json): string {
   if (body === null || body === undefined) return '(no body)';
   if (Array.isArray(body) && body.length > 1 && body[0] && body[0].id) {
     return `${body.length} items. First item:\n${JSON.stringify(body[0], null, 2)}`;
@@ -456,13 +510,13 @@ function sample(body) {
   return JSON.stringify(body, null, 2);
 }
 
-const ok = (r) => r.problems.length === 0;
-const requestLabel = (r) => (r.kind === 'http' ? `${r.method} ${r.url}` : `WebSocket ${r.url}`);
-const mark = (bool) => (bool ? 'Yes' : 'No');
+const ok = (r: Result): boolean => r.problems.length === 0;
+const requestLabel = (r: Result): string => (r.kind === 'http' ? `${r.method} ${r.url}` : `WebSocket ${r.url}`);
+const mark = (bool: boolean): string => (bool ? 'Yes' : 'No');
 
-function writeReport(reads, writes, events) {
+function writeReport(reads: Result[], writes: Result[], events: Result[]): void {
   const all = reads.concat(writes, events);
-  const lines = [];
+  const lines: string[] = [];
   lines.push('# Kazi Connect API: Contract Verification', '');
   lines.push(`Generated by \`npm run verify\` on ${new Date().toISOString()}.`);
   lines.push('Every request below was sent to the running server, and its real response was checked against `openapi.yaml` field by field: status code, exact field names, types, enums, date-time format, no extra fields and no missing fields.', '');
@@ -474,7 +528,7 @@ function writeReport(reads, writes, events) {
   lines.push('', '| Endpoint | Exact field names | Correct types | No extra fields | No missing fields | Correct status codes |', '|---|---|---|---|---|---|');
   for (const ep of [1, 2, 3, 4, 5, 6]) {
     const probs = reads.filter((r) => r.ep === ep).flatMap((r) => r.problems);
-    const has = (re) => probs.some((p) => re.test(p));
+    const has = (re: RegExp): boolean => probs.some((p) => re.test(p));
     lines.push(`| ${ep} | ${mark(!has(/not in the contract|is missing/))} | ${mark(!has(/should be|not one of|date-time/))} | ${mark(!has(/not in the contract/))} | ${mark(!has(/is missing/))} | ${mark(!has(/status/))} |`);
   }
 
@@ -482,21 +536,21 @@ function writeReport(reads, writes, events) {
   lines.push('Every bad request was also checked to confirm the data store was left exactly as it was. Every success was confirmed by re-fetching with the Week 5 GET endpoint.', '');
   lines.push('| Endpoint | Request | Case | Input | Contract expects | Got | Result |', '|---|---|---|---|---|---|---|');
   for (const r of writes) lines.push(`| ${r.ep} | \`${requestLabel(r)}\` | ${r.what} | ${r.good ? 'good' : 'bad'} | ${r.expect} | ${r.status} | ${ok(r) ? 'Pass' : 'FAIL'} |`);
-  const w = (fn) => writes.filter(fn);
+  const w = (fn: (r: Result) => boolean): Result[] => writes.filter(fn);
   const bad = w((r) => !r.good);
   lines.push('', '### Part D checklist', '');
   lines.push(`* Every required field is actually enforced: **${mark(w((r) => /missing required/.test(r.what)).every(ok))}**`);
-  lines.push(`* Every success returns the correct status code (201 / 200 / 204, not a blanket 200): **${mark(w((r) => r.good).every(ok))}**`);
+  lines.push(`* Every success returns the correct status code (201 / 200 / 204, not a blanket 200): **${mark(w((r) => Boolean(r.good)).every(ok))}**`);
   lines.push(`* PUT and DELETE on a nonexistent ID return 404, not a silent success: **${mark(w((r) => r.expect === 404).every(ok))}**`);
   lines.push(`* A rejected request leaves no partial or garbage data behind: **${mark(bad.every((r) => !r.problems.some((p) => /stored data changed/.test(p))))}**`);
   lines.push(`* Sending the same valid PUT twice produces the same end state: **${mark(w((r) => /same PUT again/.test(r.what)).every(ok))}**`);
   lines.push(`* Bad input cases tested: **${bad.length}**, good input cases tested: **${writes.length - bad.length}**`);
 
   lines.push('', '## Event work: Endpoints 22 to 25, against a local Sherehe stand-in', '');
-  lines.push('These endpoints call Sherehe. They are checked against `helpers/shereheStub.js`, a local stand-in built from `partner-tests/sherehe_openapi.yaml`, so this report never needs the real Sherehe or its API key. The stand-in is taken down on purpose in some cases, to prove what Kazi Connect does when Sherehe cannot be used.', '');
+  lines.push('These endpoints call Sherehe. They are checked against `helpers/shereheStub.ts`, a local stand-in built from `partner-tests/sherehe_openapi.yaml`, so this report never needs the real Sherehe or its API key. The stand-in is taken down on purpose in some cases, to prove what Kazi Connect does when Sherehe cannot be used.', '');
   lines.push('| Endpoint | Request | Case | Contract expects | Got | Result |', '|---|---|---|---|---|---|');
   for (const r of events) lines.push(`| ${r.ep} | \`${requestLabel(r)}\` | ${r.what} | ${r.expect} | ${r.status} | ${ok(r) ? 'Pass' : 'FAIL'} |`);
-  const e = (fn) => events.filter(fn);
+  const e = (fn: (r: Result) => boolean): Result[] => events.filter(fn);
   const eventBad = e((r) => (r.method === 'POST' || r.method === 'DELETE') && !r.good);
   lines.push('', '### Event work checklist', '');
   lines.push(`* Every Sherehe failure answers 502 with Kazi's own message, and nothing Sherehe said reaches the client: **${mark(e((r) => r.expect === 502).every(ok))}**`);
@@ -519,31 +573,31 @@ function writeReport(reads, writes, events) {
   fs.writeFileSync(path.join(ROOT, 'VERIFICATION.md'), lines.join('\n') + '\n');
 }
 
-async function run(list, base, wsBase) {
-  const results = [];
+async function run(list: Case[], base: string, wsBase: string): Promise<Result[]> {
+  const results: Result[] = [];
   for (const c of list) {
-    let r;
+    let r: Result;
     try {
       if (c.kind === 'http') r = await checkHttp(base, c);
       else if (c.kind === 'ws') r = await checkWsSubscribe(wsBase, c);
       else if (c.kind === 'wsCancelled') r = await checkWsCancelled(base, wsBase, c);
       else r = await checkWsRefused(wsBase, c);
     } catch (err) {
-      r = { ...c, method: c.method || 'GET', status: null, body: null, problems: [`request failed: ${err.message}`] };
+      r = { ...c, method: c.method || 'GET', status: null, body: null, response: undefined, problems: [`request failed: ${err instanceof Error ? err.message : String(err)}`] };
     }
     r.response = r.body;
     r.body = c.body;
     results.push(r);
     console.log(`${ok(r) ? 'pass' : 'FAIL'}  Endpoint ${r.ep}  ${r.what.padEnd(48)} expected ${r.expect}, got ${r.status}`);
-    r.problems.forEach((p) => console.log(`        ${p}`));
+    r.problems.forEach((p: string) => console.log(`        ${p}`));
   }
   return results;
 }
 
-async function main() {
+async function main(): Promise<void> {
   const server = createServer();
-  await new Promise((resolve) => server.listen(0, resolve));
-  const port = server.address().port;
+  await new Promise<void>((resolve) => { server.listen(0, resolve); });
+  const port = (server.address() as AddressInfo).port;
   const base = `http://localhost:${port}`;
   const wsBase = `ws://localhost:${port}`;
 
