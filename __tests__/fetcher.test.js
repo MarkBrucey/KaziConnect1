@@ -81,6 +81,16 @@ describe('failures become an UpstreamError', () => {
     expect(await failure(fetcher.request(EVENTS(), { headers: keyed() }))).toMatchObject({ kind: 'shape' });
   });
 
+  it('an answer over 1 MiB is refused as a "shape" error, instead of being held in memory', async () => {
+    stub.setMode('huge');
+
+    const err = await failure(fetcher.request(EVENTS(), { headers: keyed() }));
+
+    expect(err).toBeInstanceOf(UpstreamError);
+    expect(err).toMatchObject({ kind: 'shape' });
+    expect(fetcher.MAX_ANSWER_BYTES).toBe(1024 * 1024);
+  });
+
   it('a redirect is never followed: it is a "status" error', async () => {
     stub.setMode('redirect');
 

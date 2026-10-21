@@ -5,17 +5,43 @@
 // internal columns that must never leave the server. mappers.js turns these
 // rows into the exact shapes in the contract.
 
-const { hashPasswordSync } = require('./auth');
+import { hashPasswordSync } from './auth';
+import type { JobRow, UserRole } from './lib/storeTypes';
 
 // Demo accounts, so anyone can try the employer and student sides.
-const DEMO_PASSWORD = 'KaziDemo2026';
+export const DEMO_PASSWORD = 'KaziDemo2026';
 
-const SEED_USERS = [
+export interface SeedUser {
+  _id: string;
+  full_name: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface SeedUserRow extends SeedUser {
+  password_hash: string;
+  created_at: string;
+}
+
+// Dates here are text, as in a file; the stores turn them into Date objects.
+export interface SeedApplication {
+  _id: string;
+  student_id: string;
+  job_ref: string;
+  application_status: 'pending' | 'accepted' | 'filled';
+  preferred_at: string;
+  student_note: string;
+  created_at: string;
+  updated_at: string;
+  reviewer_notes: string;
+}
+
+export const SEED_USERS: SeedUser[] = [
   { _id: 'usr_1001', full_name: 'Demo Employer', email: 'employer@kaziconnect.demo', role: 'employer' },
   { _id: 'usr_1002', full_name: 'Demo Student', email: 'student@kaziconnect.demo', role: 'student' },
 ];
 
-const SEED_JOBS = [
+export const SEED_JOBS: JobRow[] = [
   { _id: 'job_12345', job_title: 'Campus Housing Assistant', job_category: 'accommodation', county_name: 'Nairobi', area_name: 'Parklands', duration_text: 'Part time, 3 months', is_urgent: true, listing_status: 'active', pay_min: '15000.00', pay_max: '22000.00', employer_id: 'usr_1001', created_by: 'admin_3', internal_notes: 'Verified landlord partner' },
   { _id: 'job_12346', job_title: 'Hostel Front Desk Attendant', job_category: 'accommodation', county_name: 'Nairobi', area_name: 'Kilimani', duration_text: 'Evening shifts', is_urgent: false, listing_status: 'active', pay_min: '12000.00', pay_max: '18000.00', employer_id: 'usr_1001', created_by: 'admin_1', internal_notes: '' },
   { _id: 'job_12347', job_title: 'Student Residence Cleaner', job_category: 'accommodation', county_name: 'Kiambu', area_name: 'Ruaka', duration_text: 'Weekends only', is_urgent: false, listing_status: 'active', pay_min: '9000.00', pay_max: '12000.00', employer_id: 'usr_1001', created_by: 'admin_2', internal_notes: 'Weekend shifts only' },
@@ -26,7 +52,7 @@ const SEED_JOBS = [
   { _id: 'job_12352', job_title: 'Delivery Rider, Student Meals', job_category: 'catering', county_name: 'Kiambu', area_name: 'Thika Road', duration_text: 'Lunch hours', is_urgent: false, listing_status: 'closed', pay_min: '11000.00', pay_max: '16000.00', employer_id: 'usr_1001', created_by: 'admin_4', internal_notes: 'Paused by partner' },
 ];
 
-const SEED_APPLICATIONS = [
+export const SEED_APPLICATIONS: SeedApplication[] = [
   { _id: 'app_1001', student_id: 'stu_0042', job_ref: 'job_12345', application_status: 'pending', preferred_at: '2027-01-15T09:00:00Z', student_note: 'Available after 2pm on weekdays', created_at: '2026-09-20T09:15:00Z', updated_at: '2026-09-20T09:15:00Z', reviewer_notes: '' },
   { _id: 'app_1002', student_id: 'stu_0107', job_ref: 'job_12348', application_status: 'accepted', preferred_at: '2026-10-12T07:30:00Z', student_note: '', created_at: '2026-09-17T10:00:00Z', updated_at: '2026-09-18T14:02:00Z', reviewer_notes: 'Start Monday' },
   { _id: 'app_1003', student_id: 'stu_0042', job_ref: 'job_12350', application_status: 'filled', preferred_at: '2026-10-20T13:00:00Z', student_note: 'Can start any weekday', created_at: '2026-09-14T08:00:00Z', updated_at: '2026-09-15T11:40:00Z', reviewer_notes: 'Job went to another worker' },
@@ -34,9 +60,9 @@ const SEED_APPLICATIONS = [
 ];
 
 // Numbers the next new rows will get.
-const FIRST_IDS = { job: 12353, application: 1005, user: 1003, staffingOffer: 1001 };
+export const FIRST_IDS = { job: 12353, application: 1005, user: 1003, staffingOffer: 1001 };
+export type IdCounters = typeof FIRST_IDS;
 
 // Password hashes are made once, when the server starts.
-const seedUsers = () => SEED_USERS.map((u) => ({ ...u, password_hash: hashPasswordSync(DEMO_PASSWORD), created_at: '2026-09-01T00:00:00Z' }));
+export const seedUsers = (): SeedUserRow[] => SEED_USERS.map((u) => ({ ...u, password_hash: hashPasswordSync(DEMO_PASSWORD), created_at: '2026-09-01T00:00:00Z' }));
 
-module.exports = { SEED_USERS, SEED_JOBS, SEED_APPLICATIONS, FIRST_IDS, DEMO_PASSWORD, seedUsers };

@@ -12,21 +12,29 @@
 // If Sherehe cannot be reached the offer simply stays pending and is tried again next time.
 // Nothing here throws, so a Sherehe outage can never stop the server (requirement R7).
 //
-// server.js starts it. createServer() does not, so tests and `npm run verify` call runOnce().
+// server.ts starts it. createServer() does not, so tests and `npm run verify` call runOnce().
 
-const db = require('../db');
-const shereheClient = require('../clients/shereheClient');
-const { UpstreamError, logUpstream } = require('../clients/upstreamError');
+import * as db from '../db';
+import * as shereheClient from '../clients/shereheClient';
+import { UpstreamError, logUpstream } from '../clients/upstreamError';
 
 const DEFAULT_INTERVAL_MS = 3 * 60 * 1000;
 const MIN_INTERVAL_MS = 5 * 1000;
 const FIRST_RUN_DELAY_MS = 5 * 1000; // soon after a start, since a sleeping free host only wakes when asked
 
+export interface PollResult {
+  skipped: boolean;
+  checked: number;
+  accepted: number;
+  declined: number;
+  failed: number;
+}
+
 let running = false;
 
 // One pass over the pending offers. Returns what happened.
-async function runOnce() {
-  const result = { skipped: false, checked: 0, accepted: 0, declined: 0, failed: 0 };
+export async function runOnce(): Promise<PollResult> {
+  const result: PollResult = { skipped: false, checked: 0, accepted: 0, declined: 0, failed: 0 };
   if (running) return { ...result, skipped: true }; // the last pass is still going
   running = true;
   try {
@@ -56,19 +64,24 @@ async function runOnce() {
   return result;
 }
 
+export interface OfferPoller {
+  every: number;
+  stop(): void;
+}
+
 // Runs soon after the start, then every OFFER_POLL_MS (default 3 minutes, never under 5 seconds).
 // Each pass is scheduled when the last one ends, so passes never overlap. Call stop() to end it.
-function startOfferPoller({ intervalMs, firstRunMs = FIRST_RUN_DELAY_MS } = {}) {
+export function startOfferPoller({ intervalMs, firstRunMs = FIRST_RUN_DELAY_MS }: { intervalMs?: number; firstRunMs?: number } = {}): OfferPoller {
   const every = Math.max(MIN_INTERVAL_MS, intervalMs || Number(process.env.OFFER_POLL_MS) || DEFAULT_INTERVAL_MS);
-  let timer = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
 
-  const schedule = (ms) => {
+  const schedule = (ms: number): void => {
     if (stopped) return;
     timer = setTimeout(tick, ms);
     timer.unref(); // waiting for the next pass never keeps the process alive on its own
   };
-  async function tick() {
+  async function tick(): Promise<void> {
     try {
       await runOnce();
     } catch (err) {
@@ -78,7 +91,5 @@ function startOfferPoller({ intervalMs, firstRunMs = FIRST_RUN_DELAY_MS } = {}) 
   }
 
   schedule(firstRunMs);
-  return { every, stop() { stopped = true; clearTimeout(timer); } };
+  return { every, stop() { stopped = true; if (timer) clearTimeout(timer); } };
 }
-
-module.exports = { runOnce, startOfferPoller };

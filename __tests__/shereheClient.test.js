@@ -113,6 +113,24 @@ describe('findOpenings (K1 and K2)', () => {
     expect(stub.requests.some((r) => r.path === '/api/events')).toBe(true); // the first call did succeed
   });
 
+  it('gives a person one time budget for the whole list, not one per call', async () => {
+    // Two calls in a row (the events, then their roles) at 300 ms each: 600 ms in all.
+    // Each call is inside the 500 ms limit on its own, but together they are not.
+    fetcher.configure({ userTimeoutMs: 500 });
+    stub.setDelay(300);
+
+    const err = await failure(client.findOpenings());
+
+    expect(err).toMatchObject({ kind: 'timeout' });
+  });
+
+  it('still answers when the same calls fit inside the budget', async () => {
+    fetcher.configure({ userTimeoutMs: 2000 });
+    stub.setDelay(100);
+
+    expect(await client.findOpenings()).toHaveLength(3);
+  });
+
   it('fails when Sherehe is down for the events list itself', async () => {
     stub.setMode('error');
 

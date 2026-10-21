@@ -9,12 +9,17 @@
 //                    in Kazi's own words.
 
 // The one message a client sees for every UpstreamError.
-const PARTNER_UNAVAILABLE = 'Event information is unavailable right now. Try again in a minute.';
+export const PARTNER_UNAVAILABLE = 'Event information is unavailable right now. Try again in a minute.';
 
-class UpstreamError extends Error {
-  // kind: 'config' | 'timeout' | 'network' | 'status' | 'shape'
+export type UpstreamKind = 'config' | 'timeout' | 'network' | 'status' | 'shape';
+
+export class UpstreamError extends Error {
+  readonly kind: UpstreamKind;
+  readonly status: number | null;
+  readonly detail: string;
+
   // detail is for our logs only: a short note we wrote, never text taken from the partner's reply.
-  constructor(kind, { status = null, detail = '' } = {}) {
+  constructor(kind: UpstreamKind, { status = null, detail = '' }: { status?: number | null; detail?: string } = {}) {
     super(`Partner request failed: ${kind}`);
     this.name = 'UpstreamError';
     this.kind = kind;
@@ -23,8 +28,12 @@ class UpstreamError extends Error {
   }
 }
 
-class PartnerRejection extends Error {
-  constructor(kind) {
+export type RejectionKind = 'invalid' | 'not_found' | 'conflict';
+
+export class PartnerRejection extends Error {
+  readonly kind: RejectionKind;
+
+  constructor(kind: RejectionKind) {
     super(`Partner rejected the request: ${kind}`);
     this.name = 'PartnerRejection';
     this.kind = kind;
@@ -32,12 +41,10 @@ class PartnerRejection extends Error {
 }
 
 // One line in the server log. Never the partner's reply, and never the API key.
-function logUpstream(err, where) {
+export function logUpstream(err: unknown, where: string): void {
   if (process.env.JEST_WORKER_ID) return;
   const what = err instanceof UpstreamError
     ? `${err.kind}${err.status ? ` (HTTP ${err.status})` : ''}${err.detail ? `: ${err.detail}` : ''}`
-    : String(err && err.message);
+    : String(err instanceof Error ? err.message : err);
   console.error(`[sherehe] ${where}: ${what}`);
 }
-
-module.exports = { UpstreamError, PartnerRejection, PARTNER_UNAVAILABLE, logUpstream };

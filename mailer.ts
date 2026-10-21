@@ -4,16 +4,35 @@
 // transactional email API. Without them, nothing is emailed: the message is
 // written to the server log instead, so the reset flow can still be tested.
 
-const outbox = []; // messages that were not emailed (no email service set up), newest last
+import { singleton } from './lib/singleton';
+
+export interface OutboxMessage {
+  to: string;
+  subject: string;
+  text: string;
+  at: Date;
+}
+
+// Messages that were not emailed (no email service set up), newest last. One list per process,
+// however many copies of this module Next makes, so a test can read what a route handler wrote.
+export const outbox: OutboxMessage[] = singleton('mailer.outbox', () => []);
 
 // Links in emails always use the site's own address, never the Host header
 // of the incoming request, which an attacker could fake to steal reset links.
-function siteAddress() {
+export function siteAddress(): string {
   const base = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`;
   return base.replace(/\/+$/, '');
 }
 
-async function send({ to, name, subject, text, html }) {
+interface Mail {
+  to: string;
+  name: string;
+  subject: string;
+  text: string;
+  html: string;
+}
+
+async function send({ to, name, subject, text, html }: Mail): Promise<{ emailed: boolean }> {
   const key = process.env.BREVO_API_KEY;
   const from = process.env.MAIL_FROM;
   if (!key || !from) {
@@ -42,9 +61,10 @@ async function send({ to, name, subject, text, html }) {
   return { emailed: true };
 }
 
-const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escapeHtml = (s: string): string => String(s).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 
-function sendPasswordReset({ to, name, token }) {
+export function sendPasswordReset({ to, name, token }: { to: string; name: string; token: string }): Promise<{ emailed: boolean }> {
   const link = `${siteAddress()}/#reset=${token}`;
   const text = [
     `Hi ${name},`,
@@ -62,5 +82,3 @@ function sendPasswordReset({ to, name, token }) {
 <p>If that was not you, ignore this email. Your password stays the same.</p>`;
   return send({ to, name, subject: 'Reset your Kazi Connect password', text, html });
 }
-
-module.exports = { sendPasswordReset, siteAddress, outbox };
