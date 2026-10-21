@@ -29,32 +29,16 @@ import type { AddressInfo } from 'net';
 import WebSocket from 'ws';
 import { createServer } from '../app';
 import * as db from '../db';
-import { isRealDateTime } from '../validation';
+import { createChecker } from './lib/schemaCheck';
+import type { ContractDoc, Json, SchemaNode } from './lib/schemaCheck';
 import * as fetcher from '../clients/fetcher';
 import { runOnce } from '../jobs/offerPoller';
 import { createShereheStub } from '../helpers/shereheStub';
 import type { ShereheStub } from '../helpers/shereheStub';
 import { DEMO_PASSWORD } from '../seedData';
 
-// The replies being checked are arbitrary JSON, read by field name in many small checks. One named
-// alias, with this reason, instead of a cast at each of the dozens of field reads below.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Json = any;
-
-interface SchemaNode {
-  $ref?: string;
-  type?: string;
-  properties?: Record<string, SchemaNode>;
-  items?: SchemaNode;
-  enum?: unknown[];
-  format?: string;
-  nullable?: boolean;
-  content?: Record<string, { schema?: SchemaNode }>;
-}
-interface Contract {
-  paths: Record<string, Record<string, { responses?: Record<string, SchemaNode> }>>;
-  components: { schemas: Record<string, SchemaNode> };
-}
+// Our own contract, with its schemas (the shared checker reads the same document).
+type Contract = ContractDoc & { components: { schemas: Record<string, SchemaNode> } };
 
 // One thing to check. kind 'http' is a plain request; the ws kinds open a WebSocket.
 interface CaseContext { body: Json; res: Response; problems: string[]; base: string }
@@ -89,50 +73,7 @@ const future = (days: number): string => new Date(Date.now() + days * DAY).toISO
 
 // Contract helpers
 
-function resolve(node: SchemaNode | undefined): SchemaNode | undefined {
-  let current = node;
-  while (current && current.$ref) {
-    current = current.$ref.replace('#/', '').split('/').reduce<Json>((found, key) => found[key], contract) as SchemaNode;
-  }
-  return current;
-}
-
-function declaredResponse(pathTemplate: string, method: string, status: number): SchemaNode | null {
-  const op = contract.paths[pathTemplate] && contract.paths[pathTemplate][method.toLowerCase()];
-  return op && op.responses ? resolve(op.responses[String(status)]) || null : null;
-}
-
-function schemaCheck(value: Json, node: SchemaNode | undefined, where: string, problems: string[]): void {
-  const schema = resolve(node);
-  if (!schema) return;
-  if (value === null && schema.nullable) return; // for example jobId, which is null until an offer is accepted
-  if (schema.type === 'array') {
-    if (!Array.isArray(value)) { problems.push(`${where} should be an array`); return; }
-    value.forEach((item, i) => schemaCheck(item, schema.items, `${where}[${i}]`, problems));
-    return;
-  }
-  if (schema.type === 'object') {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-      problems.push(`${where} should be an object`);
-      return;
-    }
-    const props = schema.properties || {};
-    for (const key of Object.keys(props)) {
-      if (!(key in value)) problems.push(`${where}.${key} is missing`);
-      else schemaCheck(value[key], props[key], `${where}.${key}`, problems);
-    }
-    for (const key of Object.keys(value)) {
-      if (!(key in props)) problems.push(`${where}.${key} is not in the contract`);
-    }
-    return;
-  }
-  if (schema.type === 'string' && typeof value !== 'string') { problems.push(`${where} should be a string, got ${typeof value}`); return; }
-  if (schema.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) { problems.push(`${where} should be a number, got ${typeof value}`); return; }
-  if (schema.type === 'integer' && !Number.isInteger(value)) { problems.push(`${where} should be an integer`); return; }
-  if (schema.type === 'boolean' && typeof value !== 'boolean') { problems.push(`${where} should be a boolean, got ${typeof value}`); return; }
-  if (schema.enum && !schema.enum.includes(value)) problems.push(`${where} is "${value}", which is not one of ${schema.enum.join(', ')}`);
-  if (schema.format === 'date-time' && !isRealDateTime(value)) problems.push(`${where} "${value}" is not a date-time string`);
-}
+const { declaredResponse, schemaCheck } = createChecker(contract);
 
 // One HTTP request, checked against the contract
 
