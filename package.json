@@ -11,6 +11,7 @@
     "types": "openapi-typescript openapi.yaml -o types/api.d.ts && openapi-typescript partner-tests/sherehe_openapi.yaml -o types/sherehe.d.ts",
     "test": "next build && jest --runInBand",
     "verify": "tsx scripts/verifyContract.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
     "test:partner": "jest --testMatch \"**/partner-tests/*.partner.js\" --verbose",
     "ring:status": "tsx scripts/ringStatus.ts",
     "ring:check": "tsx scripts/ringCheck.ts"

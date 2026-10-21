@@ -129,9 +129,14 @@ async function seed(client: Pool | PoolClient): Promise<void> {
   }
 }
 
+// Creates the tables and indexes that are missing. Adds only; never changes or drops anything that exists.
+export async function migrate(): Promise<void> {
+  await getPool().query(SCHEMA);
+}
+
 // Creates the tables if they are missing, and loads the sample data into an empty database.
 export async function init(): Promise<void> {
-  await getPool().query(SCHEMA);
+  await migrate();
   const counted = await one<{ n: number }>('SELECT count(*)::int AS n FROM jobs');
   if (counted && counted.n === 0) await seed(getPool());
 }
