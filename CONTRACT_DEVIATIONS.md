@@ -162,4 +162,15 @@ PostgreSQL gets a new table, `staffing_offers`, and an internal column, `jobs.so
 
 ## Implementation changes with no effect on clients
 
-TODO when done: the move from Express and JavaScript to Next.js route handlers in TypeScript. Record here that every request and response for Endpoints 1 to 21 stayed the same, with the evidence (156 existing tests and `npm run verify` passing unchanged).
+**The move from Express and JavaScript to Next.js route handlers in strict TypeScript changed no request and no response of Endpoints 1 to 21.** Every path, method, input, output, status code and header is the same; Ujuzi can keep calling Endpoints 1 to 9 exactly as before. What stayed the same on purpose: the empty-body 400 and 404 answers on the read endpoints, `400 { message }` for bad JSON, `413` over 20 KB, the CORS headers and `OPTIONS` answering 204, no `X-Powered-By`, no `ETag`, and unknown `/api` paths answering 404 with no body.
+
+Evidence, from 21 October 2026:
+
+1. **The 156 existing tests** (`__tests__/jobs`, `applications`, `accounts`, `employer` and `passwordReset`) are the same files as on `main`, byte for byte, and all pass.
+2. **`npm run verify`** passes all 81 checks: the original 44 for Endpoints 1 to 9 (Week 5: 16, Week 6: 28), unchanged, and 37 new ones for Endpoints 22 to 25 against the Sherehe stand-in.
+3. **A replay of recorded Express answers.** `__tests__/parityWithExpress.test.js` sends 151 requests (happy paths, every error path, wrong methods, `HEAD` and `OPTIONS`, trailing slashes and upper-case paths, malformed and compressed bodies, the exact 20 KB limit, malformed ids) and compares every status, every header except `Date`, and every body with what the real Express app on `main` answered. All 151 match.
+4. **A live side-by-side run.** The same 154 HTTP requests and 3 WebSocket connections were sent to the Express app from `main` and to this branch, both running for real with fresh data. The only answers that differ are the four new endpoints, 22 to 25, which Express answers with 404 (they do not exist there) and the new app answers with 401 until an employer logs in.
+
+Two things change for people who run the server themselves, not for any client of the API: it needs **Node.js 20.9 or newer** (it was 18; current Next.js requires 20.9), and it must be built once before it starts (`npm run build`, then `npm start`; `npm test` and `start_lab.bat` and `run.sh` do this for you). `NODE_ENV` no longer has to be set by hand.
+
+TODO: the humans change Render's build command to `npm ci && npm run build`, its start command to `npm start`, and its Node.js version to 20.9 or newer, and add `SHEREHE_API_URL` and `SHEREHE_API_KEY`. Record the date here once it is deployed and the live API has been checked again.

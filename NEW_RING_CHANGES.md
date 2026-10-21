@@ -30,15 +30,22 @@ Every file in this repository that changes because Shamba Direct and SettleIn le
 
 ## Stage 2: Next.js, TypeScript, Tailwind v4
 
-- [ ] `package.json`: `"engines": { "node": ">=20.9" }` (current Next.js needs Node 20.9 or newer; today it says `>=18`); add next, react, react-dom, swagger-ui-react; dev deps typescript, tsx, @types/node, @types/pg, @types/ws, @types/jest, @types/supertest, openapi-typescript, tailwindcss, @tailwindcss/postcss; scripts dev, build, start, typecheck, types, test, verify, test:partner, ring:check, db:migrate. Remove express and swagger-ui-express only after parity.
-- [ ] New: `tsconfig.json` (strict, allowJs for the untouched tests), `jest.config.mjs` (next/jest), `next.config.ts`, `postcss.config.mjs`, `proxy.ts`, `run.sh`, `types/`.
-- [ ] Convert to `.ts` at the same root paths: `app`, `server`, `db`, `memoryStore`, `pgStore`, `seedData`, `auth`, `mailer`, `realtime`, `mappers`, `validation`, `verifyContract`.
-- [ ] Route handlers in `app/api/**/route.ts` for endpoints 1-25 and the `[...path]` catch-all; then remove `jobsRoutes.js`, `applicationsRoutes.js`, `accountRoutes.js`.
-- [ ] Website pages in `app/` with Tailwind; move `Images/` to `public/`; then remove `index.html`.
-- [ ] `.gitignore`: add `.next/` and `.env`.
-- [ ] `start_lab.bat`: add `call npm run build` before `call npm start`.
+- [x] `package.json`: `"engines": { "node": ">=20.9" }`; next, react, react-dom, swagger-ui-react; dev deps typescript, @types/node, @types/pg, @types/ws, @types/jest, @types/supertest, openapi-typescript, tailwindcss, @tailwindcss/postcss; scripts dev, build, start, typecheck, types, test, verify, test:partner, ring:status, ring:check, db:migrate. express and swagger-ui-express are removed. `tsx` is in `dependencies`, not dev, because `npm start` runs `tsx server.ts` on the host.
+- [x] New: `tsconfig.json` (strict, allowJs for the untouched tests), `jest.config.mjs` (next/jest), `next.config.ts`, `postcss.config.mjs`, `proxy.ts`, `run.sh`, `types/`.
+- [x] Converted to `.ts` at the same root paths: `app`, `server`, `db`, `memoryStore`, `pgStore`, `seedData`, `auth`, `mailer`, `realtime`, `mappers`, `validation`, `verifyContract`.
+- [x] Route handlers in `app/api/**/route.ts` for Endpoints 1 to 25 and the `[...path]` catch-all; `jobsRoutes.js`, `applicationsRoutes.js` and `accountRoutes.js` are removed.
+- [x] Website pages in `app/` with Tailwind (jobs and filters, job detail with apply and live status, login, register, reset, employer dashboard with Event work, student applications, `/docs` with Swagger UI); `Images/` moved to `public/Images/`; `index.html` removed. Checked in a headless DOM (62 checks, against a built copy of the site), not by eye in a browser.
+- [x] `.gitignore`: `.next/` and `.env`.
+- [x] `start_lab.bat`: `call npm run build` before `call npm start`.
 - [ ] Render settings (humans): build command `npm ci && npm run build`, start command `npm start`, Node 20.9 or newer, `SHEREHE_API_URL`, `SHEREHE_API_KEY`.
-- [ ] Gate: the 156 existing tests pass with `__tests__/` untouched; `npm run typecheck` and `npm run verify` pass.
+- [x] Gate: the 156 existing tests pass with their files untouched (identical to `main`); `npm run typecheck` and `npm run verify` (81 of 81) pass. Whole suite: 582 tests, 581 on the in-memory store plus 1 that runs only with `DATABASE_URL` set; 582 of 582 on PostgreSQL.
+- [x] Proof that Endpoints 1 to 21 did not change: 151 recorded Express answers replayed (`__tests__/parityWithExpress.test.js`), and a live side-by-side run of 154 requests and 3 WebSocket connections against Express on `main`. See `CONTRACT_DEVIATIONS.md`.
+
+Where this stage differs from the starter brief, on purpose:
+
+- `npm start` is `tsx server.ts` with no `NODE_ENV=production` in front: `bootstrapEnv.ts` sets it, so the same command works in Command Prompt, PowerShell and bash. `npm run dev` passes `--dev`.
+- The WebSocket for Endpoint 6 is handled in `realtime.ts`, which answers every `upgrade` request itself. Next.js attaches its own upgrade listener lazily, and it closes sockets that are not its own.
+- Next.js route handlers get their own copies of each module, so state that must be shared (the in-memory store, the PostgreSQL pool, the mail outbox, the Sherehe cache) lives in `lib/singleton.ts`.
 
 ## Stage 3: README.md (Week 8 deliverable)
 
