@@ -12,7 +12,8 @@
     "test": "next build && jest --runInBand",
     "verify": "tsx scripts/verifyContract.ts",
     "test:partner": "jest --testMatch \"**/partner-tests/*.partner.js\" --verbose",
-    "ring:status": "tsx scripts/ringStatus.ts"
+    "ring:status": "tsx scripts/ringStatus.ts",
+    "ring:check": "tsx scripts/ringCheck.ts"
   },
   "dependencies": {
     "next": "^16.4.2",

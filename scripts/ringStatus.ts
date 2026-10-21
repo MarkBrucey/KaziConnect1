@@ -30,6 +30,7 @@
 import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
+import { readDotEnv } from './lib/dotenv';
 import { createChecker } from './lib/schemaCheck';
 import type { ContractDoc, Json } from './lib/schemaCheck';
 
@@ -127,7 +128,7 @@ function contractSummary(text: string): { version: string; title: string; operat
   }
 }
 
-const isPlaceholder = (url: string): boolean => url === '' || PLACEHOLDER.test(url);
+export const isPlaceholder = (url: string): boolean => url === '' || PLACEHOLDER.test(url);
 const trimUrl = (url: string): string => url.trim().replace(/\/+$/, '');
 
 // Turns "the system answered with this status" into a verdict, for a path its contract declares.
@@ -399,17 +400,6 @@ export function formatReport(report: Report): string {
 // Only what decides whether anything has changed, so a watcher can tell.
 export function fingerprint(report: Report): string {
   return JSON.stringify(report.systems.map((s) => [s.system, s.state, s.checks.map((c) => [c.name, c.verdict, c.status])]));
-}
-
-// Reads a .env file into a plain object (it does not touch process.env, so it can be read again each cycle).
-function readDotEnv(file: string): Record<string, string> {
-  const values: Record<string, string> = {};
-  if (!fs.existsSync(file)) return values;
-  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
-    if (match && !line.trim().startsWith('#')) values[match[1]] = match[2].replace(/^["']|["']$/g, '');
-  }
-  return values;
 }
 
 // A real environment variable beats .env. The file is read every time this is called, so a watcher that
