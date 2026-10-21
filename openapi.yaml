@@ -3,7 +3,7 @@ info:
   title: Kazi Connect API
   version: 1.3.0
   description: >
-    Kazi Connect job listings and job applications for SettleIn students, plus accounts and
+    Kazi Connect job listings and job applications for Ujuzi graduates, plus accounts and
     employer tools for the Kazi Connect website. Endpoint numbers match ENDPOINT_LIST.md, and each
     endpoint names the need statement it serves. Endpoints marked with a lock need a login token:
     log in with Endpoint 11, then send the token as "Authorization: Bearer YOUR_TOKEN".
@@ -166,7 +166,7 @@ paths:
     get:
       summary: Returns just the availability status of a job
       description: >
-        Statement 3. A lightweight check that SettleIn can poll often without pulling the full job.
+        Statement 3. A lightweight check that Ujuzi can poll often without pulling the full job.
       parameters:
         - name: jobId
           in: path
@@ -284,7 +284,7 @@ paths:
   #---ENDPOINT 7---
   /api/applications:
     post:
-      summary: Creates a new application/service request from a SettleIn student
+      summary: Creates a new application/service request on behalf of a graduate
       description: >
         Statement 6. The job must exist and be active. Each call creates a new application, so this
         endpoint is not idempotent: sending the same body twice creates two applications.
@@ -408,7 +408,7 @@ paths:
     patch:
       summary: Accepts an application (the employer who posted the job)
       description: >
-        Kazi Connect website need W3, and SettleIn Statement 5. The application becomes accepted, every
+        Kazi Connect website need W3, and Statement 5 (Ujuzi's need U5). The application becomes accepted, every
         other application still waiting for the same job becomes filled, and the job closes.
         Subscribers to each application hear about the change live.
       security:
@@ -1166,7 +1166,7 @@ components:
           example: pending
         studentName:
           type: string
-          description: Empty when the application did not come from a Kazi Connect account, for example one SettleIn created.
+          description: Empty when the application did not come from a Kazi Connect account, for example one Ujuzi created.
           example: Amina Otieno
     PasswordResetRequest:
       type: object

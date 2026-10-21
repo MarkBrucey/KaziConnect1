@@ -49,7 +49,7 @@ Where this stage differs from the starter brief, on purpose:
 
 ## Stage 3: README.md (Week 8 deliverable)
 
-- [x] Replace SettleIn with Ujuzi. The README now uses U1 to U6, with one table that maps them to SettleIn's old statements; the only remaining mentions of SettleIn are that table. **Not changed, because it needs your approval:** `openapi.yaml` still says SettleIn in five descriptions (lines 6, 169, 287, 411 and 1169).
+- [x] Replace SettleIn with Ujuzi. The README now uses U1 to U6, with one table that maps them to SettleIn's old statements; the only remaining mentions of SettleIn are that table. `openapi.yaml`'s five descriptions that named SettleIn now name Ujuzi (approved by the user; wording only, recorded in `CONTRACT_DEVIATIONS.md`).
 - [ ] Add the ring: Sherehe upstream with its URL, Ujuzi downstream with its URL. The ring section and both rows are in; **both addresses are TODO** until the sub-teams deploy.
 - [x] Add Event work (endpoints 22-25) with real requests and replies. It is Part 3 rather than part of Part 2, because it needs a different setup. The replies come from a local run against our stand-in for Sherehe, and the README says so. **TODO:** capture them again against the real Sherehe.
 - [x] "Run the API on your own computer": Node.js 20.9 or newer, `npm install`, `npm run build`, `npm start`, the startup output after the move, the ring commands, the settings table, and a note that the 4 moderate `npm audit` advisories all come through `swagger-ui-react`.

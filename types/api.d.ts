@@ -217,7 +217,7 @@ export interface paths {
         };
         /**
          * Returns just the availability status of a job
-         * @description Statement 3. A lightweight check that SettleIn can poll often without pulling the full job.
+         * @description Statement 3. A lightweight check that Ujuzi can poll often without pulling the full job.
          */
         get: {
             parameters: {
@@ -433,7 +433,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Creates a new application/service request from a SettleIn student
+         * Creates a new application/service request on behalf of a graduate
          * @description Statement 6. The job must exist and be active. Each call creates a new application, so this endpoint is not idempotent: sending the same body twice creates two applications.
          */
         post: {
@@ -631,7 +631,7 @@ export interface paths {
         head?: never;
         /**
          * Accepts an application (the employer who posted the job)
-         * @description Kazi Connect website need W3, and SettleIn Statement 5. The application becomes accepted, every other application still waiting for the same job becomes filled, and the job closes. Subscribers to each application hear about the change live.
+         * @description Kazi Connect website need W3, and Statement 5 (Ujuzi's need U5). The application becomes accepted, every other application still waiting for the same job becomes filled, and the job closes. Subscribers to each application hear about the change live.
          */
         patch: {
             parameters: {
@@ -1586,7 +1586,7 @@ export interface components {
              */
             status: "pending" | "accepted" | "filled";
             /**
-             * @description Empty when the application did not come from a Kazi Connect account, for example one SettleIn created.
+             * @description Empty when the application did not come from a Kazi Connect account, for example one Ujuzi created.
              * @example Amina Otieno
              */
             studentName: string;

@@ -160,6 +160,10 @@ How they behave, inside the contract:
 
 PostgreSQL gets a new table, `staffing_offers`, and an internal column, `jobs.source_role_id`, created by an additive migration when the server starts. Nothing existing is changed or dropped. `source_role_id` is never part of any response.
 
+## Wording changes (no effect on clients)
+
+Five descriptions in `openapi.yaml` still named SettleIn, which has left the ring. They now name Ujuzi, which uses the same endpoints: the file's overall description, the description of Endpoint 4, the summary of Endpoint 7 ("on behalf of a graduate"), the description of Endpoint 18 (it now points to Ujuzi's need U5, SettleIn's old Statement 5) and the description of `studentName`. Nothing but text changed: no path, method, field, type, enum, status code or example, so Ujuzi's frozen copy of the contract is not affected, and the version stays 1.3.0 because 1.3.0 has not shipped. The generated `types/api.d.ts` changed in the same four comment lines and nowhere else. The "Statement N" references in the file are left as they were: `ENDPOINT_LIST.md` and the README map them to Ujuzi's U1 to U6.
+
 ## Implementation changes with no effect on clients
 
 **The move from Express and JavaScript to Next.js route handlers in strict TypeScript changed no request and no response of Endpoints 1 to 21.** Every path, method, input, output, status code and header is the same; Ujuzi can keep calling Endpoints 1 to 9 exactly as before. What stayed the same on purpose: the empty-body 400 and 404 answers on the read endpoints, `400 { message }` for bad JSON, `413` over 20 KB, the CORS headers and `OPTIONS` answering 204, no `X-Powered-By`, no `ETag`, and unknown `/api` paths answering 404 with no body.
