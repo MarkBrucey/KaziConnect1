@@ -6,16 +6,16 @@ Every file in this repository that changes because Shamba Direct and SettleIn le
 
 ## Documents already updated in this starter folder (copy them into the repo)
 
-- [ ] `TEAM_CHARTER.md`: new ring position (history kept), Event work added to the audit, new stack. Fill in the sub-team names.
-- [ ] `API_NEEDS.md`: K1-K5 from Sherehe, U1-U6 for Ujuzi (mapped to SettleIn's old Statements 1-8), W7; the first ring kept as history. Rewrite from the real interviews and write the new reflection.
-- [ ] `ENDPOINT_LIST.md`: endpoints 22-25 for Event work, the Sherehe endpoints Kazi consumes, and a peer-review table for the new rows.
-- [ ] `CONTRACT_QUESTIONS.md`: three questions on Sherehe's draft contract, after the Shamba Direct ones.
-- [ ] `CONTRACT_DEVIATIONS.md`: planned 1.2.1 to 1.3.0 entry. Complete it when 1.3.0 ships.
-- [ ] `PARTNER_TEST_RESULTS.md`, `BLIND_TEST_REPORT.md`: new-ring sections left as TODO for real results.
-- [ ] `CLAUDE.md`: standing instructions for the Kazi agent.
+- [x] `TEAM_CHARTER.md`: new ring position (history kept), Event work added to the audit, new stack. Copied in; one fix (Event work is Endpoints 22 to 25, not 22 to 24). **Still TODO for the team:** the sub-team names.
+- [x] `API_NEEDS.md`: K1-K5 from Sherehe, U1-U6 for Ujuzi (mapped to SettleIn's old Statements 1-8), W7; the first ring kept as history. Copied in; K1 to K5 were checked against Sherehe's draft contract fields. **Still TODO for the team:** rewrite from the real interviews and write the new reflection.
+- [x] `ENDPOINT_LIST.md`: endpoints 22-25 for Event work, the Sherehe endpoints Kazi consumes, and a peer-review table for the new rows. Copied in. **Still TODO for the team:** the peer review of rows 22 to 25.
+- [x] `CONTRACT_QUESTIONS.md`: three questions on Sherehe's draft contract, after the Shamba Direct ones. Copied in; each question was checked against `partner-tests/sherehe_openapi.yaml`. Re-check them against the contract Sherehe finally hands off.
+- [ ] `CONTRACT_DEVIATIONS.md`: the 1.2.1 to 1.3.0 entry is written, with the evidence that the move to Next.js changed no request or response. **Two TODO dates remain:** when Ujuzi was told (R8), and when 1.3.0 was deployed.
+- [x] `PARTNER_TEST_RESULTS.md`, `BLIND_TEST_REPORT.md`: new-ring sections left as TODO for real results. Only one real result is recorded, and it is labelled as what it is: a dry run of our Sherehe tests against our own stand-in (35 passed, 1 skipped). Nothing is recorded for the real Sherehe, for Ujuzi's tests of Kazi, or for a blind test, because none has happened. The test file name in the starter (`sherehe.partner.test.ts`) was wrong; it is `sherehe.partner.js`.
+- [x] `CLAUDE.md`: standing instructions for the Kazi agent. Copied in unchanged.
 - [x] `.env.example`: new file.
 - [x] `partner-tests/README.md`, `partner-tests/sherehe_openapi.yaml`: replace the Shamba Direct files.
-- [ ] `evidence/ring/README.md`: new folder for the end-to-end demo.
+- [x] `evidence/ring/README.md`: new folder for the end-to-end demo. It lists the six screenshots and the `ring:check` output the humans still have to take, each marked TODO; none was made up.
 
 ## Stage 1: Sherehe integration
 
@@ -49,11 +49,11 @@ Where this stage differs from the starter brief, on purpose:
 
 ## Stage 3: README.md (Week 8 deliverable)
 
-- [ ] Replace SettleIn with Ujuzi (22 mentions today). Keep "Statement N" references or switch them to U1-U6 consistently, matching API_NEEDS.md.
-- [ ] Add the ring: Sherehe upstream with its URL, Ujuzi downstream with its URL.
-- [ ] Add Event work (endpoints 22-25) to Part 2 with real requests and replies.
-- [ ] "Run the API on your own computer": Node.js 20.9 or newer (lines 230 and 724 say 18); `npm install`, `npm run build`, `npm start`; the startup output after the move.
-- [ ] Re-run every command from a clean terminal, then repeat the blind test with a team outside the ring.
+- [x] Replace SettleIn with Ujuzi. The README now uses U1 to U6, with one table that maps them to SettleIn's old statements; the only remaining mentions of SettleIn are that table. **Not changed, because it needs your approval:** `openapi.yaml` still says SettleIn in five descriptions (lines 6, 169, 287, 411 and 1169).
+- [ ] Add the ring: Sherehe upstream with its URL, Ujuzi downstream with its URL. The ring section and both rows are in; **both addresses are TODO** until the sub-teams deploy.
+- [x] Add Event work (endpoints 22-25) with real requests and replies. It is Part 3 rather than part of Part 2, because it needs a different setup. The replies come from a local run against our stand-in for Sherehe, and the README says so. **TODO:** capture them again against the real Sherehe.
+- [x] "Run the API on your own computer": Node.js 20.9 or newer, `npm install`, `npm run build`, `npm start`, the startup output after the move, the ring commands, the settings table, and a note that the 4 moderate `npm audit` advisories all come through `swagger-ui-react`.
+- [ ] Re-run every command from a clean terminal, then repeat the blind test with a team outside the ring. Every bash block of the README (28 of them) was run in order against a fresh local copy and matched its printed reply, and `sh run.sh` was run from a fresh clone. **Not done:** the PowerShell blocks (no Windows computer), and the blind test, which needs a team outside the ring.
 
 ## Ring checks (all three repos, same day)
 
