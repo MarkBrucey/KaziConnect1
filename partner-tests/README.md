@@ -8,7 +8,7 @@ Run them against Sherehe's live server:
 SHEREHE_URL=https://sherehe-TODO.onrender.com SHEREHE_API_KEY=... npm run test:partner
 ```
 
-To check the tests themselves before using the real Sherehe, run them against the local stand-in (it is built from the same contract, so this proves the tests, not Sherehe). In one terminal run `node helpers/shereheStub.js`, then in another:
+To check the tests themselves before using the real Sherehe, run them against the local stand-in (it is built from the same contract, so this proves the tests, not Sherehe). In one terminal run `npx tsx helpers/shereheStub.ts`, then in another:
 
 ```bash
 SHEREHE_URL=http://127.0.0.1:4000 SHEREHE_API_KEY=stub-partner-key npm run test:partner

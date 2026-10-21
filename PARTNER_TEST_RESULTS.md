@@ -18,7 +18,7 @@ This matches our own checks. Our own suite of 63 automated tests passes in full 
 
 ## 2. What our tests found in Shamba Direct's API
 
-Our tests are in `partner-tests/shambaDirect.partner.js`: 21 tests written only from Shamba Direct's contract (a copy is in `partner-tests/shamba_openapi.yaml`). They cover every endpoint: field names and types, county filters, an empty result, 404 for IDs that do not exist, a non-integer ID, enquiry validation (400) and an enquiry for a listing that does not exist (404). Run them with `npm run test:partner`.
+Our tests were in `partner-tests/shambaDirect.partner.js` (since removed; it stays in the git history): 21 tests written only from Shamba Direct's contract (a copy was in `partner-tests/shamba_openapi.yaml`, also removed). They cover every endpoint: field names and types, county filters, an empty result, 404 for IDs that do not exist, a non-integer ID, enquiry validation (400) and an enquiry for a listing that does not exist (404). Run them with `npm run test:partner`.
 
 ### Found in their contract before running any tests
 
@@ -41,3 +41,29 @@ At the time of submission, Shamba Direct had not shared the address of a running
 ## Update after Week 7
 
 Since this exchange, the contract has moved from version 1.1.0 to 1.2.1 (every change is in `CONTRACT_DEVIATIONS.md`). Endpoints 1 to 9 keep the same paths, methods, inputs and status codes, but every Job now also carries `area`, `duration` and `urgent`. Any SettleIn test that checks a Job has no extra fields needs those three added to its list, so SettleIn's tests should be re-run against the live API before they rely on version 1.2.1. Our own suite has grown from 63 to 156 tests, covering the accounts, employer tools and password reset added since.
+
+# New ring (October 2026): Ujuzi and Sherehe
+
+Our ring is now **Sherehe** upstream and **Ujuzi** downstream. As before, only contracts are exchanged, never test files.
+
+## 1. What Ujuzi's tests found in our API
+
+- What we shared: `openapi.yaml` version TODO and the live URL https://kaziconnect1-1xmu.onrender.com
+- Result: TODO
+
+| Failure | Classification (real bug / contract ambiguity / misunderstanding) | What we did |
+|---|---|---|
+| TODO | | |
+
+## 2. What our tests found in Sherehe's API
+
+Our tests are in `partner-tests/sherehe.partner.js` (36 tests), written only from Sherehe's contract (frozen copy: `partner-tests/sherehe_openapi.yaml`, a draft, version 0.1.0). They replace the Shamba Direct tests. Run them with `SHEREHE_URL=... SHEREHE_API_KEY=... npm run test:partner`.
+
+**Dry run, not a result for Sherehe.** On 21 October 2026 the tests were run against our own local stand-in for Sherehe (`helpers/shereheStub.ts`, built from the same contract): 35 passed and 1 was skipped (the "role is full" test needs `FULL_ROLE_ID`, a role with no free slot). This shows the tests themselves work. It says nothing about the real Sherehe, which has not been tested yet.
+
+- Sherehe's live URL used: TODO
+- Result: TODO
+
+| Failure | Classification | Raised with Sherehe / outcome |
+|---|---|---|
+| TODO | | |
