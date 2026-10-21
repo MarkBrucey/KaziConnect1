@@ -926,7 +926,7 @@ No Git? Open https://github.com/MarkBrucey/KaziConnect1, click the green **Code*
 
 `npm run build` prepares the website and the API for running, and takes a minute or two. Run it again after you change any code. To work on the code instead, use `npm run dev`, which rebuilds as you save. Two shortcuts do the whole sequence for you (install, build, check against the contract, start): `sh run.sh` on macOS and Linux, and double-clicking `start_lab.bat` on Windows.
 
-`npm install` may end with a note about moderate vulnerabilities. They all come through `swagger-ui-react`, the library that draws the docs page in the browser, and npm has no fix for them except an old version of that library: `npm audit --omit=dev` reports 4 moderate ones, every one in that chain. The API itself does not use that library.
+`npm install` may end with a note about moderate vulnerabilities, and it is accurate, so here is what it means. `npm audit --omit=dev` (what the server installs) reports 4 moderate ones and none high or critical; all 4 are one chain, `swagger-ui-react` -> `remarkable` -> `argparse` -> `sprintf-js`, and the last link (a denial of service through huge precision specifiers) is affected in every published version, so there is nothing to upgrade to. `swagger-ui-react` is already at its latest release, and the only fix npm offers is a breaking downgrade to version 3.23.3. We kept it because the risk does not apply here: the library draws the `/docs` page, is loaded only in the visitor's own browser (never on the server), and reads only this project's own `openapi.yaml`, so nobody else can feed it a format string. The API does not use it. Plain `npm audit`, which also counts the testing and build tools that the server never runs, reports more moderate ones and no high ones. Check again with `npm audit --omit=dev --audit-level=high` (it should end with no error) and look for a fixed `sprintf-js` or `swagger-ui-react` whenever you update.
 
 After `npm start`, when it is ready, the terminal shows:
 
@@ -1022,7 +1022,7 @@ Full request and response shapes for every endpoint are on the docs page: https:
 * Reset emails are sent from a Gmail address, so they may land in spam.
 * Event work (Part 3) depends on Sherehe. When Sherehe is down, Endpoints 22, 23 and 25 answer `502`; everything else keeps working. An organiser's decision reaches Kazi Connect within about 3 minutes, and only while the server is awake. Only one offer can wait on a role at a time.
 * Sherehe's contract is still a draft (version 0.1.0), and Kazi Connect has not yet been run against the real Sherehe. When the final contract arrives, Event work may need small changes.
-* The docs page uses a library with 4 moderate-severity advisories in `npm audit` that have no fix yet (see the note under [Run the API on your own computer](#run-the-api-on-your-own-computer)). They affect the browser page, not the API.
+* The docs page uses a library with 4 moderate-severity advisories in `npm audit` that have no fix yet. They can only matter in the browser page, and not here (see the note under [Run the API on your own computer](#run-the-api-on-your-own-computer)); the API is not affected.
 
 ## More documents in this repository
 
