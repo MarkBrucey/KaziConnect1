@@ -4,6 +4,7 @@
 // transactional email API. Without them, nothing is emailed: the message is
 // written to the server log instead, so the reset flow can still be tested.
 
+import { readConfig } from './lib/apiKeys';
 import { singleton } from './lib/singleton';
 
 export interface OutboxMessage {
@@ -32,6 +33,15 @@ interface Mail {
   html: string;
 }
 
+// What is printed when no email service is set up. On your own computer that is the whole message, so a
+// developer can follow the reset link from the terminal. Once API keys are switched on the server is a
+// deployment, and its logs are read by more people than the account's owner: the message holds a working
+// reset link, so only a note is printed, without the link.
+export function unsentNotice({ to, subject, text }: { to: string; subject: string; text: string }, deployed: boolean): string {
+  if (!deployed) return `[email not set up] Not emailed to ${to}: "${subject}"\n${text}`;
+  return `[email not set up] Not emailed to ${to}: "${subject}". The message is not printed here because it holds a reset link: set BREVO_API_KEY and MAIL_FROM.`;
+}
+
 async function send({ to, name, subject, text, html }: Mail): Promise<{ emailed: boolean }> {
   const key = process.env.BREVO_API_KEY;
   const from = process.env.MAIL_FROM;
@@ -39,7 +49,7 @@ async function send({ to, name, subject, text, html }: Mail): Promise<{ emailed:
     outbox.push({ to, subject, text, at: new Date() });
     if (outbox.length > 20) outbox.shift();
     if (!process.env.JEST_WORKER_ID) {
-      console.log(`[email not set up] Not emailed to ${to}: "${subject}"\n${text}`);
+      console.log(unsentNotice({ to, subject, text }, readConfig().required));
     }
     return { emailed: false };
   }
