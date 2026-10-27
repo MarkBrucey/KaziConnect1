@@ -41,7 +41,7 @@ afterAll(async () => {
 beforeEach(() => { stub.reset(); });
 
 const settings = (over: Partial<Settings> = {}): Settings => ({
-  kaziUrl, shereheUrl: stub.url, shereheKey: stub.apiKey, ujuziUrl: '', write: false, timeoutMs: 3000, ...over,
+  kaziUrl, kaziKey: '', shereheUrl: stub.url, shereheKey: stub.apiKey, ujuziUrl: '', write: false, timeoutMs: 3000, ...over,
 });
 const sherehe = async (over: Partial<Settings> = {}): Promise<SystemReport> => (await runStatus(settings(over))).systems.find((s) => s.system === 'sherehe')!;
 const verdicts = (r: SystemReport): Verdict[] => r.checks.map((c) => c.verdict);
@@ -222,6 +222,36 @@ describe('Sherehe', () => {
 
 describe('Kazi Connect (live)', () => {
   const kaziReport = async (over: Partial<Settings> = {}): Promise<SystemReport> => (await runStatus(settings(over))).systems.find((s) => s.system === 'kazi')!;
+
+  describe('once Kazi Connect asks for an API key', () => {
+    const KEY = 'ring-status-test-key-0123456789abcdef';
+    beforeEach(() => { process.env.API_KEYS = `team:${KEY}`; });
+    afterEach(() => { delete process.env.API_KEYS; });
+
+    it('is a key problem (a hold, not a fault) when no key is given, and says which setting to use', async () => {
+      const r = await kaziReport();
+      const endpoint1 = r.checks.find((c) => /Endpoint 1$/.test(c.name))!;
+
+      expect(endpoint1.verdict).toBe('key-problem');
+      expect(endpoint1.note).toMatch(/KAZI_API_KEY/);
+      expect(r.checks.some((c) => /Endpoint 22/.test(c.name))).toBe(false); // a 401 there would only be the key check again
+    });
+
+    it('is a key problem too when the key it sends is not accepted', async () => {
+      const r = await kaziReport({ kaziKey: 'a-key-that-is-not-in-api-keys' });
+
+      expect(verdictOf(r, /Endpoint 1$/)).toBe('key-problem');
+      expect(r.checks.find((c) => /Endpoint 1$/.test(c.name))!.note).toMatch(/not one of/);
+    });
+
+    it('is current and fine when the right key is sent', async () => {
+      const r = await kaziReport({ kaziKey: KEY });
+
+      expect(r.state).toBe('current');
+      expect(verdictOf(r, /Endpoint 1$/)).toBe('ok');
+      expect(verdictOf(r, /Endpoint 22/)).toBe('ok');
+    });
+  });
 
   it('is "current" when the live site is on the same contract version as this checkout', async () => {
     const r = await kaziReport();

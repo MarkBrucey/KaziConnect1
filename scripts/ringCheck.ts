@@ -125,12 +125,13 @@ async function checkKazi(settings: Settings, options: Options): Promise<Step[]> 
   const checker = createChecker(readContract('openapi.yaml'));
   const step = (name: string, passed: boolean, detail: string): void => { steps.push({ half: 'kazi', name, passed, detail }); };
   const timeoutMs = settings.timeoutMs;
+  const keyed: Record<string, string> = settings.kaziKey ? { 'X-API-Key': settings.kaziKey } : {}; // once Kazi Connect asks for an API key
   let created: string | null = null;
   let socket: WebSocket | null = null;
 
   try {
     // Endpoint 1
-    const jobs = await getJson(`${base}/api/jobs?status=active`, {}, timeoutMs);
+    const jobs = await getJson(`${base}/api/jobs?status=active`, keyed, timeoutMs);
     const problems: string[] = [];
     if (jobs.status !== 200) problems.push(`answered ${jobs.status}, expected 200`);
     else checker.schemaCheck(jobs.body, checker.declaredResponse('/api/jobs', 'GET', 200)?.content?.['application/json']?.schema, 'reply', problems);
@@ -146,7 +147,7 @@ async function checkKazi(settings: Settings, options: Options): Promise<Step[]> 
       }
       const made = await fetch(`${base}/api/applications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...keyed },
         body: JSON.stringify({ jobId: open.id, studentId: 'ringcheck_000', preferredDate: new Date(Date.now() + 30 * DAY).toISOString().replace(/\.\d{3}Z$/, 'Z'), note: 'ring:check, cancelled again straight away' }),
         signal: AbortSignal.timeout(timeoutMs),
       });
@@ -164,7 +165,7 @@ async function checkKazi(settings: Settings, options: Options): Promise<Step[]> 
     }
 
     // Endpoint 5
-    const status = await getJson(`${base}/api/applications/${encodeURIComponent(applicationId)}/status`, {}, timeoutMs);
+    const status = await getJson(`${base}/api/applications/${encodeURIComponent(applicationId)}/status`, keyed, timeoutMs);
     const statusProblems: string[] = [];
     if (status.status !== 200) statusProblems.push(`answered ${status.status}, expected 200`);
     else checker.schemaCheck(status.body, checker.declaredResponse('/api/applications/{applicationId}/status', 'GET', 200)?.content?.['application/json']?.schema, 'reply', statusProblems);
@@ -172,7 +173,7 @@ async function checkKazi(settings: Settings, options: Options): Promise<Step[]> 
 
     // Endpoint 6
     const wsUrl = `${base.replace(/^http/, 'ws')}/api/applications/${encodeURIComponent(applicationId)}/subscribe`;
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(wsUrl, { headers: keyed });
     socket = ws;
     const first = nextMessage(ws, timeoutMs);
     await new Promise<void>((resolve, reject) => {
@@ -190,7 +191,7 @@ async function checkKazi(settings: Settings, options: Options): Promise<Step[]> 
       // Cancelling it (Endpoint 9) must be announced live and close the socket, which is the rest of Endpoint 6
       const closed = nextClose(ws, timeoutMs);
       const final = nextMessage(ws, timeoutMs);
-      const gone = await fetch(`${base}/api/applications/${encodeURIComponent(created)}`, { method: 'DELETE', signal: AbortSignal.timeout(timeoutMs) });
+      const gone = await fetch(`${base}/api/applications/${encodeURIComponent(created)}`, { method: 'DELETE', headers: keyed, signal: AbortSignal.timeout(timeoutMs) });
       const message = (await final) as ApplicationStatus;
       const code = await closed;
       created = null;
@@ -206,7 +207,7 @@ async function checkKazi(settings: Settings, options: Options): Promise<Step[]> 
     if (socket) socket.terminate();
     if (created) {
       // Something failed part way: do not leave the check's application behind on the live site.
-      await fetch(`${base}/api/applications/${encodeURIComponent(created)}`, { method: 'DELETE', signal: AbortSignal.timeout(timeoutMs) }).catch(() => undefined);
+      await fetch(`${base}/api/applications/${encodeURIComponent(created)}`, { method: 'DELETE', headers: keyed, signal: AbortSignal.timeout(timeoutMs) }).catch(() => undefined);
     }
   }
   return steps;

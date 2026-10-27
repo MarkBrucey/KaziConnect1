@@ -67,6 +67,7 @@ export interface Report {
 
 export interface Settings {
   kaziUrl: string;
+  kaziKey: string; // the API key Kazi Connect asks for once API_KEYS is set there; empty while it is open
   shereheUrl: string;
   shereheKey: string;
   ujuziUrl: string;
@@ -304,6 +305,7 @@ async function checkKazi(settings: Settings): Promise<SystemReport> {
   const local = YAML.parse(fs.readFileSync(path.join(ROOT, 'openapi.yaml'), 'utf8')) as ContractDoc;
   const checker = createChecker(local);
   const timeoutMs = settings.timeoutMs;
+  const keyed: Record<string, string> = settings.kaziKey ? { 'X-API-Key': settings.kaziKey } : {};
 
   const contract = await probe(`${url}/openapi.yaml`, { timeoutMs });
   if (contract.kind === 'no-answer') {
@@ -326,18 +328,19 @@ async function checkKazi(settings: Settings): Promise<SystemReport> {
     add({ name: 'live contract', request: 'GET /openapi.yaml', verdict: 'pending-deploy', status: 200, note: `live is on ${theirs.version} but this checkout is ${here}: Ujuzi and Sherehe cannot see the new endpoints until uat is merged into main and deployed` });
   }
 
-  const jobs = await probe(`${url}/api/jobs?status=active`, { timeoutMs });
+  const jobs = await probe(`${url}/api/jobs?status=active`, { headers: keyed, timeoutMs });
   if (jobs.kind === 'no-answer') add(unreachableCheck('kazi', 'Endpoint 1', 'GET /api/jobs?status=active', jobs));
   else {
     const problems: string[] = [];
     const body = parseJson(jobs.text);
     if (jobs.status !== 200) problems.push(`answered ${jobs.status}`);
     else checker.schemaCheck(body, checker.declaredResponse('/api/jobs', 'GET', 200)?.content?.['application/json']?.schema, 'reply', problems);
-    add({ name: 'Endpoint 1', request: 'GET /api/jobs?status=active', verdict: problems.length ? (jobs.status >= 500 ? 'genuine-error' : 'drift') : 'ok', status: jobs.status, note: problems.length ? problems.slice(0, 3).join('; ') : `${Array.isArray(body) ? body.length : 0} active job(s), all matching the contract` });
+    add({ name: 'Endpoint 1', request: 'GET /api/jobs?status=active', verdict: jobs.status === 401 ? 'key-problem' : problems.length ? (jobs.status >= 500 ? 'genuine-error' : 'drift') : 'ok', status: jobs.status, note: jobs.status === 401 ? (settings.kaziKey ? 'answered 401 although a key was sent: the key is not one of Kazi Connect\'s API_KEYS' : 'answered 401: Kazi Connect asks for an API key; set KAZI_API_KEY') : problems.length ? problems.slice(0, 3).join('; ') : `${Array.isArray(body) ? body.length : 0} active job(s), all matching the contract` });
   }
 
-  const openings = await probe(`${url}/api/event-openings`, { timeoutMs });
-  if (openings.kind === 'response') {
+  // With a key refused, a 401 here would only be the key check again and prove nothing about Event work, so it is skipped.
+  const openings = jobs.kind === 'response' && jobs.status === 401 ? null : await probe(`${url}/api/event-openings`, { headers: keyed, timeoutMs });
+  if (openings && openings.kind === 'response') {
     add({ name: 'Endpoint 22 exists', request: 'GET /api/event-openings (no login)', verdict: openings.status === 401 ? 'ok' : openings.status === 404 ? 'pending-deploy' : 'drift', status: openings.status, note: openings.status === 401 ? 'asks for a login, so Event work is deployed' : openings.status === 404 ? 'not deployed yet' : `answered ${openings.status}` });
   }
   const failing = checks.filter((c) => ['genuine-error', 'drift'].includes(c.verdict)).length;
@@ -408,6 +411,7 @@ export function settingsFromEnvironment(args: string[] = []): Settings {
   const env = { ...readDotEnv(path.join(ROOT, '.env')), ...process.env };
   return {
     kaziUrl: env.KAZI_URL || KAZI_LIVE,
+    kaziKey: env.KAZI_API_KEY || '',
     shereheUrl: env.SHEREHE_URL || env.SHEREHE_API_URL || '',
     shereheKey: env.SHEREHE_API_KEY || '',
     ujuziUrl: env.UJUZI_URL || env.UJUZI_API_URL || '',

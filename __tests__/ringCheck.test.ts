@@ -39,10 +39,33 @@ afterAll(async () => {
 beforeEach(async () => { stub.reset(); await db.reset(); });
 
 const settings = (over: Partial<Settings> = {}): Settings => ({
-  kaziUrl, shereheUrl: stub.url, shereheKey: stub.apiKey, ujuziUrl: '', write: false, timeoutMs: 5000, ...over,
+  kaziUrl, kaziKey: '', shereheUrl: stub.url, shereheKey: stub.apiKey, ujuziUrl: '', write: false, timeoutMs: 5000, ...over,
 });
 const live: Options = { readOnly: false, applicationId: '' };
 const failed = (steps: Step[]): string[] => steps.filter((s) => !s.passed).map((s) => `[${s.half}] ${s.name}`);
+
+describe('once Kazi Connect asks for an API key', () => {
+  const KEY = 'ring-check-test-key-0123456789abcdef';
+  beforeEach(() => { process.env.API_KEYS = `team:${KEY}`; });
+  afterEach(() => { delete process.env.API_KEYS; });
+
+  it('passes every step when the key is given, including the WebSocket, and still leaves nothing behind', async () => {
+    const before = await db.countApplications();
+
+    const { steps } = await runRingCheck(settings({ kaziKey: KEY }), live);
+
+    expect(failed(steps)).toEqual([]);
+    expect(await db.countApplications()).toBe(before);
+  });
+
+  it('fails the Kazi half, and only that, when no key is given', async () => {
+    const { steps } = await runRingCheck(settings(), live);
+
+    expect(failed(steps).every((f) => f.startsWith('[kazi]'))).toBe(true);
+    expect(failed(steps).length).toBeGreaterThan(0);
+    expect(steps.find((s) => s.half === 'sherehe')!.passed).toBe(true);
+  });
+});
 
 describe('when everything is up', () => {
   it('passes every step: one live read from Sherehe, then Endpoints 1, 5 and 6 on Kazi Connect', async () => {
