@@ -39,7 +39,7 @@ Every file in this repository that changes because Shamba Direct and SettleIn le
 - [x] `start_lab.bat`: `call npm run build` before `call npm start`.
 - [ ] Render settings (humans): build command `npm ci && npm run build`, start command `npm start`, Node 20.9 or newer, `SHEREHE_API_URL`, `SHEREHE_API_KEY`.
   Measured on a Mac on 21 October 2026, so a guide and not a promise for Render's Linux machines: a cold `next build` peaks at about 1.0 GB for its largest process (about 0.85 GB with `--webpack`), and the running server uses 145 to 190 MB. Render's free instances have 512 MB, so **the first build may run out of memory** even though the running server fits. Watch the first deploy. If it fails with an out-of-memory message, the options are a paid instance for the build, or building elsewhere and deploying the result; nothing in the code needs to change for either.
-- [x] Gate: the 156 existing tests pass with their files untouched (identical to `main`); `npm run typecheck` and `npm run verify` (81 of 81) pass. Whole suite: 582 tests, 581 on the in-memory store plus 1 that runs only with `DATABASE_URL` set; 582 of 582 on PostgreSQL.
+- [x] Gate: the 156 existing tests pass with their files untouched (identical to `main`); `npm run typecheck` and `npm run verify` (81 of 81) pass. Whole suite: 588 tests, 587 on the in-memory store plus 1 that runs only with `DATABASE_URL` set; 588 of 588 on PostgreSQL.
 - [x] Proof that Endpoints 1 to 21 did not change: 151 recorded Express answers replayed (`__tests__/parityWithExpress.test.js`), and a live side-by-side run of 154 requests and 3 WebSocket connections against Express on `main`. See `CONTRACT_DEVIATIONS.md`.
 
 Where this stage differs from the starter brief, on purpose:

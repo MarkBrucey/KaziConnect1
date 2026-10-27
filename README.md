@@ -960,7 +960,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 582 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 211 for Event work, which use a stand-in for Sherehe and never need the real one; and 215 that prove the move changed nothing a client can see and check the tools below. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 581 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (81 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 588 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 211 for Event work, which use a stand-in for Sherehe and never need the real one; and 221 that prove the move changed nothing a client can see and check the tools below. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 587 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (81 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 
@@ -971,7 +971,7 @@ npm run typecheck
 | `npm run test:partner` | Our tests of Sherehe, written from its contract alone and run against its real address (`partner-tests/`) |
 | `npm run db:migrate` | Creates the tables that are missing in the database `DATABASE_URL` points to. It only adds; `--print` shows the statements without touching a database |
 
-**Optional settings** (environment variables, or a `.env` file; copy `.env.example`). The live server uses these; you don't need them locally.
+**Optional settings** (environment variables, or a `.env` file in the project folder; copy `.env.example`; a real environment variable wins over the file). The live server uses these; you don't need them locally.
 
 | Setting | What it does |
 |---|---|
