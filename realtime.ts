@@ -13,11 +13,13 @@ import { WebSocketServer } from 'ws';
 import * as db from './db';
 import { toApplicationStatus } from './mappers';
 import type { ApplicationEvent } from './lib/storeTypes';
+import { clientAddress, gate } from './lib/apiGate';
+import { KEY_SUBPROTOCOL, keyFromSubprotocols } from './lib/apiKeys';
 
 const SUBSCRIBE_PATH = /^\/api\/applications\/([^/]+)\/subscribe\/?$/;
 
-function refuse(socket: Duplex, statusLine: string): void {
-  socket.write(`HTTP/1.1 ${statusLine}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+function refuse(socket: Duplex, statusLine: string, extraHeaders = ''): void {
+  socket.write(`HTTP/1.1 ${statusLine}\r\nConnection: close\r\n${extraHeaders}Content-Length: 0\r\n\r\n`);
   socket.destroy();
 }
 
@@ -31,7 +33,12 @@ function refuse(socket: Duplex, statusLine: string): void {
 // upgrade to Next on purpose (the Next dev server needs its own for hot reloading); it returns true
 // if it dealt with it.
 export function attachRealtime(server: Server, { passOn }: { passOn?: (req: IncomingMessage, socket: Duplex, head: Buffer) => boolean } = {}): WebSocketServer {
-  const wss = new WebSocketServer({ noServer: true });
+  // A browser cannot set headers on a WebSocket, so it sends its API key as the subprotocol "kazi-key.<key>".
+  // The handshake must answer with the subprotocol it chose, or the browser drops the connection.
+  const wss = new WebSocketServer({
+    noServer: true,
+    handleProtocols: (protocols) => [...protocols].find((p) => p.startsWith(KEY_SUBPROTOCOL)) ?? false,
+  });
 
   const upgrade = async (req: IncomingMessage, socket: Duplex, head: Buffer): Promise<void> => {
     let applicationId: string | null = null;
@@ -44,6 +51,18 @@ export function attachRealtime(server: Server, { passOn }: { passOn?: (req: Inco
     // Anything that is not a subscribe request can be handed on (the Next dev server needs its own
     // upgrade for hot reloading). Everything else is refused, as it always was.
     if (!applicationId && passOn && passOn(req, socket, head)) return;
+
+    // The key and the rate limit, before anything is looked up, so a caller without a key learns nothing about which ids exist.
+    if (applicationId) {
+      const result = gate({
+        key: (req.headers['x-api-key'] as string | undefined) ?? keyFromSubprotocols(req.headers['sec-websocket-protocol']),
+        address: clientAddress(req.headers['x-forwarded-for'], req.socket.remoteAddress),
+      });
+      if (!result.ok) {
+        refuse(socket, result.status === 401 ? '401 Unauthorized' : '429 Too Many Requests', result.retryAfter === undefined ? '' : `Retry-After: ${result.retryAfter}\r\n`);
+        return;
+      }
+    }
 
     const existing = applicationId ? await db.findApplicationById(applicationId).catch(() => null) : null;
     if (!existing || !applicationId) {

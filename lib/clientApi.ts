@@ -38,12 +38,20 @@ function setWaking(on: boolean): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(WAKING_EVENT, { detail: on }));
 }
 
+// The website's own API key, if the server was started with one (see app/layout.tsx).
+export function websiteApiKey(): string | null {
+  if (typeof document === 'undefined') return null;
+  return document.querySelector('meta[name="kazi-api-key"]')?.getAttribute('content') || null;
+}
+
 export async function api<T = unknown>(path: string, options: { method?: string; body?: unknown } = {}): Promise<ApiResult<T>> {
   const slow = setTimeout(() => { waiting++; setWaking(true); }, 4000);
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   const token = session.token;
   if (token) headers.Authorization = `Bearer ${token}`;
+  const key = websiteApiKey();
+  if (key) headers['X-API-Key'] = key;
   try {
     const res = await fetch(path, { method: options.method, headers, body: options.body === undefined ? undefined : JSON.stringify(options.body) });
     const text = await res.text();

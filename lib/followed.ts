@@ -4,7 +4,7 @@
 // people keep what they were following), and kept up to date over the Endpoint 6 WebSocket.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, messageOf } from './clientApi';
+import { api, messageOf, websiteApiKey } from './clientApi';
 import type { Application, ApplicationStatus, Job } from './contract';
 
 const KEY = 'kazi-applications';
@@ -78,7 +78,9 @@ export function useFollowedApplications() {
     if (sockets.current[id]) return;
     const url = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/api/applications/${encodeURIComponent(id)}/subscribe`;
     let ws: WebSocket;
-    try { ws = new WebSocket(url); } catch { return; }
+    // A browser cannot set headers on a WebSocket, so the website's key goes in as a subprotocol (see realtime.ts).
+    const key = websiteApiKey();
+    try { ws = key ? new WebSocket(url, `kazi-key.${key}`) : new WebSocket(url); } catch { return; }
     sockets.current[id] = ws;
     ws.onopen = () => { if (followed.get(id)) save({ applicationId: id, live: true }); };
     ws.onmessage = (event) => {
