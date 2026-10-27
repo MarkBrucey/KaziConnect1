@@ -11,7 +11,7 @@ Kazi Connect is a REST API of casual jobs and services in Kenya, such as campus 
 | Sherehe, our upstream partner (events) | TODO: Sherehe's live address, once its sub-team has deployed it |
 | Ujuzi, our downstream partner (skills training) | TODO: Ujuzi's live address, once its sub-team has deployed it |
 
-> **Which version this describes:** 1.3.0. Endpoints 22 to 25 (Event work, Part 3) reach the live address when `uat` is merged into `main` and deployed (TODO: record the date). The live address is on version 1.2.1 until then. Everything else in this README is unchanged and works on the live address today.
+> **Which version this describes:** 1.3.0. Endpoints 22 to 25 (Event work, Part 3) reach the live address when `uat` is merged into `main` and deployed (TODO: record the date). The live address is on version 1.2.1 until then. It also adds API keys and a rate limit (see [API keys and rate limits](#api-keys-and-rate-limits)): the live address does not ask for a key until they are switched on there (TODO: record the date). Everything else in this README is unchanged and works on the live address today.
 
 > **Before your first request:** the API runs on a free server that goes to sleep after 15 minutes without visitors. The first request after a quiet spell can take **up to a minute** to answer. That is normal: wait for it, don't cancel. Every request after that is fast.
 
@@ -95,6 +95,52 @@ Sherehe (events) -> Kazi Connect (casual jobs) -> Ujuzi (skills training) -> She
 
 Sherehe's own words (events, roles, offers) stay inside one module of Kazi Connect and never reach its API: Part 3 uses Kazi Connect's own names, `event-openings` and `staffing-offers`. Sherehe's contract is kept as `partner-tests/sherehe_openapi.yaml`; it is still a draft (version 0.1.0).
 
+## API keys and rate limits
+
+Every endpoint needs an API key, except the documentation (the docs page and the contract file). Each consumer has its own key (Ujuzi, the Kazi Connect website, our own team), so a caller can be told apart, limited, and cut off without breaking the others. Keys are issued privately by the Kazi Connect team, never in a chat channel and never in git; this README only ever shows the placeholder `<your-api-key>`.
+
+**Send the key in a header on every call:**
+
+```bash
+curl -s -w "\nHTTP %{http_code}\n" -H "X-API-Key: <your-api-key>" "https://kaziconnect1-1xmu.onrender.com/api/jobs?status=active"
+```
+
+The reply is the list of open jobs and `HTTP 200`, as in the quickstart. Without a key, or with a wrong one, the endpoint does nothing and answers `401`:
+
+```bash
+curl -s -w "\nHTTP %{http_code}\n" "https://kaziconnect1-1xmu.onrender.com/api/jobs?status=active"
+```
+
+```text
+{"message":"Missing or invalid API key"}
+HTTP 401
+```
+
+A key says who is calling. It is separate from a login token: the endpoints in Parts 2 and 3 need **both**, the key and `Authorization: Bearer YOUR_TOKEN`. A `401` with a message about logging in is about the token; the message above is about the key.
+
+**The rate limit** is 100 calls a minute for each consumer. Past it, an endpoint answers `429 Too Many Requests` with a `Retry-After` header (seconds to wait) and a JSON body saying the same, and does nothing. This is a real reply, captured with the limit lowered to 3 so it was quick to reach (five calls in a row gave `200 200 200 429 429`):
+
+```text
+HTTP/1.1 429 Too Many Requests
+retry-after: 60
+{"message":"Too many requests","retryAfter":60}
+```
+
+Guessing keys is slowed down too: after 20 wrong keys from one address in a minute, even a wrong key gets `429`. The limit counts in the server's memory, so it starts again when the server restarts and it does not add up across several copies of the server (a production service would keep the counts in a shared store such as Redis).
+
+**Using the numbered steps below with keys switched on:** add `-H "X-API-Key: <your-api-key>"` right after `curl` in every command. A WebSocket needs it too: add `-H "X-API-Key: <your-api-key>"` (wscat's own header option) to the `wscat` command in step 7. That exact command was not run with `wscat` here; the same header is tested with another WebSocket client. A browser cannot set headers on a WebSocket, so a browser offers the key as the subprotocol `kazi-key.<your-api-key>` instead. For PowerShell, add `-Headers @{ 'X-API-Key' = '<your-api-key>' }` to calls with no login, and put the key into the `$AUTH` table for the others; this has not been run on a Windows computer.
+
+**Switching keys on (for whoever runs the server).** With no `API_KEYS` setting the server stays open, as it does on your own computer by default, and says so when it starts. Setting `API_KEYS` turns on both the key check and the rate limit:
+
+| Setting | What it does |
+|---|---|
+| `API_KEYS` | One key per consumer, as `name:key`, comma separated, for example `ujuzi:<a-long-random-key>,website:<another>,team:<another>`. Make each key with `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`. Keys shorter than 16 characters are ignored, and the server says so at startup (never printing the key) |
+| `REQUIRE_API_KEY` | `true` refuses every call until at least one valid key is configured, so a deployment that forgot to set `API_KEYS` is closed, not open |
+| `API_RATE_LIMIT`, `API_RATE_WINDOW_MS` | Calls allowed per consumer per window (default 100 per 60000 ms); `0` turns the limit off |
+| `API_FAILED_KEY_LIMIT` | Wrong keys allowed per address per window before `429` (default 20) |
+
+A consumer named `website` is special: the website's own pages carry that key so they can call the API. Every visitor can see it, so it only says "this call came from the website" and gives each visitor their own allowance; a person's data is protected by their own login token, not by it. `/openapi.yaml` and the docs page stay public on purpose: they are the documentation and hold no data. The browser's preflight (`OPTIONS`) is answered without a key, because a preflight cannot carry one.
+
 ## Which terminal to use
 
 | Your computer | Use |
@@ -110,7 +156,7 @@ Each response shown is the real reply from the live API, formatted for reading, 
 
 ## Part 1: Finding and requesting jobs (Ujuzi)
 
-No account and no token are needed for anything in this part. The steps follow Ujuzi's needs U1 to U6 in `API_NEEDS.md`, and leave nothing behind: the request made in step 5 is withdrawn in step 9.
+No account and no login token are needed for anything in this part (an API key is, once the server asks for one). The steps follow Ujuzi's needs U1 to U6 in `API_NEEDS.md`, and leave nothing behind: the request made in step 5 is withdrawn in step 9.
 
 **Step 1. List the open jobs and services** (U1, Endpoint 1). This is the quickstart command above. `status=active` is required, and returns only jobs that can still be requested.
 
@@ -818,12 +864,13 @@ The empty line before the last `HTTP 404` is the empty body of a read endpoint (
 | Code | Meaning | Example cause |
 |---|---|---|
 | `400` | The request is wrong; nothing was changed | A required field is missing, has the wrong type, an unknown field was sent, or a date is in the past |
-| `401` | No valid login token (Parts 2 and 3 only) | No `Authorization` header, a mistyped token, an expired token, or after logging out |
+| `401` | No valid API key (every endpoint, once keys are switched on), or no valid login token (Parts 2 and 3 only) | No `Authorization` header, a mistyped token, an expired token, or after logging out |
 | `403` | Logged in, but not allowed (Parts 2 and 3 only) | A student posting a job, or an employer touching another employer's job or offer |
 | `404` | That ID doesn't exist | A mistyped ID, or a request or offer that was withdrawn |
 | `409` | Not allowed in its current state | Changing or withdrawing a request that is already accepted or filled, requesting a closed job, registering an email that already has an account, or offering for a role that is full or already has an offer waiting |
 | `413` | The request body is too large | More than 20 KB of JSON |
 | `426` | A plain HTTP request was sent to the live updates endpoint (Endpoint 6) | Use a WebSocket client, as in step 7 |
+| `429` | This consumer has called more than its rate limit (100 a minute by default), or guessed too many wrong keys. Nothing was done. `Retry-After` says how many seconds to wait | A loop that calls too fast. Wait, then try again |
 | `502` | Sherehe could not be reached, or answered in a way Kazi Connect cannot use (Endpoints 22, 23 and 25 only). Nothing was changed, and every other endpoint keeps working | Sherehe is down, or its address or key is not set up. Try again in a minute |
 
 ## The same in Windows PowerShell
@@ -937,6 +984,7 @@ After `npm start`, when it is ready, the terminal shows:
 Kazi Connect API running on http://localhost:3000
 Swagger UI:           http://localhost:3000/docs
 Data is stored:       in memory (resets on restart)
+API access:          open: no API_KEYS set, so no key is required (set API_KEYS before deploying)
 Event work (Sherehe): not set up (set SHEREHE_API_URL and SHEREHE_API_KEY); everything else works without it
 ✓ Running next.config.ts took 16ms
 ```
@@ -960,7 +1008,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 596 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 219 for Event work, which use a stand-in for Sherehe and never need the real one; and 221 that prove the move changed nothing a client can see and check the tools below. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 595 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (81 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 661 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 219 for Event work, which use a stand-in for Sherehe and never need the real one; and 286 that prove the move changed nothing a client can see and check the tools below. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 660 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (81 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 
@@ -975,13 +1023,14 @@ npm run typecheck
 
 | Setting | What it does |
 |---|---|
+| `API_KEYS`, `REQUIRE_API_KEY`, `API_RATE_LIMIT`, `API_RATE_WINDOW_MS`, `API_FAILED_KEY_LIMIT` | API keys and the rate limit; see [API keys and rate limits](#api-keys-and-rate-limits). Without `API_KEYS` the server stays open |
 | `DATABASE_URL` | A PostgreSQL connection address. Data is then kept between restarts. The tables and sample data are created automatically on first start |
 | `SHEREHE_API_URL` and `SHEREHE_API_KEY` | Where Sherehe is and the partner key it issued to Kazi Connect. Needed for Event work (Part 3) |
 | `OFFER_POLL_MS` | How often Kazi Connect asks Sherehe about waiting offers, in milliseconds (default 180000, minimum 5000) |
 | `BREVO_API_KEY` and `MAIL_FROM` | Send password reset emails through Brevo, from the `MAIL_FROM` address |
 | `APP_URL` | The site address used in reset links (the live server works it out by itself) |
 | `PORT` | The port to listen on (default 3000) |
-| `KAZI_URL` and `UJUZI_URL` | Used only by `npm run ring:status` and `npm run ring:check`: Kazi Connect's own address (the live site by default) and Ujuzi's (TODO until it is shared) |
+| `KAZI_URL`, `KAZI_API_KEY` and `UJUZI_URL` | Used only by `npm run ring:status` and `npm run ring:check`: Kazi Connect's own address (the live site by default), the key to send there once Kazi Connect asks for one, and Ujuzi's address (TODO until it is shared) |
 
 ## All endpoints
 
@@ -1017,9 +1066,12 @@ Full request and response shapes for every endpoint are on the docs page: https:
 
 ## Known limits
 
-* Endpoints 1 to 9 need no login, by design: Ujuzi calls them on behalf of its graduates. It also means anyone who knows a request's ID can change or withdraw it. Any change to how these endpoints work, for security or any other reason, will be agreed with Ujuzi first and recorded in `CONTRACT_DEVIATIONS.md`, so their integration never breaks without warning.
+* Endpoints 1 to 9 need no login, by design: Ujuzi calls them on behalf of its graduates. It also means anyone with a valid API key who knows a request's ID can read, change or withdraw it: a key says which system is calling, not which student the request belongs to, and request IDs count up from `app_1001`, so they can be guessed. Any change to how these endpoints work, for security or any other reason, will be agreed with Ujuzi first and recorded in `CONTRACT_DEVIATIONS.md`, so their integration never breaks without warning.
 * The free server sleeps after 15 minutes without visitors, so the first request after a quiet spell is slow.
 * Reset emails are sent from a Gmail address, so they may land in spam.
+* The rate limit lives in the server's memory (see [API keys and rate limits](#api-keys-and-rate-limits)). The address used to tell website visitors apart comes from the host's `X-Forwarded-For` header, which a caller who reaches the server directly can set to anything; behind Render it is the real address.
+* The website's own key is visible to every visitor, by necessity. Keys are for systems that call Kazi Connect from a server; they do not protect a person's data, their login token does.
+* Keys are compared and rate limited per consumer, not per student, and a leaked key stays valid until it is removed from `API_KEYS` and the server is restarted.
 * Event work (Part 3) depends on Sherehe. When Sherehe is down, Endpoints 22, 23 and 25 answer `502`; everything else keeps working. An organiser's decision reaches Kazi Connect within about 3 minutes, and only while the server is awake. Only one offer can wait on a role at a time.
 * Sherehe's contract is still a draft (version 0.1.0), and Kazi Connect has not yet been run against the real Sherehe. When the final contract arrives, Event work may need small changes.
 * The docs page uses a library with 4 moderate-severity advisories in `npm audit` that have no fix yet. They can only matter in the browser page, and not here (see the note under [Run the API on your own computer](#run-the-api-on-your-own-computer)); the API is not affected.

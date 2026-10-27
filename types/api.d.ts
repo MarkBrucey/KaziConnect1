@@ -47,6 +47,8 @@ export interface paths {
                     };
                     content?: never;
                 };
+                401: components["responses"]["MissingApiKey"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -92,6 +94,7 @@ export interface paths {
                 };
                 401: components["responses"]["NotLoggedIn"];
                 403: components["responses"]["Forbidden"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         delete?: never;
@@ -132,6 +135,7 @@ export interface paths {
                         "application/json": components["schemas"]["Job"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
                 /** @description Job ID not found. */
                 404: {
                     headers: {
@@ -139,6 +143,7 @@ export interface paths {
                     };
                     content?: never;
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -204,6 +209,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         trace?: never;
@@ -240,6 +246,7 @@ export interface paths {
                         "application/json": components["schemas"]["JobStatus"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
                 /** @description Job ID not found. */
                 404: {
                     headers: {
@@ -247,6 +254,7 @@ export interface paths {
                     };
                     content?: never;
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -304,6 +312,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -345,6 +354,7 @@ export interface paths {
                         "application/json": components["schemas"]["ApplicationStatus"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
                 /** @description Application ID not found. */
                 404: {
                     headers: {
@@ -352,6 +362,7 @@ export interface paths {
                     };
                     content?: never;
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -372,6 +383,8 @@ export interface paths {
         /**
          * Opens a WebSocket that pushes status changes in real time (accepted / filled)
          * @description Statement 5. This is a plain GET that upgrades to a WebSocket, so connect with a WebSocket client (ws://), not a normal HTTP request. On connect the server sends the current status once, then sends a new message every time the status changes, for example to accepted or filled. Every message is a JSON ApplicationStatus object. If the application is cancelled with DELETE, a final message with status "cancelled" is sent and the server closes the connection. Swagger UI cannot open WebSockets, so Try it out returns 426 for this endpoint.
+         *
+         *     With API keys switched on, the connection needs the key like every other endpoint: a program sends the X-API-Key header, and a browser, which cannot set headers on a WebSocket, offers the subprotocol "kazi-key.YOUR_KEY". A missing or wrong key is refused with 401 before the connection opens, and a consumer past its rate limit with 429.
          */
         get: {
             parameters: {
@@ -399,6 +412,7 @@ export interface paths {
                         "application/json": components["schemas"]["ApplicationStatus"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
                 /** @description Application ID not found. The connection is refused. */
                 404: {
                     headers: {
@@ -413,6 +427,7 @@ export interface paths {
                     };
                     content?: never;
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -472,6 +487,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
                 /** @description The job exists but is closed, so it is not accepting applications. Nothing is written. */
                 409: {
                     headers: {
@@ -486,6 +502,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         delete?: never;
@@ -544,6 +561,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
                 /** @description Application ID not found. Nothing is created. */
                 404: {
                     headers: {
@@ -572,6 +590,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         post?: never;
@@ -597,6 +616,7 @@ export interface paths {
                     };
                     content?: never;
                 };
+                401: components["responses"]["MissingApiKey"];
                 /** @description Application ID not found, including one that was already cancelled. */
                 404: {
                     headers: {
@@ -625,6 +645,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         options?: never;
@@ -701,6 +722,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         trace?: never;
@@ -754,6 +776,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
                 /** @description An account with this email already exists. */
                 409: {
                     headers: {
@@ -768,6 +791,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         delete?: never;
@@ -825,7 +849,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description The email or password is wrong. */
+                /** @description The email or password is wrong, or no valid API key was sent (the message then says so). */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -839,6 +863,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
             };
         };
         delete?: never;
@@ -877,6 +902,7 @@ export interface paths {
                     content?: never;
                 };
                 401: components["responses"]["NotLoggedIn"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         delete?: never;
@@ -934,6 +960,8 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         delete?: never;
@@ -988,6 +1016,8 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                401: components["responses"]["MissingApiKey"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         post?: never;
@@ -1027,6 +1057,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["NotLoggedIn"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -1068,6 +1099,7 @@ export interface paths {
                 };
                 401: components["responses"]["NotLoggedIn"];
                 403: components["responses"]["Forbidden"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -1109,6 +1141,7 @@ export interface paths {
                 };
                 401: components["responses"]["NotLoggedIn"];
                 403: components["responses"]["Forbidden"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -1153,6 +1186,7 @@ export interface paths {
                 };
                 401: components["responses"]["NotLoggedIn"];
                 403: components["responses"]["Forbidden"];
+                429: components["responses"]["TooManyRequests"];
                 502: components["responses"]["PartnerUnavailable"];
             };
         };
@@ -1228,6 +1262,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
                 502: components["responses"]["PartnerUnavailable"];
             };
         };
@@ -1289,6 +1324,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                429: components["responses"]["TooManyRequests"];
                 502: components["responses"]["PartnerUnavailable"];
             };
         };
@@ -1328,6 +1364,7 @@ export interface paths {
                 };
                 401: components["responses"]["NotLoggedIn"];
                 403: components["responses"]["Forbidden"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -1690,7 +1727,37 @@ export interface components {
         };
     };
     responses: {
-        /** @description No token was sent, or it is not valid, or it has expired. */
+        /** @description No X-API-Key header was sent, or the key is not one this server knows. Nothing was done. */
+        MissingApiKey: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "message": "Missing or invalid API key"
+                 *     }
+                 */
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description This consumer has used its allowance of calls for the current window (100 a minute by default). Wait the number of seconds in Retry-After, then try again. Nothing was done. */
+        TooManyRequests: {
+            headers: {
+                /** @description Seconds to wait before the next call. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    /** @example Too many requests */
+                    message: string;
+                    /** @example 30 */
+                    retryAfter: number;
+                };
+            };
+        };
+        /** @description No valid API key was sent ("Missing or invalid API key"), or no login token was sent, or it is not valid, or it has expired. */
         NotLoggedIn: {
             headers: {
                 [name: string]: unknown;

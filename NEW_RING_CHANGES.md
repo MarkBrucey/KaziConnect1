@@ -39,7 +39,7 @@ Every file in this repository that changes because Shamba Direct and SettleIn le
 - [x] `start_lab.bat`: `call npm run build` before `call npm start`.
 - [ ] Render settings (humans): build command `npm ci && npm run build`, start command `npm start`, Node 20.9 or newer, `SHEREHE_API_URL`, `SHEREHE_API_KEY`.
   Measured on a Mac on 21 October 2026, so a guide and not a promise for Render's Linux machines: a cold `next build` peaks at about 1.0 GB for its largest process (about 0.85 GB with `--webpack`), and the running server uses 145 to 190 MB. Render's free instances have 512 MB, so **the first build may run out of memory** even though the running server fits. Watch the first deploy. If it fails with an out-of-memory message, the options are a paid instance for the build, or building elsewhere and deploying the result; nothing in the code needs to change for either.
-- [x] Gate: the 156 existing tests pass with their files untouched (identical to `main`); `npm run typecheck` and `npm run verify` (81 of 81) pass. Whole suite: 596 tests, 595 on the in-memory store plus 1 that runs only with `DATABASE_URL` set; 596 of 596 on PostgreSQL.
+- [x] Gate: the 156 existing tests pass with their files untouched (identical to `main`); `npm run typecheck` and `npm run verify` (81 of 81) pass. Whole suite: 661 tests, 660 on the in-memory store plus 1 that runs only with `DATABASE_URL` set; 661 of 661 on PostgreSQL.
 - [x] Proof that Endpoints 1 to 21 did not change: 151 recorded Express answers replayed (`__tests__/parityWithExpress.test.js`), and a live side-by-side run of 154 requests and 3 WebSocket connections against Express on `main`. See `CONTRACT_DEVIATIONS.md`.
 
 Where this stage differs from the starter brief, on purpose:
@@ -63,3 +63,13 @@ Where this stage differs from the starter brief, on purpose:
 - [ ] `npm run ring:check` passes in Sherehe, Kazi Connect and Ujuzi.
 - [ ] Ujuzi has re-run its partner tests against Kazi 1.3.0.
 - [ ] The nine-step demo story runs on the live systems; screenshots in `evidence/ring/`.
+
+## Week 9: API keys, rate limits and the security audit
+
+- [x] API key check on every endpoint, 1 to 25, and on the Endpoint 6 WebSocket (a browser sends the key as the subprotocol `kazi-key.<key>`). Off unless `API_KEYS` is set, so the 156 original tests and the recorded Express answers pass untouched. Agreed with the project owner on 27 October 2026 (R4 allows closing Endpoints 1 to 9 when both sides agree); logged in `CONTRACT_DEVIATIONS.md`.
+- [x] Rate limit per consumer (100 a minute by default; the `website` key per visitor), `429` with `Retry-After` and a JSON body; wrong keys limited per address. Demonstrated with a real `200 200 200 429 429`.
+- [x] `openapi.yaml`: `ApiKey` security scheme, a `401` and a `429` on all 24 operations. The version stays 1.3.0 because 1.3.0 has not shipped.
+- [x] `README.md` (new section, error table, settings), `.env.example`, `SECURITY_AUDIT.md` (a real review, with what was not fixed and why), new tests (`apiKeys`, `mailerLog`, and key support in the ring tools), all verified: every README command was re-run against a keys-on server.
+- [x] A finding fixed: with no email service, the password-reset link was printed to the log. It is now printed only on your own computer.
+- [ ] Humans: set `API_KEYS` (and `REQUIRE_API_KEY=true`) in Render, issue Ujuzi its key privately, tell Ujuzi before the live address starts asking for keys (R8), and record the dates in `CONTRACT_DEVIATIONS.md`.
+- [ ] Ujuzi's client must send `X-API-Key` (and `kazi-key.<key>` is not needed: Ujuzi calls from a server) before the local ring can run with keys on.

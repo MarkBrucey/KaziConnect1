@@ -7,9 +7,19 @@ info:
     employer tools for the Kazi Connect website. Endpoint numbers match ENDPOINT_LIST.md, and each
     endpoint names the need statement it serves. Endpoints marked with a lock need a login token:
     log in with Endpoint 11, then send the token as "Authorization: Bearer YOUR_TOKEN".
+
+
+    Every endpoint also needs an API key when the server has API keys switched on (the setting API_KEYS):
+    send it on every call as "X-API-Key: YOUR_API_KEY". Without a valid key an endpoint answers 401 and
+    does nothing. Each consumer has its own key and its own rate limit (100 calls a minute by default); past
+    it an endpoint answers 429 with a Retry-After header. This file and the docs page need no key.
 servers:
   - url: http://localhost:3000
     description: Local development server
+
+# Every endpoint needs an API key. An endpoint that also needs a login token lists both in one entry.
+security:
+  - ApiKey: []
 
 paths:
 
@@ -55,13 +65,18 @@ paths:
                   $ref: '#/components/schemas/Job'
         '400':
           description: status is missing, or county or category was sent empty.
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
     # ENDPOINT 14 (same path as Endpoints 1 and 2)
     post:
       summary: Posts a new job (employers only)
       description: Kazi Connect website need W2. The kind of work is saved in lower case. A new job starts active.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       requestBody:
         required: true
         content:
@@ -87,6 +102,8 @@ paths:
           $ref: '#/components/responses/NotLoggedIn'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 3---
   /api/jobs/{jobId}:
@@ -110,6 +127,10 @@ paths:
                 $ref: '#/components/schemas/Job'
         '404':
           description: Job ID not found.
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
     # ENDPOINT 17 (same path as Endpoint 3)
     patch:
@@ -119,7 +140,8 @@ paths:
         filled, and subscribers to those applications hear about it live. Sending the same status
         twice leaves the job in the same state.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       parameters:
         - name: jobId
           in: path
@@ -160,6 +182,8 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'Job job_99999 not found'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 4---
   /api/jobs/{jobId}/status:
@@ -184,6 +208,10 @@ paths:
                 $ref: '#/components/schemas/JobStatus'
         '404':
           description: Job ID not found.
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 16---
   /api/jobs/{jobId}/applications:
@@ -193,7 +221,8 @@ paths:
         Kazi Connect website need W3. Newest first. An empty list means nobody has applied yet. Each
         applicant includes studentName when the application came from a Kazi Connect account.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       parameters:
         - name: jobId
           in: path
@@ -222,6 +251,8 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'Job job_99999 not found'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 5---
   /api/applications/{applicationId}/status:
@@ -244,6 +275,10 @@ paths:
                 $ref: '#/components/schemas/ApplicationStatus'
         '404':
           description: Application ID not found.
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 6---
   /api/applications/{applicationId}/subscribe:
@@ -256,6 +291,12 @@ paths:
         filled. Every message is a JSON ApplicationStatus object. If the application is cancelled
         with DELETE, a final message with status "cancelled" is sent and the server closes the
         connection. Swagger UI cannot open WebSockets, so Try it out returns 426 for this endpoint.
+
+
+        With API keys switched on, the connection needs the key like every other endpoint: a program sends
+        the X-API-Key header, and a browser, which cannot set headers on a WebSocket, offers the subprotocol
+        "kazi-key.YOUR_KEY". A missing or wrong key is refused with 401 before the connection opens, and a
+        consumer past its rate limit with 429.
       parameters:
         - name: applicationId
           in: path
@@ -280,6 +321,10 @@ paths:
           description: Application ID not found. The connection is refused.
         '426':
           description: Upgrade Required. The request was plain HTTP, not a WebSocket upgrade.
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 7---
   /api/applications:
@@ -320,6 +365,10 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: Job job_12350 is closed and is not accepting applications
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 8 and ENDPOINT 9 (same path, different methods)---
   /api/applications/{applicationId}:
@@ -373,6 +422,10 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'Application app_1002 is accepted; only pending applications can be changed'
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
     delete:
       summary: Cancels a pending application/service request
       description: >
@@ -404,6 +457,10 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'Application app_1002 is accepted; only pending applications can be cancelled'
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
     # ENDPOINT 18 (same path as Endpoints 8 and 9)
     patch:
       summary: Accepts an application (the employer who posted the job)
@@ -412,7 +469,8 @@ paths:
         other application still waiting for the same job becomes filled, and the job closes.
         Subscribers to each application hear about the change live.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       parameters:
         - name: applicationId
           in: path
@@ -461,6 +519,8 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'Application app_1002 is accepted; only pending applications can be accepted'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 10---
   /api/auth/register:
@@ -498,6 +558,10 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'An account with this email already exists. Log in instead.'
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 11---
   /api/auth/login:
@@ -528,13 +592,15 @@ paths:
               example:
                 message: 'Missing required field(s): password'
         '401':
-          description: The email or password is wrong.
+          description: The email or password is wrong, or no valid API key was sent (the message then says so).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'Email or password is incorrect.'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 12---
   /api/auth/logout:
@@ -542,12 +608,15 @@ paths:
       summary: Logs out, so the token stops working
       description: Kazi Connect website need W1.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       responses:
         '204':
           description: Logged out. No body.
         '401':
           $ref: '#/components/responses/NotLoggedIn'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 20---
   /api/auth/password-resets:
@@ -579,6 +648,10 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'email must be a valid email address'
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 21---
   /api/auth/password:
@@ -607,6 +680,10 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'This reset link is not valid or has expired. Ask for a new one.'
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 13---
   /api/me:
@@ -614,7 +691,8 @@ paths:
       summary: Returns the logged in user
       description: Kazi Connect website need W1.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       responses:
         '200':
           description: The logged in user.
@@ -624,6 +702,8 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/NotLoggedIn'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 15---
   /api/me/jobs:
@@ -631,7 +711,8 @@ paths:
       summary: Lists the jobs the logged in employer posted
       description: Kazi Connect website need W2. Newest first, each with how many applications are waiting.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       responses:
         '200':
           description: The employer's jobs. Empty list if none posted yet.
@@ -645,6 +726,8 @@ paths:
           $ref: '#/components/responses/NotLoggedIn'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 19---
   /api/me/applications:
@@ -654,7 +737,8 @@ paths:
         Kazi Connect website need W5. Applications whose studentId is the student's account ID, newest
         first. Empty list if the student has not applied yet.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       responses:
         '200':
           description: The student's applications.
@@ -668,6 +752,8 @@ paths:
           $ref: '#/components/responses/NotLoggedIn'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 22---
   /api/event-openings:
@@ -677,7 +763,8 @@ paths:
         Kazi Connect website need W7 (served from Sherehe, needs K1 and K2). Only roles with open slots
         on upcoming events. Empty list if none. Answers 502 when Sherehe cannot be reached.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       parameters:
         - name: county
           in: query
@@ -701,6 +788,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '502':
           $ref: '#/components/responses/PartnerUnavailable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 23---
   /api/staffing-offers:
@@ -710,7 +799,8 @@ paths:
         Kazi Connect website need W7 (calls Sherehe, need K3). The logged in employer offers workers;
         when the organiser accepts, Kazi opens a job for this employer with the role's category and pay.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       requestBody:
         required: true
         content:
@@ -748,6 +838,8 @@ paths:
                 $ref: '#/components/schemas/Error'
         '502':
           $ref: '#/components/responses/PartnerUnavailable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 25---
   /api/staffing-offers/{offerId}:
@@ -757,7 +849,8 @@ paths:
         Kazi Connect website need W7 (calls Sherehe, need K5). Only the employer who made the offer,
         and only while it is pending. The offer is withdrawn at Sherehe and deleted here.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       parameters:
         - name: offerId
           in: path
@@ -786,6 +879,8 @@ paths:
                 $ref: '#/components/schemas/Error'
         '502':
           $ref: '#/components/responses/PartnerUnavailable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   #---ENDPOINT 24---
   /api/me/staffing-offers:
@@ -793,7 +888,8 @@ paths:
       summary: Lists the logged in employer's staffing offers
       description: Kazi Connect website need W7 (need K4). Newest first. Empty list if none.
       security:
-        - bearerAuth: []
+        - ApiKey: []
+          bearerAuth: []
       responses:
         '200':
           description: The employer's offers with their latest known status.
@@ -807,16 +903,51 @@ paths:
           $ref: '#/components/responses/NotLoggedIn'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
 components:
   securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: 'The key issued to your system, sent on every call. Only the key goes here, with no prefix. A browser WebSocket, which cannot set headers, sends it as the subprotocol "kazi-key.YOUR_KEY" instead.'
     bearerAuth:
       type: http
       scheme: bearer
       description: 'The token from Endpoint 10 or 11, sent as "Authorization: Bearer YOUR_TOKEN". Paste only the token here; Swagger adds the word Bearer itself.'
   responses:
+    MissingApiKey:
+      description: No X-API-Key header was sent, or the key is not one this server knows. Nothing was done.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Missing or invalid API key
+    TooManyRequests:
+      description: This consumer has used its allowance of calls for the current window (100 a minute by default). Wait the number of seconds in Retry-After, then try again. Nothing was done.
+      headers:
+        Retry-After:
+          description: Seconds to wait before the next call.
+          schema:
+            type: integer
+            example: 30
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [message, retryAfter]
+            properties:
+              message:
+                type: string
+                example: Too many requests
+              retryAfter:
+                type: integer
+                example: 30
     NotLoggedIn:
-      description: No token was sent, or it is not valid, or it has expired.
+      description: No valid API key was sent ("Missing or invalid API key"), or no login token was sent, or it is not valid, or it has expired.
       content:
         application/json:
           schema:
