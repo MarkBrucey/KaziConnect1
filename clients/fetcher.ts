@@ -31,6 +31,8 @@ export interface RequestOptions {
   body?: unknown;
   mode?: Mode;
   cache?: boolean;
+  // With cache: true, skip the cached answer and ask again, but still store the new answer for the next call.
+  refresh?: boolean;
   signal?: AbortSignal; // for example a deadline() shared with other calls
 }
 
@@ -43,6 +45,9 @@ interface Settings {
 const DEFAULTS = { userTimeoutMs: 10 * 1000, backgroundTimeoutMs: 60 * 1000 };
 export const CACHE_TTL_MS = 5 * 60 * 1000;
 export const CACHE_MAX_ENTRIES = 200;
+// A refresh that a caller asks for because something is missing may happen at most this often, so a stream of
+// requests for ids that do not exist cannot become a stream of calls to the partner.
+export const REFRESH_MIN_GAP_MS = 15 * 1000;
 export const MAX_ANSWER_BYTES = 1024 * 1024;
 
 // One cache and one set of settings per process, however many copies of this module Next makes:
@@ -50,12 +55,21 @@ export const MAX_ANSWER_BYTES = 1024 * 1024;
 const state = singleton('fetcher', () => ({
   settings: { ...DEFAULTS, now: () => Date.now() } as Settings,
   cache: new Map<string, { result: FetchResult; expires: number }>(),
+  lastRefresh: -Infinity,
 }));
 
 // For tests: a fake clock and short timeouts.
 export function configure(changes: Partial<Settings>): void { state.settings = { ...state.settings, ...changes }; }
 export function clearCache(): void { state.cache.clear(); }
-export function reset(): void { state.settings = { ...DEFAULTS, now: () => Date.now() }; state.cache.clear(); }
+export function reset(): void { state.settings = { ...DEFAULTS, now: () => Date.now() }; state.cache.clear(); state.lastRefresh = -Infinity; }
+
+// True if a refresh is allowed now (and counts it); false if one happened less than REFRESH_MIN_GAP_MS ago.
+export function mayRefresh(): boolean {
+  const now = state.settings.now();
+  if (now - state.lastRefresh < REFRESH_MIN_GAP_MS) return false;
+  state.lastRefresh = now;
+  return true;
+}
 export const cacheSize = (): number => state.cache.size;
 
 const timeoutFor = (mode: Mode): number => (mode === 'background' ? state.settings.backgroundTimeoutMs : state.settings.userTimeoutMs);
@@ -115,9 +129,9 @@ async function readAnswer(res: Response): Promise<string> {
   return text + decoder.decode();
 }
 
-export async function request(url: string, { method = 'GET', headers = {}, body, mode = 'user', cache: useCache = false, signal }: RequestOptions = {}): Promise<FetchResult> {
+export async function request(url: string, { method = 'GET', headers = {}, body, mode = 'user', cache: useCache = false, refresh = false, signal }: RequestOptions = {}): Promise<FetchResult> {
   const key = `${method} ${url}`;
-  if (useCache) {
+  if (useCache && !refresh) {
     const hit = state.cache.get(key);
     if (hit && hit.expires > state.settings.now()) return hit.result;
     state.cache.delete(key);

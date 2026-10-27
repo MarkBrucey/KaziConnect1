@@ -154,6 +154,27 @@ describe('the 5-minute read cache', () => {
     expect(stub.requests).toHaveLength(2);
   });
 
+  it('with refresh, skips the cached answer, asks again, and keeps the new answer for the next call', async () => {
+    await fetcher.request(EVENTS(), { headers: keyed(), cache: true });
+    stub.reset(); // the partner's data changes: a fresh stub has no requests recorded and the same events
+    clock += MINUTE;
+
+    await fetcher.request(EVENTS(), { headers: keyed(), cache: true, refresh: true });
+    await fetcher.request(EVENTS(), { headers: keyed(), cache: true });
+
+    expect(stub.requests).toHaveLength(1); // the refresh asked once; the call after it was answered from memory
+  });
+
+  it('allows a refresh only once every 15 seconds, so missing ids cannot become a stream of calls to the partner', () => {
+    expect(fetcher.mayRefresh()).toBe(true);
+    expect(fetcher.mayRefresh()).toBe(false);
+    clock += fetcher.REFRESH_MIN_GAP_MS - 1;
+    expect(fetcher.mayRefresh()).toBe(false);
+    clock += 1;
+    expect(fetcher.mayRefresh()).toBe(true);
+    expect(fetcher.REFRESH_MIN_GAP_MS).toBe(15 * 1000);
+  });
+
   it('caches nothing unless the call asks for it', async () => {
     await fetcher.request(EVENTS(), { headers: keyed() });
     await fetcher.request(EVENTS(), { headers: keyed() });

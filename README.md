@@ -646,7 +646,7 @@ TOKEN=$(curl -s -X POST $API/api/auth/register \
   | sed -nE 's/.*"token":"([a-f0-9]{64})".*/\1/p')
 ```
 
-**Step 22. See the roles that need workers** (W7, K1 and K2, Endpoint 22). The optional `county` filter is one of the 47 Kenyan counties, spelled as in the shared list. Each opening is one role on one upcoming event, with how many slots are still open and the pay for one shift. The last line saves the first opening's `roleId`.
+**Step 22. See the roles that need workers** (W7, K1 and K2, Endpoint 22). The optional `county` filter is one of the 47 Kenyan counties, spelled as in the shared list. Kazi Connect keeps Sherehe's lists for up to 5 minutes, so a role the organiser added a moment ago may not be in this list yet; offering for it (step 23) still works at once. Each opening is one role on one upcoming event, with how many slots are still open and the pay for one shift. The last line saves the first opening's `roleId`.
 
 ```bash
 OPENINGS=$(curl -s "$API/api/event-openings?county=Nairobi" -H "Authorization: Bearer $TOKEN")
@@ -960,7 +960,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 588 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 211 for Event work, which use a stand-in for Sherehe and never need the real one; and 221 that prove the move changed nothing a client can see and check the tools below. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 587 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (81 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 596 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 219 for Event work, which use a stand-in for Sherehe and never need the real one; and 221 that prove the move changed nothing a client can see and check the tools below. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 595 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (81 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 

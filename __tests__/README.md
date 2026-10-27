@@ -1,4 +1,4 @@
-Automated tests for the Kazi Connect API: 588 tests in 16 files (587 run on the in-memory store; 1 more runs only when DATABASE_URL is set). Run them with: npm test
+Automated tests for the Kazi Connect API: 596 tests in 16 files (595 run on the in-memory store; 1 more runs only when DATABASE_URL is set). Run them with: npm test
 
 `npm test` builds the app first (`next build`), because the tests start the real server, then runs Jest one file at a time.
 
@@ -17,11 +17,11 @@ The first 156 tests, in 5 files, cover Endpoints 1 to 21, one file per area. The
 - bootstrapEnv.test.ts (6): a `.env` file is read before the database and the port are chosen, a real environment variable wins over it, and NODE_ENV defaults correctly (run on a copy of the real file in a temp folder, so your own `.env` is never touched)
 - migrate.test.ts (7): `npm run db:migrate` only adds, never drops, and never prints the database password. The one test that needs a real database is skipped unless DATABASE_URL is set
 
-The other 211 tests, in 5 files, cover Event work (Endpoints 22 to 25, website need W7). Sherehe is a local stand-in, helpers/shereheStub.ts, so none of them needs the real Sherehe or its key:
-- eventWork.test.js (88): Endpoints 22 to 25, every status code, and that Endpoints 1 to 21 keep working while Sherehe is down
+The other 219 tests, in 5 files, cover Event work (Endpoints 22 to 25, website need W7). Sherehe is a local stand-in, helpers/shereheStub.ts, so none of them needs the real Sherehe or its key:
+- eventWork.test.js (94): Endpoints 22 to 25, every status code, that Endpoints 1 to 21 keep working while Sherehe is down, and that a role added at Sherehe within the last 5 minutes can still be offered for
 - offerPoller.test.js (34): the job that opens when the organiser accepts an offer
 - shereheClient.test.js (52): the only module that talks to Sherehe, and the mappers
-- fetcher.test.js (21): timeouts, the 5-minute cache, the size limit, and how failures are handled
+- fetcher.test.js (23): timeouts, the 5-minute cache and its limited refresh, the size limit, and how failures are handled
 - staffingStore.test.js (16): the staffing offer functions of the data store
 
 They run on the in-memory store by default. With DATABASE_URL set they run on that PostgreSQL database, and they empty it first, so never point DATABASE_URL at data you want to keep.

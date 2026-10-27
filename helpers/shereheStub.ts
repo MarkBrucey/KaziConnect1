@@ -84,6 +84,8 @@ export interface ShereheStub {
   decide(offerId: string, status: 'accepted' | 'declined'): void;
   dropOffer(offerId: string): void;
   fillRole(roleId: string): void;
+  // What the organiser does on Sherehe's own website: add a role to an event, after Kazi may have cached the lists.
+  addRole(role: components['schemas']['Role']): void;
 }
 
 export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {}): ShereheStub {
@@ -215,6 +217,7 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
       }
     },
     dropOffer(offerId: string): void { state.offers.delete(offerId); },
+    addRole(role: components['schemas']['Role']): void { state.roles.push(clone(role)); },
     fillRole(roleId: string): void {
       const role = state.roles.find((r) => r.id === roleId)!;
       role.filled = role.headcount;

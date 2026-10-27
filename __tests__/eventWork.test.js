@@ -526,6 +526,90 @@ describe('Endpoint 23: POST /api/staffing-offers', () => {
   });
 });
 
+describe('Endpoint 23: a role that is newer than the 5-minute cache', () => {
+  const NEW_ROLE = { id: 'rol_3101', eventId: 'evt_2001', title: 'Bartenders', category: 'catering', headcount: 3, filled: 0, shiftStart: '2026-12-05T13:00:00Z', shiftEnd: '2026-12-05T22:00:00Z', payPerShift: 1700 };
+  const gets = () => stub.requests.filter((r) => r.method === 'GET').length;
+  let clock;
+  beforeEach(() => { clock = 5_000_000; fetcher.configure({ now: () => clock }); });
+
+  it('can still be offered for: the lists are read again when the role is not in the cached ones', async () => {
+    const token = await employer();
+    const before = await request(server).get('/api/event-openings').set(bearer(token));
+    expect(before.body.map((o) => o.roleId)).not.toContain('rol_3101');
+    stub.addRole(NEW_ROLE); // the organiser adds it on Sherehe; Kazi's cached lists do not have it yet
+
+    const res = await offerFor(token, { roleId: 'rol_3101', workersOffered: 2 });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ roleId: 'rol_3101', eventName: 'Wanjiku and Otieno wedding', workersOffered: 2, status: 'pending' });
+    expect(stub.offers.map((o) => o.roleId)).toEqual(['rol_3101']);
+  });
+
+  it('then shows up in the openings list too, because the fresh answer replaced the cached one', async () => {
+    const token = await employer();
+    await request(server).get('/api/event-openings').set(bearer(token));
+    stub.addRole(NEW_ROLE);
+    await offerFor(token, { roleId: 'rol_3101', workersOffered: 1 });
+    const askedBefore = gets();
+
+    const after = await request(server).get('/api/event-openings').set(bearer(token));
+
+    expect(after.body.map((o) => o.roleId)).toContain('rol_3101');
+    expect(gets()).toBe(askedBefore); // answered from the refreshed cache, without asking Sherehe again
+  });
+
+  it('does not ask Sherehe again at all for a role the cached lists already have', async () => {
+    const token = await employer();
+    await request(server).get('/api/event-openings').set(bearer(token));
+    const warm = gets();
+
+    const res = await offerFor(token, validOffer());
+
+    expect(res.status).toBe(201);
+    expect(gets()).toBe(warm);
+  });
+
+  it('answers 404 for a role that does not exist even after the re-read, and nothing is created', async () => {
+    const token = await employer();
+
+    const res = await offerFor(token, { roleId: 'rol_9999', workersOffered: 1 });
+
+    expect(res.status).toBe(404);
+    expect(stub.offers).toEqual([]);
+    expect(await db.findStaffingOffersByEmployer('usr_1001')).toEqual([]);
+  });
+
+  it('re-reads for a missing role at most once every 15 seconds, so wrong ids cannot flood Sherehe', async () => {
+    const token = await employer();
+    await request(server).get('/api/event-openings').set(bearer(token));
+    const warm = gets();
+
+    await offerFor(token, { roleId: 'rol_9999', workersOffered: 1 });
+    const oneRefresh = gets() - warm;
+    await offerFor(token, { roleId: 'rol_9998', workersOffered: 1 });
+    await offerFor(token, { roleId: 'rol_9997', workersOffered: 1 });
+    const afterThree = gets() - warm;
+    clock += 16 * 1000;
+    await offerFor(token, { roleId: 'rol_9996', workersOffered: 1 });
+    const afterFour = gets() - warm;
+
+    expect(oneRefresh).toBeGreaterThan(0);
+    expect(afterThree).toBe(oneRefresh); // the second and third misses made no calls at all
+    expect(afterFour).toBe(2 * oneRefresh); // 16 seconds later, one more re-read is allowed
+  });
+
+  it('answers 502, not 404, when Sherehe cannot be asked to settle whether the role exists', async () => {
+    const token = await employer();
+    await request(server).get('/api/event-openings').set(bearer(token));
+    stub.setMode('drop');
+
+    const res = await offerFor(token, { roleId: 'rol_9999', workersOffered: 1 });
+
+    expect(res.status).toBe(502);
+    expectErrorBody(res, PARTNER_UNAVAILABLE);
+  });
+});
+
 describe('Endpoint 23: when Sherehe cannot be used', () => {
   it('answers 502 and stores nothing when Sherehe goes down before the offer is made', async () => {
     const token = await employer();
