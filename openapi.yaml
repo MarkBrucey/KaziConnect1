@@ -182,6 +182,16 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 message: 'Job job_99999 not found'
+        '409':
+          description: >
+            Reopening (status active) a job that already has an accepted applicant. A job has one place,
+            so a filled job cannot be reopened; nothing is changed. Post a new job to find someone else.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Job job_12345 is already filled: application app_1005 was accepted, so it cannot be reopened. Post a new job if you need someone else.'
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
@@ -358,13 +368,20 @@ paths:
               example:
                 message: 'Missing required field(s): preferredDate'
         '409':
-          description: The job exists but is closed, so it is not accepting applications. Nothing is written.
+          description: >
+            The job exists but is closed, or another applicant has already been accepted for it (a job
+            has one place, and the message then says the job is already filled). Nothing is written.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                message: Job job_12350 is closed and is not accepting applications
+              examples:
+                closed:
+                  value:
+                    message: Job job_12350 is closed and is not accepting applications
+                filled:
+                  value:
+                    message: 'Job job_12348 is already filled: another applicant was accepted, so it is not accepting applications.'
         '401':
           $ref: '#/components/responses/MissingApiKey'
         '429':
@@ -512,7 +529,9 @@ paths:
               example:
                 message: 'Application app_9999 not found'
         '409':
-          description: The application is no longer pending.
+          description: >
+            The application is no longer pending, or another applicant has already been accepted for
+            this job (a job has one place). Nothing is changed.
           content:
             application/json:
               schema:

@@ -9,6 +9,7 @@
 
 import { EventEmitter } from 'events';
 import { singleton } from './lib/singleton';
+import { StoreConflict } from './lib/conflict';
 import { SEED_JOBS, SEED_APPLICATIONS, FIRST_IDS, seedUsers } from './seedData';
 import type { IdCounters, SeedApplication, SeedUserRow } from './seedData';
 import type {
@@ -101,10 +102,18 @@ export async function createJob({ employerId, title, category, county, area, dur
   return { ...row };
 }
 
+// The application accepted for this job, or null. A job has one place, so there is at most one.
+const acceptedFor = (jobId: string): ApplicationRow | undefined =>
+  state.applications.find((a) => a.job_ref === jobId && a.application_status === 'accepted');
+export async function findAcceptedApplication(jobId: string): Promise<ApplicationRow | null> { return copy(acceptedFor(jobId)); }
+
 // Closing a job marks every application still waiting on it as filled.
+// A job that already has an accepted applicant cannot be reopened.
 export async function setJobStatus(id: string, status: JobListingStatus): Promise<JobRow | null> {
   const row = state.jobs.find((r) => r._id === id);
   if (!row) return null;
+  const accepted = status === 'active' ? acceptedFor(id) : undefined;
+  if (accepted) throw new StoreConflict('filled', { acceptedId: accepted._id });
   row.listing_status = status;
   if (status === 'closed') {
     for (const a of state.applications.filter((x) => x.job_ref === id && x.application_status === 'pending')) {
@@ -130,7 +139,12 @@ export async function findApplicationsByStudent(studentId: string): Promise<Appl
 
 export async function countApplications(): Promise<number> { return state.applications.length; }
 
+// Only an open job that nobody has been accepted for takes applications.
 export async function createApplication({ jobId, studentId, preferredAt, note }: NewApplicationInput): Promise<ApplicationRow> {
+  const job = state.jobs.find((j) => j._id === jobId);
+  if (!job || job.listing_status !== 'active') throw new StoreConflict('closed');
+  const accepted = acceptedFor(jobId);
+  if (accepted) throw new StoreConflict('filled', { acceptedId: accepted._id });
   const now = new Date();
   const row: ApplicationRow = {
     _id: `app_${state.next.application++}`, student_id: studentId, job_ref: jobId, application_status: 'pending',
@@ -168,10 +182,14 @@ export async function setApplicationStatus(id: string, status: StoredApplication
 }
 
 // Accepting one application fills every other waiting application for the
-// same job, and closes the job.
+// same job, and closes the job. Only a waiting application can be accepted,
+// and only if nobody has been accepted for the job already.
 export async function acceptApplication(id: string): Promise<ApplicationRow | null> {
   const row = state.applications.find((r) => r._id === id);
   if (!row) return null;
+  if (row.application_status !== 'pending') throw new StoreConflict('not_pending', { status: row.application_status });
+  const accepted = acceptedFor(row.job_ref);
+  if (accepted) throw new StoreConflict('filled', { acceptedId: accepted._id });
   row.application_status = 'accepted';
   row.updated_at = new Date();
   state.events.emit('statusChanged', id, { ...row });

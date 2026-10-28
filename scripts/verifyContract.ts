@@ -280,6 +280,8 @@ const writeCases: Case[] = [
   { ep: 7, kind: 'http', method: 'POST', path: P_APPS, url: '/api/applications', body: { ...goodNew, status: 'accepted' }, expect: 400, what: 'field not allowed: client sets status', snapshot: store },
   { ep: 7, kind: 'http', method: 'POST', path: P_APPS, url: '/api/applications', body: { ...goodNew, jobId: 'job_99999' }, expect: 400, what: 'jobId does not exist', snapshot: store },
   { ep: 7, kind: 'http', method: 'POST', path: P_APPS, url: '/api/applications', body: { ...goodNew, jobId: 'job_12350' }, expect: 409, what: 'job is closed', snapshot: store },
+  { ep: 7, kind: 'http', method: 'POST', path: P_APPS, url: '/api/applications', body: { ...goodNew, jobId: 'job_12348' }, expect: 409, what: 'job already filled (one place, someone accepted)', snapshot: store,
+    also: ({ body, problems }) => { if (!/already filled/.test(body.message)) problems.push('the message should say the job is already filled'); } },
   { ep: 7, kind: 'http', method: 'POST', path: P_APPS, url: '/api/applications', rawBody: '{"jobId": "job_12345",', expect: 400, what: 'body is not valid JSON', snapshot: store },
 
   // PUT, on the application created above (app_1005)

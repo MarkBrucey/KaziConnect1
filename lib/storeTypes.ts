@@ -141,6 +141,7 @@ export interface Store {
   findJobById(id: string): Promise<JobRow | null>;
   findJobsByEmployer(userId: string): Promise<JobRow[]>;
   countPendingApplications(jobId: string): Promise<number>;
+  findAcceptedApplication(jobId: string): Promise<ApplicationRow | null>;
   createJob(job: NewJobInput): Promise<JobRow>;
   setJobStatus(id: string, status: JobListingStatus): Promise<JobRow | null>;
 

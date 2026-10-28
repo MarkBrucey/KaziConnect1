@@ -209,6 +209,20 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description Reopening (status active) a job that already has an accepted applicant. A job has one place, so a filled job cannot be reopened; nothing is changed. Post a new job to find someone else. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "message": "Job job_12345 is already filled: application app_1005 was accepted, so it cannot be reopened. Post a new job if you need someone else."
+                         *     }
+                         */
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 429: components["responses"]["TooManyRequests"];
             };
         };
@@ -488,17 +502,12 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["MissingApiKey"];
-                /** @description The job exists but is closed, so it is not accepting applications. Nothing is written. */
+                /** @description The job exists but is closed, or another applicant has already been accepted for it (a job has one place, and the message then says the job is already filled). Nothing is written. */
                 409: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        /**
-                         * @example {
-                         *       "message": "Job job_12350 is closed and is not accepting applications"
-                         *     }
-                         */
                         "application/json": components["schemas"]["Error"];
                     };
                 };
@@ -708,7 +717,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description The application is no longer pending. */
+                /** @description The application is no longer pending, or another applicant has already been accepted for this job (a job has one place). Nothing is changed. */
                 409: {
                     headers: {
                         [name: string]: unknown;

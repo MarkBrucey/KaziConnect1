@@ -26,6 +26,7 @@ export const findJobs = store.findJobs;
 export const findJobById = store.findJobById;
 export const findJobsByEmployer = store.findJobsByEmployer;
 export const countPendingApplications = store.countPendingApplications;
+export const findAcceptedApplication = store.findAcceptedApplication;
 export const createJob = store.createJob;
 export const setJobStatus = store.setJobStatus;
 

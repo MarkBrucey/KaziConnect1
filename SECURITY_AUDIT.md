@@ -101,8 +101,8 @@ The same behaviour is in the automated tests (`__tests__/apiKeys.test.ts`, 58 te
 ## How to check it again
 
 ```bash
-npm test            # 666 tests, including __tests__/apiKeys.test.ts and __tests__/mailerLog.test.ts
-npm run verify      # the 81 contract checks (run open, as always)
+npm test            # 677 tests, including __tests__/apiKeys.test.ts and __tests__/mailerLog.test.ts
+npm run verify      # the 82 contract checks (run open, as always)
 API_KEYS="team:$(node -e "console.log(require('crypto').randomBytes(24).toString('hex'))")" npm start   # then call it without a key: 401
 ```
 

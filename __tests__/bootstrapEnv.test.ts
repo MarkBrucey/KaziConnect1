@@ -4,6 +4,10 @@
 //
 // The real file is copied into a temp folder next to a throwaway .env (it reads the .env beside itself), then run
 // with tsx in a child process. The project's own .env is never touched.
+//
+// Written to run on Windows too: node_modules is linked as a junction (a plain directory symlink needs admin rights
+// or Developer Mode on Windows; the type is ignored elsewhere), and tsx is started through Node itself, because
+// node_modules/.bin/tsx is a shell script that Windows cannot start without a shell.
 
 import fs from 'fs';
 import os from 'os';
@@ -11,12 +15,13 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 
 const root = path.join(__dirname, '..');
+const tsxCli = require.resolve('tsx/cli');
 let dir = '';
 
 beforeAll(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kazi-env-'));
   fs.copyFileSync(path.join(root, 'bootstrapEnv.ts'), path.join(dir, 'bootstrapEnv.ts'));
-  fs.symlinkSync(path.join(root, 'node_modules'), path.join(dir, 'node_modules'));
+  fs.symlinkSync(path.join(root, 'node_modules'), path.join(dir, 'node_modules'), 'junction');
   fs.writeFileSync(path.join(dir, 'probe.ts'),
     "import './bootstrapEnv';\nconsole.log(JSON.stringify({ node: process.env.NODE_ENV, port: process.env.PORT, db: process.env.DATABASE_URL, sherehe: process.env.SHEREHE_API_URL }));\n");
 });
@@ -28,7 +33,7 @@ function run(env: Record<string, string> = {}, args: string[] = []): { node?: st
     if (v !== undefined && !['NODE_ENV', 'PORT', 'DATABASE_URL', 'SHEREHE_API_URL', 'SHEREHE_API_KEY', '__NEXT_TEST_MODE'].includes(k)) clean[k] = v;
   }
   // Cast: Next's types make NODE_ENV mandatory on ProcessEnv, but this test needs the child to start without one.
-  const out = spawnSync(path.join(root, 'node_modules', '.bin', 'tsx'), ['probe.ts', ...args], { cwd: dir, env: { ...clean, ...env } as NodeJS.ProcessEnv, encoding: 'utf8', timeout: 60000 });
+  const out = spawnSync(process.execPath, [tsxCli, 'probe.ts', ...args], { cwd: dir, env: { ...clean, ...env } as NodeJS.ProcessEnv, encoding: 'utf8', timeout: 60000 });
   if (out.status !== 0) throw new Error(`probe failed: ${out.stderr || out.stdout}`);
   return JSON.parse(out.stdout.trim().split('\n').pop()!);
 }
