@@ -89,11 +89,33 @@ export async function listRoles(eventId: string, { mode = 'user', refresh = fals
   return asList(res.body, 'roles').map(fromShereheRole);
 }
 
+// K1 + K2 in ONE call: the upcoming events with their roles (GET /api/events?include=roles). Cached for 5 minutes.
+// Returns null when this Sherehe does not have that feature (it answers 400, or ignores include and sends events
+// with no roles), so the caller uses the two calls above instead.
+async function listUpcomingWithRoles({ county, mode = 'user', refresh = false, signal }: { county?: string; mode?: Mode; refresh?: boolean; signal?: AbortSignal }): Promise<Array<{ event: PartnerEvent; roles: PartnerRole[] }> | null> {
+  const filter = county ? `&county=${encodeURIComponent(county)}` : '';
+  const res = await call(`/api/events?status=upcoming${filter}&include=roles`, { cache: true, refresh, mode, signal });
+  if (res.status === 400) return null;
+  if (res.status !== 200) throw unexpected(res);
+  const list = asList(res.body, 'events');
+  const withRoles = list.every((raw) => typeof raw === 'object' && raw !== null && Array.isArray((raw as { roles?: unknown }).roles));
+  if (!withRoles) return null; // an older Sherehe ignores include and sends plain events
+  return list.map((raw) => ({ event: fromShereheEvent(raw), roles: asList((raw as { roles: unknown }).roles, 'roles').map(fromShereheRole) }));
+}
+
 // K1 + K2: every role with a free slot on an upcoming event, as { event, role } pairs,
-// soonest shift first. One failed call fails the whole list. All the calls share one deadline,
+// soonest shift first. One call when Sherehe can send events with their roles; otherwise one call for the events and one
+// more for each event. One failed call fails the whole list. All the calls share one deadline,
 // so a person waits no longer than the user timeout in total, however many calls it takes.
 export async function findOpenings({ county, mode = 'user', refresh = false }: { county?: string; mode?: Mode; refresh?: boolean } = {}): Promise<Opening[]> {
   const signal = fetcher.deadline(mode);
+  const bulk = await listUpcomingWithRoles({ county, mode, refresh, signal });
+  if (bulk) {
+    return bulk
+      .filter(({ event }) => event.status === 'upcoming')
+      .flatMap(({ event, roles }) => roles.filter((role) => role.openSlots >= 1).map((role) => ({ event, role })))
+      .sort((a, b) => a.role.shiftStart.localeCompare(b.role.shiftStart) || a.role.id.localeCompare(b.role.id));
+  }
   const events = (await listUpcomingEvents({ county, mode, refresh, signal })).filter((event) => event.status === 'upcoming');
   const perEvent = await mapLimit(events, ROLE_LOOKUPS_AT_ONCE, async (event): Promise<Opening[]> =>
     (await listRoles(event.id, { mode, refresh, signal })).filter((role) => role.openSlots >= 1).map((role) => ({ event, role })));

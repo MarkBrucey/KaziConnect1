@@ -104,7 +104,8 @@ describe('findOpenings (K1 and K2)', () => {
     expect(stub.requests).toHaveLength(asked);
   });
 
-  it('fails as a whole when the events list works but one event\'s roles cannot be read', async () => {
+  it('fails as a whole when the events list works but one event\'s roles cannot be read (a Sherehe with no include=roles)', async () => {
+    stub.setBulk(false); // the two-step path: the events, then the roles of each event
     stub.failOn('/roles');
 
     const err = await failure(client.findOpenings());
@@ -117,11 +118,72 @@ describe('findOpenings (K1 and K2)', () => {
     // Two calls in a row (the events, then their roles) at 300 ms each: 600 ms in all.
     // Each call is inside the 500 ms limit on its own, but together they are not.
     fetcher.configure({ userTimeoutMs: 500 });
+    stub.setBulk(false); // the two-step path
     stub.setDelay(300);
 
     const err = await failure(client.findOpenings());
 
     expect(err).toMatchObject({ kind: 'timeout' });
+  });
+
+  describe('with include=roles (one call for the events and their roles)', () => {
+    it('asks Sherehe once, however many events there are, and sends include=roles', async () => {
+      const openings = await client.findOpenings();
+
+      expect(openings.length).toBeGreaterThan(0);
+      expect(stub.requests).toHaveLength(1);
+      expect(stub.requests[0].search).toContain('include=roles');
+    });
+
+    it('gives exactly the same openings as the two-step path, in the same order', async () => {
+      const oneCall = await client.findOpenings();
+      fetcher.clearCache();
+      stub.setBulk(false);
+      const twoStep = await client.findOpenings();
+
+      expect(oneCall).toEqual(twoStep);
+    });
+
+    it('falls back to the two-step path when this Sherehe ignores include (an older Sherehe), and still answers', async () => {
+      stub.setBulk(false);
+
+      const openings = await client.findOpenings();
+
+      expect(openings.map((o) => o.role.id)).toEqual(['rol_3003', 'rol_3001', 'rol_3004']);
+      expect(stub.requests.some((r) => r.path === '/api/events/evt_2001/roles')).toBe(true);
+    });
+
+    it('sends the county on, and answers an empty list for a county with no events', async () => {
+      const mombasa = await client.findOpenings({ county: 'mombasa' });
+      const lamu = await client.findOpenings({ county: 'Lamu' });
+
+      expect(mombasa.map((o) => o.role.id)).toEqual(['rol_3004']);
+      expect(lamu).toEqual([]);
+      expect(stub.requests[0].search).toContain('county=mombasa');
+    });
+
+    it('reads from the cache the second time, and with refresh asks again with one call', async () => {
+      await client.findOpenings();
+      await client.findOpenings();
+      expect(stub.requests).toHaveLength(1);
+
+      await client.findOpenings({ refresh: true });
+
+      expect(stub.requests).toHaveLength(2);
+    });
+
+    it('fails as a whole when the one call fails, never with a half list', async () => {
+      stub.failOn('/api/events');
+
+      expect(await failure(client.findOpenings())).toMatchObject({ kind: 'status', status: 503 });
+    });
+
+    it('leaves out a full role and a role on an event that is not upcoming, as the two-step path does', async () => {
+      const ids = (await client.findOpenings()).map((o) => o.role.id);
+
+      expect(ids).not.toContain('rol_3002'); // full
+      expect(ids).not.toContain('rol_3005'); // on a completed event
+    });
   });
 
   it('still answers when the same calls fit inside the budget', async () => {

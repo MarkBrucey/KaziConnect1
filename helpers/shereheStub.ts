@@ -55,6 +55,7 @@ interface StubState {
   roles: Role[];
   offers: Map<string, Offer>;
   nextOffer: number;
+  bulk: boolean; // false: behaves like a Sherehe that does not know include=roles and ignores it
   mode: StubMode;
   failOn: string | null;
   delayMs: number;
@@ -67,7 +68,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const INVALID_JSON = Symbol('invalid-json');
 
 function freshState(): StubState {
-  return { events: clone(EVENTS), roles: clone(ROLES), offers: new Map(), nextOffer: 4001, mode: 'up', failOn: null, delayMs: 0, requests: [] };
+  return { events: clone(EVENTS), roles: clone(ROLES), offers: new Map(), nextOffer: 4001, bulk: true, mode: 'up', failOn: null, delayMs: 0, requests: [] };
 }
 
 export interface ShereheStub {
@@ -86,6 +87,8 @@ export interface ShereheStub {
   fillRole(roleId: string): void;
   // What the organiser does on Sherehe's own website: add a role to an event, after Kazi may have cached the lists.
   addRole(role: components['schemas']['Role']): void;
+  // false makes GET /api/events ignore include=roles, as a Sherehe from before that feature would.
+  setBulk(on: boolean): void;
 }
 
 export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {}): ShereheStub {
@@ -153,7 +156,13 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
       if (url.searchParams.get('status') !== 'upcoming') return message(res, 400, 'status must be upcoming');
       const county = url.searchParams.get('county');
       if (county !== null && !COUNTIES.some((c) => c.toLowerCase() === county.trim().toLowerCase())) return message(res, 400, "county must be one of Kenya's 47 counties");
-      return send(res, 200, st.events.filter((e) => e.status === 'upcoming' && (county === null || e.county.toLowerCase() === county.trim().toLowerCase())));
+      const matching = st.events.filter((e) => e.status === 'upcoming' && (county === null || e.county.toLowerCase() === county.trim().toLowerCase()));
+      const include = url.searchParams.getAll('include');
+      if (st.bulk && include.length > 0 && !(include.length === 1 && include[0].trim() === '')) {
+        if (include.length > 1 || include[0].trim() !== 'roles') return message(res, 400, 'include must be roles');
+        return send(res, 200, matching.map((e) => ({ ...e, roles: st.roles.filter((r) => r.eventId === e.id) })));
+      }
+      return send(res, 200, matching);
     }
     if (method === 'GET' && (m = /^\/api\/events\/([^/]+)$/.exec(path))) {
       const event = st.events.find((e) => e.id === m![1]);
@@ -217,6 +226,7 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
       }
     },
     dropOffer(offerId: string): void { state.offers.delete(offerId); },
+    setBulk(on: boolean): void { state.bulk = on; },
     addRole(role: components['schemas']['Role']): void { state.roles.push(clone(role)); },
     fillRole(roleId: string): void {
       const role = state.roles.find((r) => r.id === roleId)!;

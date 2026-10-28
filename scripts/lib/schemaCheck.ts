@@ -17,6 +17,9 @@ export interface SchemaNode {
   enum?: unknown[];
   format?: string;
   nullable?: boolean;
+  anyOf?: SchemaNode[];
+  oneOf?: SchemaNode[];
+  allOf?: SchemaNode[];
   content?: Record<string, { schema?: SchemaNode }>;
 }
 
@@ -47,9 +50,30 @@ export function createChecker(contract: ContractDoc): Checker {
     return op && op.responses ? resolve(op.responses[String(status)]) || null : null;
   }
 
+  // allOf: one object schema with every branch's properties, so "an Event plus a roles array" is checked as one object.
+  function flatten(schema: SchemaNode): SchemaNode {
+    if (!schema.allOf) return schema;
+    const merged: SchemaNode = { type: 'object', properties: {} };
+    for (const part of schema.allOf) {
+      const branch = flatten(resolve(part) ?? {});
+      Object.assign(merged.properties!, branch.properties);
+    }
+    return merged;
+  }
+
   function schemaCheck(value: Json, node: SchemaNode | undefined, where: string, problems: string[]): void {
-    const schema = resolve(node);
-    if (!schema) return;
+    const resolved = resolve(node);
+    if (!resolved) return;
+    // anyOf / oneOf: the value must satisfy at least one branch. When none does, the problems reported are those of
+    // the branch it came closest to, so the message says what to fix and not only that nothing matched.
+    const alternatives = resolved.anyOf ?? resolved.oneOf;
+    if (alternatives) {
+      const attempts = alternatives.map((branch) => { const found: string[] = []; schemaCheck(value, branch, where, found); return found; });
+      if (attempts.some((found) => found.length === 0)) return;
+      problems.push(...attempts.reduce((best, found) => (found.length < best.length ? found : best)));
+      return;
+    }
+    const schema = flatten(resolved);
     if (value === null && schema.nullable) return; // for example jobId, which is null until an offer is accepted
     if (schema.type === 'array') {
       if (!Array.isArray(value)) { problems.push(`${where} should be an array`); return; }

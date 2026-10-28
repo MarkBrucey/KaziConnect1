@@ -1006,7 +1006,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 677 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 224 for Event work, which use a stand-in for Sherehe and never need the real one; 286 that prove the move changed nothing a client can see and check the tools below; and 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`). One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 676 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (82 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 691 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 232 for Event work, which use a stand-in for Sherehe and never need the real one; 292 that prove the move changed nothing a client can see and check the tools below; and 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`). One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 690 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (82 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 

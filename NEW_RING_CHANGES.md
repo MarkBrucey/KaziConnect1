@@ -39,7 +39,7 @@ Every file in this repository that changes because Shamba Direct and SettleIn le
 - [x] `start_lab.bat`: `call npm run build` before `call npm start`.
 - [ ] Render settings (humans): build command `npm ci && npm run build`, start command `npm start`, Node 20.9 or newer, `SHEREHE_API_URL`, `SHEREHE_API_KEY`.
   Measured on a Mac on 21 October 2026, so a guide and not a promise for Render's Linux machines: a cold `next build` peaks at about 1.0 GB for its largest process (about 0.85 GB with `--webpack`), and the running server uses 145 to 190 MB. Render's free instances have 512 MB, so **the first build may run out of memory** even though the running server fits. Watch the first deploy. If it fails with an out-of-memory message, the options are a paid instance for the build, or building elsewhere and deploying the result; nothing in the code needs to change for either.
-- [x] Gate: the 156 existing tests pass with their files untouched (identical to `main`); `npm run typecheck` and `npm run verify` (82 of 82) pass. Whole suite: 677 tests, 676 on the in-memory store plus 1 that runs only with `DATABASE_URL` set; 677 of 677 on PostgreSQL.
+- [x] Gate: the 156 existing tests pass with their files untouched (identical to `main`); `npm run typecheck` and `npm run verify` (82 of 82) pass. Whole suite: 691 tests, 690 on the in-memory store plus 1 that runs only with `DATABASE_URL` set; 691 of 691 on PostgreSQL.
 - [x] Proof that Endpoints 1 to 21 did not change: 151 recorded Express answers replayed (`__tests__/parityWithExpress.test.js`), and a live side-by-side run of 154 requests and 3 WebSocket connections against Express on `main`. See `CONTRACT_DEVIATIONS.md`.
 
 Where this stage differs from the starter brief, on purpose:
@@ -73,3 +73,8 @@ Where this stage differs from the starter brief, on purpose:
 - [x] A finding fixed: with no email service, the password-reset link was printed to the log. It is now printed only on your own computer.
 - [ ] Humans: set `API_KEYS` (and `REQUIRE_API_KEY=true`) in Render, issue Ujuzi its key privately, tell Ujuzi before the live address starts asking for keys (R8), and record the dates in `CONTRACT_DEVIATIONS.md`.
 - [ ] Ujuzi's client must send `X-API-Key` (and `kazi-key.<key>` is not needed: Ujuzi calls from a server) before the local ring can run with keys on.
+
+## Reading Sherehe's events with their roles in one call
+
+- [x] Sherehe added `GET /api/events?status=upcoming[&county=]&include=roles` (an additive part of its still-unhanded-off 0.1.0 draft; copied into `partner-tests/sherehe_openapi.yaml` with a dated note, types regenerated). Kazi now reads events and roles in ONE call instead of 1 + one per upcoming event (about 40 today, against Sherehe's per-key limit), and falls back to the two-step reads when a Sherehe does not have it (it answers 400 or ignores `include`). `scripts/lib/schemaCheck.ts` learned `anyOf` and `allOf`, which the new contract needs: it had been silently skipping such a reply, so `ring:status` and `ring:check` were no longer checking Sherehe's event list.
+- [ ] Not done: honouring `Retry-After` on a 429 from Sherehe; an `include=roles` test in `partner-tests/sherehe.partner.js` for the real Sherehe.

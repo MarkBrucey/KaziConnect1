@@ -1,5 +1,7 @@
 # FROZEN COPY of Sherehe's contract that partner-tests/ was written from.
 # DRAFT 0.1.0 - replace with the file Sherehe actually hands off in Week 4, then run npm run types.
+# Updated 28 October 2026 with Sherehe's additive include=roles on GET /api/events (events with their roles in one call),
+# copied from Sherehe's own openapi.yaml (its commit 9751804). Still a draft: Sherehe has not handed its contract off.
 openapi: 3.0.3
 info:
   title: Sherehe API
@@ -27,14 +29,25 @@ paths:
           required: false
           description: One of Kenya's 47 counties; matching ignores case.
           schema: { type: string, example: Nairobi }
+        - name: include
+          in: query
+          required: false
+          description: >
+            `roles` adds each event's staffing roles, in a `roles` array, to the same list. One call then
+            replaces this call plus one `GET /api/events/{eventId}/roles` per event. Without it the answer is
+            exactly as before. Any other value is a 400.
+          schema: { type: string, enum: [roles] }
       responses:
         '200':
-          description: Matching events; an empty array when nothing matches
+          description: Matching events; an empty array when nothing matches. With include=roles every event also has its roles.
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Event' }
+                anyOf:
+                  - type: array
+                    items: { $ref: '#/components/schemas/Event' }
+                  - type: array
+                    items: { $ref: '#/components/schemas/EventWithRoles' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
@@ -215,6 +228,17 @@ components:
           enum: [upcoming, completed, cancelled]
           description: Only upcoming events accept offers.
           example: upcoming
+
+    EventWithRoles:
+      description: An event with its staffing roles, as returned by GET /api/events?include=roles. Every field of Event, plus roles.
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          required: [roles]
+          properties:
+            roles:
+              type: array
+              items: { $ref: '#/components/schemas/Role' }
 
     Role:
       type: object

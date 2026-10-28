@@ -254,8 +254,12 @@ describe('Endpoint 22: when Sherehe cannot be used', () => {
     await expectUnavailable(() => stub.setMode('wrongShape'));
   });
 
-  it('answers 502 when one event\'s roles cannot be read (never a half-empty list)', async () => {
-    await expectUnavailable(() => stub.failOn('/roles'));
+  it('answers 502 when one event\'s roles cannot be read (never a half-empty list), with a Sherehe that has no include=roles', async () => {
+    await expectUnavailable(() => { stub.setBulk(false); stub.failOn('/roles'); });
+  });
+
+  it('answers 502 when the single events-with-roles read fails (never a half-empty list)', async () => {
+    await expectUnavailable(() => stub.failOn('/api/events'));
   });
 
   it('answers 502 when the Sherehe address and key are not set', async () => {
