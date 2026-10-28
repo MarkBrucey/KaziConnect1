@@ -58,6 +58,7 @@ Where this stage differs from the starter brief, on purpose:
 
 ## Ring checks (all three repos, same day)
 
+- [x] A runbook for this day is in `evidence/ring/LIVE_RUNBOOK.md`: deploy order, the read-only preview of the one-place data repair, the key wiring, the layered checks and the demo story. Nothing in it has been run against Render yet.
 - [ ] Merge `uat` into `main` by pull request, then confirm the live API still answers every README command.
 
 - [ ] `npm run ring:check` passes in Sherehe, Kazi Connect and Ujuzi.

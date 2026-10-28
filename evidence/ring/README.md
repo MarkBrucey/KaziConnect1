@@ -10,6 +10,7 @@ One screenshot per step, named by step number, plus the output of `npm run ring:
 
 | File | What it is |
 |---|---|
+| `LIVE_RUNBOOK.md` | How to test the three systems on Render once they are live: what to deploy first, how to wire the keys, the checks in order from read-only to one throwaway record, the demo story, and what not to run |
 | `HELD_ISSUES.md` | The errors put on hold while a partner system is not built yet, and the commands that re-check them. It says where the ring stands |
 
 ## Screenshots still to take
