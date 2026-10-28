@@ -167,10 +167,24 @@ describe('findOpening', () => {
     expect(found.event.id).toBe('evt_2001');
   });
 
-  it('returns null for a role that does not exist, is full, or is on a finished event', async () => {
+  // Each of these is its own test: every miss re-reads Sherehe, and only two re-reads in a row are allowed.
+  it('returns null for a role that does not exist', async () => {
     expect(await client.findOpening('rol_9999')).toBeNull();
+  });
+
+  it('returns null for a role that is full', async () => {
     expect(await client.findOpening('rol_3002')).toBeNull();
+  });
+
+  it('returns null for a role on a finished event', async () => {
     expect(await client.findOpening('rol_3005')).toBeNull();
+  });
+
+  it('fails like any other moment Sherehe cannot be asked, not with a false "no such role", once the re-reads for missing roles are used up', async () => {
+    await client.findOpening('rol_9991');
+    await client.findOpening('rol_9992');
+
+    await expect(client.findOpening('rol_9993')).rejects.toMatchObject({ kind: 'status', status: 429 });
   });
 });
 

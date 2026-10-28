@@ -103,11 +103,14 @@ export async function findOpenings({ county, mode = 'user', refresh = false }: {
 // One opening by its role id, or null. Sherehe has no "get one role" call, so this reads the
 // same cached lists as findOpenings. A role the cached lists do not have may simply be newer than the
 // cache (up to 5 minutes), and an employer who has just been told about it must be able to offer for
-// it, so on a miss the lists are read again from Sherehe, at most once every REFRESH_MIN_GAP_MS.
+// it, so on a miss the lists are read again from Sherehe (a short burst, then one every REFRESH_MIN_GAP_MS).
+// When that allowance is used up the role cannot be told apart from one that does not exist, so this does NOT
+// answer "no such role": it fails like any other moment Sherehe cannot be asked, and the employer tries again.
 export async function findOpening(roleId: string, { mode = 'user' }: { mode?: Mode } = {}): Promise<Opening | null> {
   const find = (openings: Opening[]): Opening | null => openings.find(({ role }) => role.id === roleId) || null;
   const cached = find(await findOpenings({ mode }));
-  if (cached || !fetcher.mayRefresh()) return cached;
+  if (cached) return cached;
+  if (!fetcher.mayRefresh()) throw new UpstreamError('status', { status: 429, detail: 'too many re-reads of Sherehe for roles that are not in the cached lists; try again shortly' });
   return find(await findOpenings({ mode, refresh: true }));
 }
 

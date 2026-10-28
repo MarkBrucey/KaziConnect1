@@ -579,23 +579,43 @@ describe('Endpoint 23: a role that is newer than the 5-minute cache', () => {
     expect(await db.findStaffingOffersByEmployer('usr_1001')).toEqual([]);
   });
 
-  it('re-reads for a missing role at most once every 15 seconds, so wrong ids cannot flood Sherehe', async () => {
+  it('allows 2 re-reads in a row for missing roles, then one a minute, so wrong ids cannot flood Sherehe', async () => {
     const token = await employer();
     await request(server).get('/api/event-openings').set(bearer(token));
     const warm = gets();
 
-    await offerFor(token, { roleId: 'rol_9999', workersOffered: 1 });
+    const first = await offerFor(token, { roleId: 'rol_9999', workersOffered: 1 });
     const oneRefresh = gets() - warm;
     await offerFor(token, { roleId: 'rol_9998', workersOffered: 1 });
-    await offerFor(token, { roleId: 'rol_9997', workersOffered: 1 });
-    const afterThree = gets() - warm;
-    clock += 16 * 1000;
-    await offerFor(token, { roleId: 'rol_9996', workersOffered: 1 });
-    const afterFour = gets() - warm;
+    const afterBurst = gets() - warm;
+    const fourth = await offerFor(token, { roleId: 'rol_9997', workersOffered: 1 });
+    const afterFourth = gets() - warm;
+    clock += 61 * 1000;
+    const fifth = await offerFor(token, { roleId: 'rol_9996', workersOffered: 1 });
+    const afterFifth = gets() - warm;
 
+    expect(first.status).toBe(404); // a real miss, after a real re-read
     expect(oneRefresh).toBeGreaterThan(0);
-    expect(afterThree).toBe(oneRefresh); // the second and third misses made no calls at all
-    expect(afterFour).toBe(2 * oneRefresh); // 16 seconds later, one more re-read is allowed
+    expect(afterBurst).toBe(2 * oneRefresh); // each of the first two re-read Sherehe
+    expect(fourth.status).toBe(502); // allowance used up: not a false "no such role", but "try again shortly"
+    expectErrorBody(fourth, PARTNER_UNAVAILABLE);
+    expect(afterFourth).toBe(afterBurst); // and it made no calls at all
+    expect(fifth.status).toBe(404);
+    expect(afterFifth).toBe(afterBurst + oneRefresh); // a minute later one more re-read was earned
+  });
+
+  it('lets a person add a couple of roles at Sherehe in a row and offer for each at once (the burst covers it)', async () => {
+    const token = await employer();
+    await request(server).get('/api/event-openings').set(bearer(token));
+    const made = [];
+    for (let i = 0; i < 2; i++) {
+      const role = { ...NEW_ROLE, id: `rol_32${i}0` };
+      stub.addRole(role);
+      made.push((await offerFor(token, { roleId: role.id, workersOffered: 1 })).status);
+      await request(server).delete(`/api/staffing-offers/sof_${1001 + i}`).set(bearer(token)); // free the role again
+    }
+
+    expect(made).toEqual([201, 201]);
   });
 
   it('answers 502, not 404, when Sherehe cannot be asked to settle whether the role exists', async () => {

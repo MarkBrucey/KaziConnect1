@@ -45,9 +45,13 @@ interface Settings {
 const DEFAULTS = { userTimeoutMs: 10 * 1000, backgroundTimeoutMs: 60 * 1000 };
 export const CACHE_TTL_MS = 5 * 60 * 1000;
 export const CACHE_MAX_ENTRIES = 200;
-// A refresh that a caller asks for because something is missing may happen at most this often, so a stream of
-// requests for ids that do not exist cannot become a stream of calls to the partner.
-export const REFRESH_MIN_GAP_MS = 15 * 1000;
+// Re-reading the partner because something is missing (a role the cached lists do not have yet) is allowed twice in a
+// row, then one more every REFRESH_MIN_GAP_MS. Sized by what a re-read costs: one call for the events and one more for
+// each upcoming event (about 40 today), against a partner that allows 100 calls a minute per key. Two in a row covers a
+// person adding a couple of roles; one a minute sustained is about 40 calls, so a stream of requests for ids that do
+// not exist cannot use up the partner's allowance and starve everyone's lists.
+export const REFRESH_MIN_GAP_MS = 60 * 1000;
+export const REFRESH_BURST = 2;
 export const MAX_ANSWER_BYTES = 1024 * 1024;
 
 // One cache and one set of settings per process, however many copies of this module Next makes:
@@ -55,19 +59,23 @@ export const MAX_ANSWER_BYTES = 1024 * 1024;
 const state = singleton('fetcher', () => ({
   settings: { ...DEFAULTS, now: () => Date.now() } as Settings,
   cache: new Map<string, { result: FetchResult; expires: number }>(),
-  lastRefresh: -Infinity,
+  refreshTokens: REFRESH_BURST,
+  refreshedAt: null as number | null, // null: nothing has been used yet, so the burst is full
 }));
 
 // For tests: a fake clock and short timeouts.
 export function configure(changes: Partial<Settings>): void { state.settings = { ...state.settings, ...changes }; }
 export function clearCache(): void { state.cache.clear(); }
-export function reset(): void { state.settings = { ...DEFAULTS, now: () => Date.now() }; state.cache.clear(); state.lastRefresh = -Infinity; }
+export function reset(): void { state.settings = { ...DEFAULTS, now: () => Date.now() }; state.cache.clear(); state.refreshTokens = REFRESH_BURST; state.refreshedAt = null; }
 
-// True if a refresh is allowed now (and counts it); false if one happened less than REFRESH_MIN_GAP_MS ago.
+// True if a refresh is allowed now (and counts it): a bucket of REFRESH_BURST that fills by one every REFRESH_MIN_GAP_MS.
 export function mayRefresh(): boolean {
   const now = state.settings.now();
-  if (now - state.lastRefresh < REFRESH_MIN_GAP_MS) return false;
-  state.lastRefresh = now;
+  const earned = state.refreshedAt === null ? 0 : Math.max(0, now - state.refreshedAt) / REFRESH_MIN_GAP_MS;
+  state.refreshTokens = Math.min(REFRESH_BURST, state.refreshTokens + earned);
+  state.refreshedAt = now;
+  if (state.refreshTokens < 1) return false;
+  state.refreshTokens -= 1;
   return true;
 }
 export const cacheSize = (): number => state.cache.size;

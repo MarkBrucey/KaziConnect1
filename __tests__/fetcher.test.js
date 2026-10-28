@@ -165,14 +165,23 @@ describe('the 5-minute read cache', () => {
     expect(stub.requests).toHaveLength(1); // the refresh asked once; the call after it was answered from memory
   });
 
-  it('allows a refresh only once every 15 seconds, so missing ids cannot become a stream of calls to the partner', () => {
-    expect(fetcher.mayRefresh()).toBe(true);
+  it('allows two refreshes in a row, then one a minute, so missing ids cannot become a stream of calls to the partner', () => {
+    expect(fetcher.REFRESH_MIN_GAP_MS).toBe(60 * 1000);
+    expect(fetcher.REFRESH_BURST).toBe(2);
+
+    expect([fetcher.mayRefresh(), fetcher.mayRefresh()]).toEqual([true, true]); // the burst
     expect(fetcher.mayRefresh()).toBe(false);
     clock += fetcher.REFRESH_MIN_GAP_MS - 1;
     expect(fetcher.mayRefresh()).toBe(false);
     clock += 1;
-    expect(fetcher.mayRefresh()).toBe(true);
-    expect(fetcher.REFRESH_MIN_GAP_MS).toBe(15 * 1000);
+    expect(fetcher.mayRefresh()).toBe(true); // one earned
+    expect(fetcher.mayRefresh()).toBe(false);
+  });
+
+  it('never saves up more than the burst, however long it has been idle', () => {
+    clock += 60 * MINUTE;
+
+    expect([fetcher.mayRefresh(), fetcher.mayRefresh(), fetcher.mayRefresh()]).toEqual([true, true, false]);
   });
 
   it('caches nothing unless the call asks for it', async () => {
