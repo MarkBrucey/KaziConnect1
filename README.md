@@ -540,7 +540,7 @@ curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/me
 HTTP 200
 ```
 
-**Step 18. Reopen or close a job** (W4, Endpoint 17). `status` is `active` or `closed`. Closing a job marks every request still waiting on it as `filled`. This reopens the job for the next step.
+**Step 18. Close or reopen a job** (W4, Endpoint 17). `status` is `active` or `closed`. Closing a job marks every request still waiting on it as `filled`, and a closed job that nobody was accepted for can be reopened. But a job has **one place**: once a request is accepted, as in step 16, the job is filled for good, so reopening it answers `409` and nothing changes. This shows it on the job from step 13:
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" -X PATCH https://kaziconnect1-1xmu.onrender.com/api/jobs/$JOB_ID \
@@ -551,27 +551,23 @@ curl -s -w "\nHTTP %{http_code}\n" -X PATCH https://kaziconnect1-1xmu.onrender.c
 
 ```json
 {
-  "id": "job_12358",
-  "title": "Fix leaking kitchen sink",
-  "category": "plumbing",
-  "county": "Nairobi",
-  "area": "Westlands",
-  "duration": "About 2 hours",
-  "urgent": true,
-  "status": "active",
-  "payRange": {
-    "min": 1500,
-    "max": 1500
-  }
+  "message": "Job job_12353 is already filled: application app_1006 was accepted, so it cannot be reopened. Post a new job if you need someone else."
 }
-HTTP 200
+HTTP 409
 ```
+
+The replies for steps 18, 19 and 21 changed when a job became one place (October 2026), so they were recorded on a local server running this version (28 October 2026); that is why their IDs are not the ones in the steps before.
 
 ### Students with an account
 
-**Step 19. Register a student, request the job, and list their requests** (W1 and W5, Endpoints 10, 7 and 19). When a student requests a job with their account ID as `studentId`, the request appears in their own list.
+**Step 19. Post a second job, register a student, request it, and list their requests** (W2, W1 and W5, Endpoints 14, 10, 7 and 19). The job from step 13 is filled, so the first command posts another one and saves its ID as `JOB_ID`. When a student requests a job with their account ID as `studentId`, the request appears in their own list.
 
 ```bash
+JOB_ID=$(curl -s -X POST https://kaziconnect1-1xmu.onrender.com/api/jobs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Clean a bedsitter before move-in","category":"cleaning","county":"Nairobi","area":"Kasarani","duration":"One day","payRange":{"min":2000,"max":3000}}' \
+  | sed -nE 's/.*"id":"([^"]+)".*/\1/p')
 STUDENT=$(curl -s -X POST https://kaziconnect1-1xmu.onrender.com/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"name":"Test Student","email":"student'"$(date +%s)"'@example.com","password":"choose-a-password-1","role":"student"}')
@@ -587,9 +583,9 @@ curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/me
 ```json
 [
   {
-    "applicationId": "app_1020",
-    "jobId": "job_12358",
-    "studentId": "usr_1012",
+    "applicationId": "app_1007",
+    "jobId": "job_12354",
+    "studentId": "usr_1004",
     "preferredDate": "2027-06-03T09:00:00Z",
     "note": "",
     "status": "pending"
@@ -622,7 +618,7 @@ HTTP 202
 HTTP 400
 ```
 
-**Step 21. Close your job and log out** (W4 and W1, Endpoints 17 and 12). Closing the job you posted keeps the public listings tidy for the next reader, and the student's waiting request from step 19 becomes `filled`. Logging out answers `204`, and the token stops working straight away, as the last command shows.
+**Step 21. Close your job and log out** (W4 and W1, Endpoints 17 and 12). Closing the job you posted in step 19 keeps the public listings tidy for the next reader, and the student's waiting request from step 19 becomes `filled`. Logging out answers `204`, and the token stops working straight away, as the last command shows.
 
 ```bash
 curl -s -o /dev/null -w "Close job: HTTP %{http_code}\n" -X PATCH https://kaziconnect1-1xmu.onrender.com/api/jobs/$JOB_ID \
@@ -641,9 +637,9 @@ curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/me
 Close job: HTTP 200
 [
   {
-    "applicationId": "app_1020",
-    "jobId": "job_12358",
-    "studentId": "usr_1012",
+    "applicationId": "app_1007",
+    "jobId": "job_12354",
+    "studentId": "usr_1004",
     "preferredDate": "2027-06-03T09:00:00Z",
     "note": "",
     "status": "filled"
@@ -867,7 +863,7 @@ The empty line before the last `HTTP 404` is the empty body of a read endpoint (
 | `401` | No valid API key (every endpoint, once keys are switched on), or no valid login token (Parts 2 and 3 only) | No `Authorization` header, a mistyped token, an expired token, or after logging out |
 | `403` | Logged in, but not allowed (Parts 2 and 3 only) | A student posting a job, or an employer touching another employer's job or offer |
 | `404` | That ID doesn't exist | A mistyped ID, or a request or offer that was withdrawn |
-| `409` | Not allowed in its current state | Changing or withdrawing a request that is already accepted or filled, requesting a closed job, registering an email that already has an account, or offering for a role that is full or already has an offer waiting |
+| `409` | Not allowed in its current state | Changing or withdrawing a request that is already accepted or filled, requesting a closed or already filled job, accepting a second applicant or reopening a job that already has an accepted applicant (a job has one place), registering an email that already has an account, or offering for a role that is full or already has an offer waiting |
 | `413` | The request body is too large | More than 20 KB of JSON |
 | `426` | A plain HTTP request was sent to the live updates endpoint (Endpoint 6) | Use a WebSocket client, as in step 7 |
 | `429` | This consumer has called more than its rate limit (100 a minute by default), or guessed too many wrong keys. Nothing was done. `Retry-After` says how many seconds to wait | A loop that calls too fast. Wait, then try again |
@@ -917,7 +913,7 @@ Invoke-RestMethod "$API/api/me" -Headers $AUTH
 ```
 
 ```powershell
-# Part 2, steps 13 to 18: post a job, a student requests it, see requests, accept, list your jobs, reopen
+# Part 2, steps 13 to 18: post a job, a student requests it, see requests, accept, list your jobs, try to reopen
 $body = @{ title = "Fix leaking kitchen sink"; category = "plumbing"; county = "Nairobi"; area = "Westlands"; duration = "About 2 hours"; urgent = $true; payRange = @{ min = 1500; max = 1500 } } | ConvertTo-Json
 $job = Invoke-RestMethod -Method Post -Uri "$API/api/jobs" -Headers $AUTH -ContentType "application/json" -Body $body
 $JOB_ID = $job.id
@@ -927,11 +923,13 @@ $APP_ID = (Invoke-RestMethod -Method Post -Uri "$API/api/applications" -ContentT
 Invoke-RestMethod "$API/api/jobs/$JOB_ID/applications" -Headers $AUTH
 Invoke-RestMethod -Method Patch -Uri "$API/api/applications/$APP_ID" -Headers $AUTH -ContentType "application/json" -Body '{"status":"accepted"}'
 Invoke-RestMethod "$API/api/me/jobs" -Headers $AUTH
-Invoke-RestMethod -Method Patch -Uri "$API/api/jobs/$JOB_ID" -Headers $AUTH -ContentType "application/json" -Body '{"status":"active"}'
+try { Invoke-RestMethod -Method Patch -Uri "$API/api/jobs/$JOB_ID" -Headers $AUTH -ContentType "application/json" -Body '{"status":"active"}' } catch { "Reopen refused: $($_.Exception.Message)" }
 ```
 
 ```powershell
-# Part 2, step 19: register a student, request the job with their account, and list their requests
+# Part 2, step 19: post a second job (the first is filled), register a student, request it with their account, and list their requests
+$body = @{ title = "Clean a bedsitter before move-in"; category = "cleaning"; county = "Nairobi"; area = "Kasarani"; duration = "One day"; payRange = @{ min = 2000; max = 3000 } } | ConvertTo-Json
+$JOB_ID = (Invoke-RestMethod -Method Post -Uri "$API/api/jobs" -Headers $AUTH -ContentType "application/json" -Body $body).id
 $body = @{ name = "Test Student"; email = "student$(Get-Random)@example.com"; password = "choose-a-password-1"; role = "student" } | ConvertTo-Json
 $student = Invoke-RestMethod -Method Post -Uri "$API/api/auth/register" -ContentType "application/json" -Body $body
 $STUDENT_AUTH = @{ Authorization = "Bearer $($student.token)" }
@@ -1008,7 +1006,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 661 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 219 for Event work, which use a stand-in for Sherehe and never need the real one; and 286 that prove the move changed nothing a client can see and check the tools below. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 660 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (81 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 672 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 219 for Event work, which use a stand-in for Sherehe and never need the real one; 286 that prove the move changed nothing a client can see and check the tools below; and 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`). One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 671 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (82 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 
@@ -1078,4 +1076,4 @@ Full request and response shapes for every endpoint are on the docs page: https:
 
 ## More documents in this repository
 
-`API_NEEDS.md` (who needs what: K1 to K5, U1 to U6 and W1 to W7), `ENDPOINT_LIST.md` (every endpoint and the need it serves), `openapi.yaml` (the contract), `CONTRACT_DEVIATIONS.md` (every change to the contract and why), `CONTRACT_QUESTIONS.md` (our questions about our partners' contracts), `VERIFICATION.md` (the contract check results), `PARTNER_TEST_RESULTS.md` (partner testing), `BLIND_TEST_REPORT.md` (the blind test of this README), `TEAM_CHARTER.md` (the team and its place in the ring), `NEW_RING_CHANGES.md` (the checklist of the move to the new ring), `evidence/ring/` (screenshots of the ring working, and `HELD_ISSUES.md`, the errors put on hold while a partner is not built yet), `partner-tests/` (Sherehe's contract and our tests of it), `.env.example` (every setting) and `CLAUDE.md` (standing instructions for coding agents working in this repository).
+`API_NEEDS.md` (who needs what: K1 to K5, U1 to U6 and W1 to W7), `ENDPOINT_LIST.md` (every endpoint and the need it serves), `openapi.yaml` (the contract), `CONTRACT_DEVIATIONS.md` (every change to the contract and why), `CONTRACT_QUESTIONS.md` (our questions about our partners' contracts), `VERIFICATION.md` (the contract check results), `PARTNER_TEST_RESULTS.md` (partner testing), `SECURITY_AUDIT.md` (the Week 9 security review), `INTEGRATION_LOG.md` (Week 10: calling Sherehe and serving Ujuzi, with the bugs and surprises), `BLIND_TEST_REPORT.md` (the blind test of this README), `TEAM_CHARTER.md` (the team and its place in the ring), `NEW_RING_CHANGES.md` (the checklist of the move to the new ring), `evidence/ring/` (screenshots of the ring working, and `HELD_ISSUES.md`, the errors put on hold while a partner is not built yet), `evidence/week10/` (the Week 10 failure drill in the browser, and the one place rule), `partner-tests/` (Sherehe's contract and our tests of it), `.env.example` (every setting) and `CLAUDE.md` (standing instructions for coding agents working in this repository).

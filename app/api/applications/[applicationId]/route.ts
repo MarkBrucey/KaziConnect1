@@ -2,6 +2,7 @@
 // ENDPOINT 18: PATCH /api/applications/{applicationId}   (website need W3)
 //   The employer who posted the job accepts an application. Every other waiting application for that
 //   job becomes filled, the job closes, and WebSocket subscribers hear about each change straight away.
+//   A job has one place, so once one applicant is accepted, accepting another is refused with 409.
 // ENDPOINT 9: DELETE /api/applications/{applicationId}   (Statement 8)
 
 import * as db from '@/db';
@@ -11,6 +12,7 @@ import { handle, requireRole, withAuth } from '@/lib/guards';
 import type { AuthedContext, PublicContext } from '@/lib/guards';
 import { fail, json, noContent } from '@/lib/http';
 import type { ApplicationUpdate } from '@/lib/contract';
+import { StoreConflict, filledForEmployer } from '@/lib/conflict';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,10 +52,18 @@ export const PATCH = withAuth(requireRole('employer')(async (_req, { params, use
   if (!row) return fail(404, `Application ${id} not found`);
   const job = await db.findJobById(row.job_ref);
   if (!job || job.employer_id !== user._id) return fail(403, 'You can only decide on applications for jobs you posted.');
-  if (row.application_status !== 'pending') {
-    return fail(409, `Application ${id} is ${row.application_status}; only pending applications can be accepted`);
+  const notPending = (status: string): string => `Application ${id} is ${status}; only pending applications can be accepted`;
+  if (row.application_status !== 'pending') return fail(409, notPending(row.application_status));
+  const accepted = await db.findAcceptedApplication(row.job_ref);
+  if (accepted) return fail(409, filledForEmployer(row.job_ref, accepted._id));
+  try {
+    return json(toApplication((await db.acceptApplication(id))!));
+  } catch (err) {
+    // Someone accepted or decided at the same moment: the store saw it.
+    if (err instanceof StoreConflict && err.reason === 'filled') return fail(409, filledForEmployer(row.job_ref, err.acceptedId));
+    if (err instanceof StoreConflict && err.reason === 'not_pending') return fail(409, notPending(err.status || 'decided'));
+    throw err;
   }
-  return json(toApplication((await db.acceptApplication(id))!));
 }));
 
 export const DELETE = handle(async (_req, { params }: PublicContext<Params>) => {

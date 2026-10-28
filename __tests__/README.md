@@ -1,4 +1,4 @@
-Automated tests for the Kazi Connect API: 661 tests in 18 files (660 run on the in-memory store; 1 more runs only when DATABASE_URL is set). Run them with: npm test
+Automated tests for the Kazi Connect API: 672 tests in 19 files (671 run on the in-memory store; 1 more runs only when DATABASE_URL is set). Run them with: npm test
 
 `npm test` builds the app first (`next build`), because the tests start the real server, then runs Jest one file at a time.
 
@@ -25,6 +25,8 @@ The other 219 tests, in 5 files, cover Event work (Endpoints 22 to 25, website n
 - shereheClient.test.js (52): the only module that talks to Sherehe, and the mappers
 - fetcher.test.js (23): timeouts, the 5-minute cache and its limited refresh, the size limit, and how failures are handled
 - staffingStore.test.js (16): the staffing offer functions of the data store
+
+11 more tests, in onePlacePerJob.test.js, hold the rule that a job has one place (Endpoints 7, 17 and 18): a filled job cannot be reopened, a second applicant cannot be accepted, a new applicant to a filled job is told it is filled, the data store refuses all three even if a route forgot to check, and two employers pressing Accept at the same moment leave exactly one accepted applicant.
 
 They run on the in-memory store by default. With DATABASE_URL set they run on that PostgreSQL database, and they empty it first, so never point DATABASE_URL at data you want to keep.
 

@@ -41,6 +41,9 @@ function EmployerJobCard({ job, onChanged }: { job: EmployerJob; onChanged: (mes
   const [applicants, setApplicants] = useState<Applicant[] | null>(null);
   const [error, setError] = useState('');
   const open = job.status === 'active';
+  // A job has one place: once someone is accepted it is filled for good, so it is not offered for reopening.
+  // (Only known once the applicants are loaded; otherwise the API says so if Reopen is pressed.)
+  const filled = applicants !== null && applicants.some((a) => a.status === 'accepted');
 
   const loadApplicants = useCallback(async () => {
     const res = await api<Applicant[]>(`/api/jobs/${encodeURIComponent(job.id)}/applications`);
@@ -80,12 +83,12 @@ function EmployerJobCard({ job, onChanged }: { job: EmployerJob; onChanged: (mes
           <h4 className="mb-1 mt-2 text-xl font-bold">{job.title}</h4>
           <p className="m-0 text-muted">{job.area}, {job.county}. {job.duration}. {kesText(job.payRange)}</p>
         </div>
-        <StatusPill status={open ? 'active' : 'closed'}>{open ? 'Open' : 'Closed'}</StatusPill>
+        <StatusPill status={open ? 'active' : 'closed'}>{open ? 'Open' : filled ? 'Filled' : 'Closed'}</StatusPill>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2.5">
         <span className="font-semibold">{job.pendingApplications} waiting for a decision</span>
         <Button look="outline" onClick={toggleApplicants}>View applicants</Button>
-        <Button look={open ? 'danger' : 'outline'} onClick={() => setStatus(open ? 'closed' : 'active')}>{open ? 'Close job' : 'Reopen job'}</Button>
+        {filled && !open ? null : <Button look={open ? 'danger' : 'outline'} onClick={() => setStatus(open ? 'closed' : 'active')}>{open ? 'Close job' : 'Reopen job'}</Button>}
       </div>
       {error ? <ErrorText className="mt-3">{error}</ErrorText> : null}
       {applicants ? <Applicants jobId={job.id} applicants={applicants} onAccept={accept} /> : null}

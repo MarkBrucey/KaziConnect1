@@ -1,0 +1,16 @@
+Run on 2026-10-28T05:32:13.387Z, branch uat-onejob-week10, keys switched on (consumers: website, team), data in memory, Sherehe stand-in on port 4000.
+Outside the browser: GET /api/jobs?status=active with no key -> 401 {"message":"Missing or invalid API key"}
+                     the same with the team key -> 200 (6 open jobs)
+D. stu_0801 requested job_12349 from the website: 201
+D. stu_0802 requested job_12349 from the website: 201
+   the employer accepted one in the dashboard; the card shows Filled: yes; Reopen job button shown: no
+   trying to reopen it anyway (PATCH /api/jobs/job_12349): 409 {"message":"Job job_12349 is already filled: application app_1006 was accepted, so it cannot be reopened. Post a new job if you need someone else."}
+   the other applicant is now: filled
+   a new request for job_12348 (in the sample data, open but already filled): 409 {"message":"Job job_12348 is already filled: another applicant was accepted, so it is not accepting applications."}
+E. Event work with the stand-in up: open roles listed
+   stand-in stopped, page reloaded: the same roles are still shown (our 5-minute copy of Sherehe reads)
+   asked for Mombasa (not asked for before): the page says open roles are not available, with Try again
+   job listings still load while it is down
+   stand-in started again, Try again pressed: the Mombasa roles appear, with no change to code or settings
+Server log lines about Sherehe:
+   [sherehe] a request to Sherehe: network: ECONNREFUSED
