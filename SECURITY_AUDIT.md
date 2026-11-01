@@ -51,7 +51,7 @@ The same behaviour is in the automated tests (`__tests__/apiKeys.test.ts`, 58 te
 - **The website's key is shared by every visitor**, so one limit for the key would let one visitor lock out everyone. The `website` consumer is therefore counted per visitor address (from the host's `X-Forwarded-For`), each with its own 100.
 - It can be changed without code: `API_RATE_LIMIT`, `API_RATE_WINDOW_MS` (`0` turns it off).
 
-**Honest limits of the limiter:** it lives in the server's memory, so it starts again when the server restarts and does not add up across several copies of the server (a production service would keep the counts in a shared store such as Redis). On the free Render server, which sleeps and wakes, that means the counts reset when it wakes. The address behind `X-Forwarded-For` can be set to anything by a caller who reaches the server directly; behind Render it is the real address. Keys are rate limited per consumer, not per student.
+**Honest limits of the limiter:** it lives in the server's memory, so it starts again when the server restarts and does not add up across several copies of the server (a production service would keep the counts in a shared store such as Redis). On the free Render server, which sleeps and wakes, that means the counts reset when it wakes. Render's proxy appends the caller's address to the END of `X-Forwarded-For` (Ujuzi's Render blueprint says so), and Kazi reads the FIRST entry, which a caller can set to anything. So on Render the per-visitor allowance for the website key and the wrong-key limit can be sidestepped by sending a made-up `X-Forwarded-For`; the per-consumer limits of the other keys are not affected. This is not fixed yet: Kazi should read the entry the proxy added (a trusted-hops setting, as Ujuzi has) and ignore the header when there is no proxy.  Keys are rate limited per consumer, not per student.
 
 ## The checklist (Part D)
 
@@ -96,6 +96,7 @@ The same behaviour is in the automated tests (`__tests__/apiKeys.test.ts`, 58 te
 | The limiter is in memory | Honest limit for this course | A shared store such as Redis |
 | CORS allows any origin (`*`) | Needed for Swagger Editor and browser tools; keys are not sent from other sites (the preflight does not allow the header) | Narrow it when the list of browser clients is known |
 | `swagger-ui-react` has 4 moderate `npm audit` advisories | No fixed version exists, and it only runs in a visitor's browser on `/docs` reading our own contract (see the README) | Re-check when `sprintf-js` or `swagger-ui-react` publishes a fix |
+| On Render, the per-visitor allowance for the website key and the wrong-key limit can be sidestepped with a made-up `X-Forwarded-For` | Kazi reads the first entry, but Render's proxy appends the real address at the end | Read the entry the trusted proxy added (a trusted-hops setting) and ignore the header when there is no proxy |
 | A leaked key stays valid until it is removed from `API_KEYS` and the server restarts | No key store or revoke endpoint | Hashed keys in the database with a revoke call |
 
 ## How to check it again

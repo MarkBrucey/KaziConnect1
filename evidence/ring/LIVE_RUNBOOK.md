@@ -34,8 +34,12 @@ Never paste a real key into a chat, a file in git, or this document: keys live o
 
    No rows from either means the repair changes nothing. Rows mean real people's statuses will change: decide first, and tell
    Ujuzi. The server prints each change at start-up as `[data] ...`.
-2. **Render settings for Kazi:** build command `npm ci && npm run build`, start command `npm start`, Node 20.9 or newer,
-   `SHEREHE_API_URL` and `SHEREHE_API_KEY` (once Sherehe exists). **Leave `API_KEYS` and `REQUIRE_API_KEY` unset for now**, so
+2. **Render settings for Kazi:** build command **`npm ci --include=dev && npm run build`**, start command `npm start`, and an
+   environment variable `NODE_VERSION=22` (Kazi needs 20.9 or newer), plus `SHEREHE_API_URL` and `SHEREHE_API_KEY` (once Sherehe
+   exists). The `--include=dev` matters: Render installs with `NODE_ENV=production`, which makes a plain `npm ci` skip the
+   build tools (TypeScript and Tailwind are development dependencies), and the build then fails with `Cannot find module
+   '@tailwindcss/postcss'`. This was tried: a plain `npm ci && npm run build` with `NODE_ENV=production` fails, and
+   `npm ci --include=dev && npm run build` builds and starts. Sherehe's and Ujuzi's Render blueprints use the same command. **Leave `API_KEYS` and `REQUIRE_API_KEY` unset for now**, so
    Ujuzi's tests keep working. The first build may run out of memory on the free tier (about 1 GB measured on a Mac for a cold
    build; the running server needs 145 to 190 MB): watch it, and if it fails with an out-of-memory message the options are a
    paid instance for the build or building elsewhere.
@@ -83,6 +87,30 @@ SHEREHE_URL=<Sherehe's Render address>
 SHEREHE_API_KEY=<the key Sherehe issued to Kazi>
 UJUZI_URL=<Ujuzi's Render address>
 ```
+
+## 3b. Where each key goes on Render, click by click
+
+Kazi's Render service already exists (made by hand, so its settings live in the dashboard). Sherehe's and Ujuzi's repositories
+have Render blueprints (`render.yaml`): Sherehe's is on its branch `phase-13-render-blueprint`, Ujuzi's on `render-deploy`.
+You create their services with Render, New, Blueprint, choose the repository and its `main` branch, and Render asks you to type
+each secret (the ones marked `sync: false`) when it creates the service. Change a value later under the service, Environment.
+Saving an environment variable makes Render redeploy.
+
+| Service | Environment variable | What to put |
+|---|---|---|
+| Sherehe | `PARTNER_KEYS` | `kazi:<hash>`, the entry printed by `npm run partner:key -- --name kazi` in the Sherehe repository |
+| Sherehe | `UJUZI_API_URL`, `UJUZI_API_KEY` | Ujuzi's Render address, and the raw key Ujuzi issued to Sherehe (leave both empty until Ujuzi is live; Ujuzi-backed pages then answer 502 and the rest work) |
+| Ujuzi | `PARTNER_KEYS` | `sherehe:<hash>`, the entry printed by `npm run key:issue -- sherehe` in the Ujuzi repository |
+| Ujuzi | `KAZI_API_KEY` | the `ujuzi` key you put in Kazi's `API_KEYS` (only once Kazi asks for keys) |
+| Ujuzi | `SEED_PASSWORD` | a password of your own for its demo accounts (required while `SEED_ON_START` is `true`; the default is public) |
+| Kazi | `SHEREHE_API_URL`, `SHEREHE_API_KEY` | Sherehe's Render address, and the raw key Sherehe issued to Kazi |
+| Kazi | `API_KEYS` and `REQUIRE_API_KEY` | `ujuzi:<key>,website:<key>,team:<key>` and `true`: set these LAST (section 3) |
+
+Do the keys in this order, and test each link before the next: (1) Sherehe's `PARTNER_KEYS`, then Kazi's `SHEREHE_API_KEY` and
+`SHEREHE_API_URL`; run `npm run ring:status` and look for Sherehe CONFORMING. (2) Ujuzi's `PARTNER_KEYS`, then Sherehe's
+`UJUZI_API_KEY` and `UJUZI_API_URL`; run Sherehe's own `ring:check`. (3) Ujuzi's `KAZI_API_KEY` first, then Kazi's `API_KEYS`
+and `REQUIRE_API_KEY`; run Ujuzi's `ring:check`, then `npm run ring:check` here with `KAZI_API_KEY` set to the `team` key.
+Use brand-new keys for Render, not the ones from your local ring.
 
 ## 4. Test in layers, smallest first
 
