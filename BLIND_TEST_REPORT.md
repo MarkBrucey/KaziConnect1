@@ -29,3 +29,18 @@ What these checks and our own review caught, and we fixed today:
 ## 3. Honest summary
 
 No outsider has tested our README yet, so we cannot claim it works for a stranger, which is the claim this week checks. What we can say is narrower: every command in it works exactly as written when we run it from scratch, and today's checks found and fixed eight problems a stranger would likely have hit. The questions only a real reader can answer remain open: whether a SettleIn developer finds Part 1 enough on its own, whether the token and ID steps make sense to someone new, and how long the first working request takes. We will run the swap as soon as a team replies, and update this report with exactly what happened, including where they got stuck and if it didn't work.
+
+## Update: blind test after the move to the new ring and stack
+
+The README changes in this round (Ujuzi in place of SettleIn, Event work, the Next.js build step). Run the blind test again with a team outside the ring of Sherehe, Kazi Connect and Ujuzi.
+
+- Reading team: TODO
+- Did they get a successful response? How long did it take? Where did they get stuck? TODO
+- What we fixed, or are flagging: TODO
+- Honest summary: TODO
+
+### What we checked ourselves after the README changes (this is not a blind test)
+
+We wrote the README, so this cannot stand in for a reader who did not. On 21 October 2026 we ran every bash command block of the new README, in order, in one shell, against a fresh local copy of the new version, and compared each reply with the one printed in the README (IDs, emails, tokens and dates set aside). All 28 blocks ran. Parts 1 to 3 and the error reference matched, except two lists of jobs: the quickstart is printed trimmed to two jobs, as it says, and step 2 shows more jobs than a local copy has, because other testers have changed the data on the live site. The Event work replies (Part 3) came from our local stand-in for Sherehe, as Part 3 says. The same check found a real problem in a draft of Part 3, which is fixed: its example email could repeat the one from step 10 when the commands ran within the same second, which leaves the token empty. We also ran `sh run.sh` from a fresh clone: it installed, built, passed the 81 contract checks and started the server, and the website pages, `/docs`, `/openapi.yaml` and the API all answered.
+
+What we did not check: the PowerShell blocks (no Windows computer was available for this round), Part 3 against the real Sherehe, and anything from the point of view of a stranger. Those still need the blind test above.

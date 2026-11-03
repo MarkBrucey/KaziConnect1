@@ -1,0 +1,2369 @@
+{
+ "note": "Answers of the real Express app (main, version 1.2.1) to the requests in parityCases.js, recorded before the move to Next.js.",
+ "recordedFrom": "git commit d8c17ce (main)",
+ "results": [
+  {
+   "request": "GET /api/jobs?status=active",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "1279",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12345\",\"title\":\"Campus Housing Assistant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Parklands\",\"duration\":\"Part time, 3 months\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":15000,\"max\":22000}},{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":12000,\"max\":18000}},{\"id\":\"job_12347\",\"title\":\"Student Residence Cleaner\",\"category\":\"accommodation\",\"county\":\"Kiambu\",\"area\":\"Ruaka\",\"duration\":\"Weekends only\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9000,\"max\":12000}},{\"id\":\"job_12348\",\"title\":\"Cafeteria Server\",\"category\":\"catering\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"Lunch hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":10000,\"max\":14000}},{\"id\":\"job_12349\",\"title\":\"Maths Tutor, First Years\",\"category\":\"tutoring\",\"county\":\"Nairobi\",\"area\":\"South B\",\"duration\":\"2 evenings a week\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":20000,\"max\":30000}},{\"id\":\"job_12351\",\"title\":\"Library Shelving Assistant\",\"category\":\"campus\",\"county\":\"Mombasa\",\"area\":\"Nyali\",\"duration\":\"About 4 hours a day\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9500.5,\"max\":11000}}]"
+   }
+  },
+  {
+   "request": "GET /api/jobs?status=closed",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "418",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12350\",\"title\":\"Bedsitter Caretaker\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kasarani\",\"duration\":\"Ongoing\",\"urgent\":false,\"status\":\"closed\",\"payRange\":{\"min\":8000,\"max\":10000}},{\"id\":\"job_12352\",\"title\":\"Delivery Rider, Student Meals\",\"category\":\"catering\",\"county\":\"Kiambu\",\"area\":\"Thika Road\",\"duration\":\"Lunch hours\",\"urgent\":false,\"status\":\"closed\",\"payRange\":{\"min\":11000,\"max\":16000}}]"
+   }
+  },
+  {
+   "request": "GET /api/jobs",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs?status=",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs?county=Nairobi&category=accommodation&status=active",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "441",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12345\",\"title\":\"Campus Housing Assistant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Parklands\",\"duration\":\"Part time, 3 months\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":15000,\"max\":22000}},{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":12000,\"max\":18000}}]"
+   }
+  },
+  {
+   "request": "GET /api/jobs?county=nairobi&category=CATERING&status=active",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "201",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12348\",\"title\":\"Cafeteria Server\",\"category\":\"catering\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"Lunch hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":10000,\"max\":14000}}]"
+   }
+  },
+  {
+   "request": "GET /api/jobs?county=Turkana&category=accommodation&status=active",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "2",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[]"
+   }
+  },
+  {
+   "request": "GET /api/jobs?county=&category=accommodation&status=active",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs?county=Nairobi&category=accommodation&statuts=active",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "220",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"id\":\"job_12345\",\"title\":\"Campus Housing Assistant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Parklands\",\"duration\":\"Part time, 3 months\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":15000,\"max\":22000}}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_99999",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345/status",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "39",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"jobId\":\"job_12345\",\"status\":\"active\"}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12350/status",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "39",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"jobId\":\"job_12350\",\"status\":\"closed\"}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_99999/status",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/applications/app_1001/status",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "47",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"applicationId\":\"app_1001\",\"status\":\"pending\"}"
+   }
+  },
+  {
+   "request": "GET /api/applications/app_9999/status",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/applications/app_1001/subscribe",
+   "answer": {
+    "status": 426,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5",
+     "upgrade": "websocket"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/applications/app_9999/subscribe",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 201,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "155",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5",
+     "location": "/api/applications/app_1005"
+    },
+    "body": "{\"applicationId\":\"app_1005\",\"jobId\":\"job_12345\",\"studentId\":\"grd_0101\",\"preferredDate\":\"2099-01-01T09:00:00Z\",\"note\":\"Can start at 8am\",\"status\":\"pending\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "50",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Missing required field(s): studentId\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "40",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"studentId must be a string\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "86",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"preferredDate must be a real date-time, for example 2027-01-15T09:00:00Z\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "49",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"preferredDate must be in the future\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "93",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Unknown field(s): status. Allowed fields: jobId, studentId, preferredDate, note\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "52",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"jobId job_99999 does not match any job\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "71",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Job job_12350 is closed and is not accepting applications\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 413,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "39",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is too large\"}"
+   }
+  },
+  {
+   "request": "PUT /api/applications/app_1005",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "150",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"applicationId\":\"app_1005\",\"jobId\":\"job_12345\",\"studentId\":\"grd_0101\",\"preferredDate\":\"2099-01-01T09:00:00Z\",\"note\":\"Rescheduled\",\"status\":\"pending\"}"
+   }
+  },
+  {
+   "request": "PUT /api/applications/app_1005",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "150",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"applicationId\":\"app_1005\",\"jobId\":\"job_12345\",\"studentId\":\"grd_0101\",\"preferredDate\":\"2099-01-01T09:00:00Z\",\"note\":\"Rescheduled\",\"status\":\"pending\"}"
+   }
+  },
+  {
+   "request": "PUT /api/applications/app_1005",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "54",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Missing required field(s): preferredDate\"}"
+   }
+  },
+  {
+   "request": "PUT /api/applications/app_9999",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Application app_9999 not found\"}"
+   }
+  },
+  {
+   "request": "PUT /api/applications/app_1002",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "88",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Application app_1002 is accepted; only pending applications can be changed\"}"
+   }
+  },
+  {
+   "request": "DELETE /api/applications/app_1005",
+   "answer": {
+    "status": 204,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "DELETE /api/applications/app_1005",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Application app_1005 not found\"}"
+   }
+  },
+  {
+   "request": "DELETE /api/applications/app_9999",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Application app_9999 not found\"}"
+   }
+  },
+  {
+   "request": "DELETE /api/applications/app_1002",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "90",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Application app_1002 is accepted; only pending applications can be cancelled\"}"
+   }
+  },
+  {
+   "request": "GET /api/applications/app_1005/status",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "OPTIONS /api/jobs",
+   "answer": {
+    "status": 204,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "OPTIONS /api/anything/at/all",
+   "answer": {
+    "status": 204,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/zzz",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "POST /api/zzz",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345/nothing",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "POST /api/auth/register",
+   "answer": {
+    "status": 201,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "161",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"token\":\"<64hex>\",\"user\":{\"id\":\"usr_1003\",\"name\":\"Ab Test\",\"email\":\"ab@example.com\",\"role\":\"employer\"}}"
+   }
+  },
+  {
+   "request": "POST /api/auth/register",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "72",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"An account with this email already exists. Log in instead.\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/register",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "49",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"email must be a valid email address\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/login",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "178",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"token\":\"<64hex>\",\"user\":{\"id\":\"usr_1001\",\"name\":\"Demo Employer\",\"email\":\"employer@kaziconnect.demo\",\"role\":\"employer\"}}"
+   }
+  },
+  {
+   "request": "POST /api/auth/login",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "175",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"token\":\"<64hex>\",\"user\":{\"id\":\"usr_1002\",\"name\":\"Demo Student\",\"email\":\"student@kaziconnect.demo\",\"role\":\"student\"}}"
+   }
+  },
+  {
+   "request": "POST /api/auth/login",
+   "answer": {
+    "status": 401,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "45",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Email or password is incorrect.\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/login",
+   "answer": {
+    "status": 401,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "45",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Email or password is incorrect.\"}"
+   }
+  },
+  {
+   "request": "GET /api/me",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "94",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"id\":\"usr_1001\",\"name\":\"Demo Employer\",\"email\":\"employer@kaziconnect.demo\",\"role\":\"employer\"}"
+   }
+  },
+  {
+   "request": "GET /api/me",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "91",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"id\":\"usr_1002\",\"name\":\"Demo Student\",\"email\":\"student@kaziconnect.demo\",\"role\":\"student\"}"
+   }
+  },
+  {
+   "request": "GET /api/me",
+   "answer": {
+    "status": 401,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "82",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Log in first, then send your token as: Authorization: Bearer <token>\"}"
+   }
+  },
+  {
+   "request": "GET /api/me",
+   "answer": {
+    "status": 401,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "82",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Log in first, then send your token as: Authorization: Bearer <token>\"}"
+   }
+  },
+  {
+   "request": "POST /api/jobs",
+   "answer": {
+    "status": 201,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "207",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5",
+     "location": "/api/jobs/job_12353"
+    },
+    "body": "{\"id\":\"job_12353\",\"title\":\"Fix leaking kitchen sink\",\"category\":\"plumbing\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"About 2 hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":1500,\"max\":1500}}"
+   }
+  },
+  {
+   "request": "POST /api/jobs",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "83",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Missing required field(s): category, county, area, duration, payRange\"}"
+   }
+  },
+  {
+   "request": "POST /api/jobs",
+   "answer": {
+    "status": 403,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "41",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Only employers can do this.\"}"
+   }
+  },
+  {
+   "request": "POST /api/jobs",
+   "answer": {
+    "status": 401,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "82",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Log in first, then send your token as: Authorization: Bearer <token>\"}"
+   }
+  },
+  {
+   "request": "GET /api/me/jobs",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "2120",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12353\",\"title\":\"Fix leaking kitchen sink\",\"category\":\"plumbing\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"About 2 hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":1500,\"max\":1500},\"pendingApplications\":0},{\"id\":\"job_12352\",\"title\":\"Delivery Rider, Student Meals\",\"category\":\"catering\",\"county\":\"Kiambu\",\"area\":\"Thika Road\",\"duration\":\"Lunch hours\",\"urgent\":false,\"status\":\"closed\",\"payRange\":{\"min\":11000,\"max\":16000},\"pendingApplications\":0},{\"id\":\"job_12351\",\"title\":\"Library Shelving Assistant\",\"category\":\"campus\",\"county\":\"Mombasa\",\"area\":\"Nyali\",\"duration\":\"About 4 hours a day\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9500.5,\"max\":11000},\"pendingApplications\":0},{\"id\":\"job_12350\",\"title\":\"Bedsitter Caretaker\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kasarani\",\"duration\":\"Ongoing\",\"urgent\":false,\"status\":\"closed\",\"payRange\":{\"min\":8000,\"max\":10000},\"pendingApplications\":0},{\"id\":\"job_12349\",\"title\":\"Maths Tutor, First Years\",\"category\":\"tutoring\",\"county\":\"Nairobi\",\"area\":\"South B\",\"duration\":\"2 evenings a week\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":20000,\"max\":30000},\"pendingApplications\":0},{\"id\":\"job_12348\",\"title\":\"Cafeteria Server\",\"category\":\"catering\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"Lunch hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":10000,\"max\":14000},\"pendingApplications\":0},{\"id\":\"job_12347\",\"title\":\"Student Residence Cleaner\",\"category\":\"accommodation\",\"county\":\"Kiambu\",\"area\":\"Ruaka\",\"duration\":\"Weekends only\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9000,\"max\":12000},\"pendingApplications\":1},{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":12000,\"max\":18000},\"pendingApplications\":0},{\"id\":\"job_12345\",\"title\":\"Campus Housing Assistant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Parklands\",\"duration\":\"Part time, 3 months\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":15000,\"max\":22000},\"pendingApplications\":1}]"
+   }
+  },
+  {
+   "request": "GET /api/me/jobs",
+   "answer": {
+    "status": 403,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "41",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Only employers can do this.\"}"
+   }
+  },
+  {
+   "request": "GET /api/me/jobs",
+   "answer": {
+    "status": 401,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "82",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Log in first, then send your token as: Authorization: Bearer <token>\"}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345/applications",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "189",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"applicationId\":\"app_1001\",\"jobId\":\"job_12345\",\"studentId\":\"stu_0042\",\"preferredDate\":\"2027-01-15T09:00:00Z\",\"note\":\"Available after 2pm on weekdays\",\"status\":\"pending\",\"studentName\":\"\"}]"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345/applications",
+   "answer": {
+    "status": 403,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "50",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"You can only manage jobs you posted.\"}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_99999/applications",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "37",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Job job_99999 not found\"}"
+   }
+  },
+  {
+   "request": "PATCH /api/jobs/job_12346",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "218",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"closed\",\"payRange\":{\"min\":12000,\"max\":18000}}"
+   }
+  },
+  {
+   "request": "PATCH /api/jobs/job_12346",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "218",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":12000,\"max\":18000}}"
+   }
+  },
+  {
+   "request": "PATCH /api/jobs/job_12346",
+   "answer": {
+    "status": 403,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "50",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"You can only manage jobs you posted.\"}"
+   }
+  },
+  {
+   "request": "PATCH /api/jobs/job_12346",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "45",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"status must be active or closed\"}"
+   }
+  },
+  {
+   "request": "PATCH /api/applications/app_1001",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "171",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"applicationId\":\"app_1001\",\"jobId\":\"job_12345\",\"studentId\":\"stu_0042\",\"preferredDate\":\"2027-01-15T09:00:00Z\",\"note\":\"Available after 2pm on weekdays\",\"status\":\"accepted\"}"
+   }
+  },
+  {
+   "request": "PATCH /api/applications/app_1001",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "89",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Application app_1001 is accepted; only pending applications can be accepted\"}"
+   }
+  },
+  {
+   "request": "PATCH /api/applications/app_1001",
+   "answer": {
+    "status": 403,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "70",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"You can only decide on applications for jobs you posted.\"}"
+   }
+  },
+  {
+   "request": "GET /api/applications/app_1001/status",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "48",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"applicationId\":\"app_1001\",\"status\":\"accepted\"}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345/status",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "39",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"jobId\":\"job_12345\",\"status\":\"closed\"}"
+   }
+  },
+  {
+   "request": "GET /api/me/applications",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "2",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[]"
+   }
+  },
+  {
+   "request": "GET /api/me/applications",
+   "answer": {
+    "status": 403,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "40",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Only students can do this.\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/password-resets",
+   "answer": {
+    "status": 202,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "124",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"If an account exists for that email, we have sent a link to reset its password. The link works for 30 minutes.\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/password-resets",
+   "answer": {
+    "status": 202,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "124",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"If an account exists for that email, we have sent a link to reset its password. The link works for 30 minutes.\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/password-resets",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "49",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"email must be a valid email address\"}"
+   }
+  },
+  {
+   "request": "PUT /api/auth/password",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "77",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"This reset link is not valid or has expired. Ask for a new one.\"}"
+   }
+  },
+  {
+   "request": "PUT /api/auth/password",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "46",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"token is not a valid reset token\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/logout",
+   "answer": {
+    "status": 204,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/me",
+   "answer": {
+    "status": 401,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "69",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Your session has expired or is not valid. Log in again.\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/logout",
+   "answer": {
+    "status": 401,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "82",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Log in first, then send your token as: Authorization: Bearer <token>\"}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/?status=active",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "1266",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":12000,\"max\":18000}},{\"id\":\"job_12347\",\"title\":\"Student Residence Cleaner\",\"category\":\"accommodation\",\"county\":\"Kiambu\",\"area\":\"Ruaka\",\"duration\":\"Weekends only\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9000,\"max\":12000}},{\"id\":\"job_12348\",\"title\":\"Cafeteria Server\",\"category\":\"catering\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"Lunch hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":10000,\"max\":14000}},{\"id\":\"job_12349\",\"title\":\"Maths Tutor, First Years\",\"category\":\"tutoring\",\"county\":\"Nairobi\",\"area\":\"South B\",\"duration\":\"2 evenings a week\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":20000,\"max\":30000}},{\"id\":\"job_12351\",\"title\":\"Library Shelving Assistant\",\"category\":\"campus\",\"county\":\"Mombasa\",\"area\":\"Nyali\",\"duration\":\"About 4 hours a day\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9500.5,\"max\":11000}},{\"id\":\"job_12353\",\"title\":\"Fix leaking kitchen sink\",\"category\":\"plumbing\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"About 2 hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":1500,\"max\":1500}}]"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345/",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "220",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"id\":\"job_12345\",\"title\":\"Campus Housing Assistant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Parklands\",\"duration\":\"Part time, 3 months\",\"urgent\":true,\"status\":\"closed\",\"payRange\":{\"min\":15000,\"max\":22000}}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345/status/",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "39",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"jobId\":\"job_12345\",\"status\":\"closed\"}"
+   }
+  },
+  {
+   "request": "GET /api/applications/app_1001/status/",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "48",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"applicationId\":\"app_1001\",\"status\":\"accepted\"}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job%5F12345",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "220",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"id\":\"job_12345\",\"title\":\"Campus Housing Assistant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Parklands\",\"duration\":\"Part time, 3 months\",\"urgent\":true,\"status\":\"closed\",\"payRange\":{\"min\":15000,\"max\":22000}}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/%zz",
+   "answer": {
+    "status": 500,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "35",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Internal server error\"}"
+   }
+  },
+  {
+   "request": "GET /api/jobs/job_12345%2Fstatus",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs?status=active&status=closed",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs?status=active&county=Nairobi&county=Mombasa",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs?status",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/jobs?status=%20active%20",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "1266",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":12000,\"max\":18000}},{\"id\":\"job_12347\",\"title\":\"Student Residence Cleaner\",\"category\":\"accommodation\",\"county\":\"Kiambu\",\"area\":\"Ruaka\",\"duration\":\"Weekends only\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9000,\"max\":12000}},{\"id\":\"job_12348\",\"title\":\"Cafeteria Server\",\"category\":\"catering\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"Lunch hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":10000,\"max\":14000}},{\"id\":\"job_12349\",\"title\":\"Maths Tutor, First Years\",\"category\":\"tutoring\",\"county\":\"Nairobi\",\"area\":\"South B\",\"duration\":\"2 evenings a week\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":20000,\"max\":30000}},{\"id\":\"job_12351\",\"title\":\"Library Shelving Assistant\",\"category\":\"campus\",\"county\":\"Mombasa\",\"area\":\"Nyali\",\"duration\":\"About 4 hours a day\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9500.5,\"max\":11000}},{\"id\":\"job_12353\",\"title\":\"Fix leaking kitchen sink\",\"category\":\"plumbing\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"About 2 hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":1500,\"max\":1500}}]"
+   }
+  },
+  {
+   "request": "GET /api/jobs?status=ACTIVE&county=NAIROBI&category=Accommodation",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "220",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":12000,\"max\":18000}}]"
+   }
+  },
+  {
+   "request": "GET /api/jobs?STATUS=active",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "DELETE /api/jobs",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "PUT /api/jobs",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "PATCH /api/jobs",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "POST /api/jobs/job_12345/status",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "PUT /api/me",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/applications",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/auth/login",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "PUT /api/auth/login",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/auth/register",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /api/auth/password",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "POST /api/applications/app_1001/status",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "PUT /api/applications/app_1001/subscribe",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "HEAD /api/jobs?status=active",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "close",
+     "content-length": "1266",
+     "content-type": "application/json; charset=utf-8"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "HEAD /api/jobs/job_99999",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "close"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "HEAD /api/auth/login",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "close"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "HEAD /api/zzz",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "close"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "OPTIONS /api/jobs",
+   "answer": {
+    "status": 204,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "OPTIONS /api/zzz",
+   "answer": {
+    "status": 204,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "OPTIONS /api/me/jobs",
+   "answer": {
+    "status": 204,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "72",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Missing required field(s): jobId, studentId, preferredDate\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "48",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body must be a JSON object\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "48",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body must be a JSON object\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "48",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body must be a JSON object\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "48",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body must be a JSON object\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "71",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Job job_12345 is closed and is not accepting applications\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 500,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "35",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Internal server error\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "48",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body must be a JSON object\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "71",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Job job_12345 is closed and is not accepting applications\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "50",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"note must be 500 characters or fewer\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "50",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"note must be 500 characters or fewer\"}"
+   }
+  },
+  {
+   "request": "POST /api/zzz",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "POST /api/zzz",
+   "answer": {
+    "status": 413,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "39",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is too large\"}"
+   }
+  },
+  {
+   "request": "DELETE /api/jobs",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "POST /api/auth/login",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "178",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"token\":\"<64hex>\",\"user\":{\"id\":\"usr_1001\",\"name\":\"Demo Employer\",\"email\":\"employer@kaziconnect.demo\",\"role\":\"employer\"}}"
+   }
+  },
+  {
+   "request": "POST /api/jobs",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "PATCH /api/jobs/job_12345",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "PUT /api/applications/app_9999",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "DELETE /api/applications/app_9999",
+   "answer": {
+    "status": 400,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "44",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is not valid JSON\"}"
+   }
+  },
+  {
+   "request": "POST /api/me/jobs",
+   "answer": {
+    "status": 404,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "0",
+     "keep-alive": "timeout=5"
+    },
+    "body": ""
+   }
+  },
+  {
+   "request": "GET /API/jobs?status=active",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "1266",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "[{\"id\":\"job_12346\",\"title\":\"Hostel Front Desk Attendant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Kilimani\",\"duration\":\"Evening shifts\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":12000,\"max\":18000}},{\"id\":\"job_12347\",\"title\":\"Student Residence Cleaner\",\"category\":\"accommodation\",\"county\":\"Kiambu\",\"area\":\"Ruaka\",\"duration\":\"Weekends only\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9000,\"max\":12000}},{\"id\":\"job_12348\",\"title\":\"Cafeteria Server\",\"category\":\"catering\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"Lunch hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":10000,\"max\":14000}},{\"id\":\"job_12349\",\"title\":\"Maths Tutor, First Years\",\"category\":\"tutoring\",\"county\":\"Nairobi\",\"area\":\"South B\",\"duration\":\"2 evenings a week\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":20000,\"max\":30000}},{\"id\":\"job_12351\",\"title\":\"Library Shelving Assistant\",\"category\":\"campus\",\"county\":\"Mombasa\",\"area\":\"Nyali\",\"duration\":\"About 4 hours a day\",\"urgent\":false,\"status\":\"active\",\"payRange\":{\"min\":9500.5,\"max\":11000}},{\"id\":\"job_12353\",\"title\":\"Fix leaking kitchen sink\",\"category\":\"plumbing\",\"county\":\"Nairobi\",\"area\":\"Westlands\",\"duration\":\"About 2 hours\",\"urgent\":true,\"status\":\"active\",\"payRange\":{\"min\":1500,\"max\":1500}}]"
+   }
+  },
+  {
+   "request": "GET /Api/Jobs/job_12345",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "220",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"id\":\"job_12345\",\"title\":\"Campus Housing Assistant\",\"category\":\"accommodation\",\"county\":\"Nairobi\",\"area\":\"Parklands\",\"duration\":\"Part time, 3 months\",\"urgent\":true,\"status\":\"closed\",\"payRange\":{\"min\":15000,\"max\":22000}}"
+   }
+  },
+  {
+   "request": "GET /api/JOBS/job_12345/STATUS",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "39",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"jobId\":\"job_12345\",\"status\":\"closed\"}"
+   }
+  },
+  {
+   "request": "GET /api/Applications/app_1001/Status",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "48",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"applicationId\":\"app_1001\",\"status\":\"accepted\"}"
+   }
+  },
+  {
+   "request": "POST /API/Auth/Login",
+   "answer": {
+    "status": 200,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "178",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"token\":\"<64hex>\",\"user\":{\"id\":\"usr_1001\",\"name\":\"Demo Employer\",\"email\":\"employer@kaziconnect.demo\",\"role\":\"employer\"}}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "71",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Job job_12345 is closed and is not accepting applications\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "71",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Job job_12345 is closed and is not accepting applications\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 409,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "71",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Job job_12345 is closed and is not accepting applications\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 500,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "35",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Internal server error\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 500,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "35",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Internal server error\"}"
+   }
+  },
+  {
+   "request": "POST /api/applications",
+   "answer": {
+    "status": 413,
+    "headers": {
+     "access-control-allow-headers": "Content-Type, Authorization",
+     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+     "access-control-allow-origin": "*",
+     "connection": "keep-alive",
+     "content-length": "39",
+     "content-type": "application/json; charset=utf-8",
+     "keep-alive": "timeout=5"
+    },
+    "body": "{\"message\":\"Request body is too large\"}"
+   }
+  }
+ ]
+}

@@ -1,6 +1,8 @@
 # ENDPOINT_LIST.md: Kazi Connect (Team 15)
 
-## Downstream endpoints: Kazi Connect provides to SettleIn
+## Downstream endpoints: Kazi Connect provides to Ujuzi (formerly SettleIn)
+
+These nine endpoints are unchanged. They were designed for SettleIn's Statements 1 to 8; Ujuzi uses them exactly the same way. Statement 1 is now U1, 2 is U2, 3 and 4 are U3, 5 is U5, 6 is U4, and 7 and 8 are U6 (see API_NEEDS.md).
 
 | # | Method | Path/Endpoint | Purpose | Maps to Need |
 |---|--------|----------|---------|---------------|
@@ -45,3 +47,38 @@ Notes, following the same REST rules as rows 1 to 9:
 - Paths are nouns. Logging in and out use the `auth` resource, and `me` stands for the logged in user. A reset is a `password-resets` resource that is created, and setting the password replaces the `password` resource with PUT.
 - Posting a job reuses `/api/jobs` with POST, and closing a job or accepting an application use PATCH on the resource itself, so no verbs appear in paths.
 - No path nests more than one level below its parent resource.
+
+## Endpoints for Event work (added October 2026, version 1.3.0)
+
+These serve website need W7 and are the only place Kazi Connect calls its upstream partner, Sherehe. Endpoints 1 to 21 are unchanged.
+
+| # | Method | Path/Endpoint | Purpose | Maps to Need |
+|---|--------|----------|---------|---------------|
+| 22 | GET | `/api/event-openings?county={county}` | Lists open staffing roles on upcoming Sherehe events, as Kazi event openings (employers) | W7 (K1, K2) |
+| 23 | POST | `/api/staffing-offers` | Offers Kazi workers for a Sherehe role; a job opens when the organiser accepts (employers) | W7 (K3) |
+| 24 | GET | `/api/me/staffing-offers` | Lists the logged in employer's offers and their status (optional) | W7 (K4) |
+| 25 | DELETE | `/api/staffing-offers/{offerId}` | Withdraws a pending offer at Sherehe and deletes it here (the employer who made it) | W7 (K5) |
+
+Notes, following the same REST rules:
+
+- `event-openings` and `staffing-offers` are Kazi's own resources, named in Kazi's words; Sherehe's own names (events, roles, offers) stay inside `shereheClient`.
+- Status changes arrive by polling Sherehe (K4), so no verb such as `/sync` appears in a path.
+
+## Endpoints Kazi Connect consumes from Sherehe (for reference)
+
+| Method | Sherehe path | Need |
+|---|---|---|
+| GET | `/api/events?status=upcoming&county={county}` | K1 |
+| GET | `/api/events/{eventId}` | K1 |
+| GET | `/api/events/{eventId}/roles` | K2 |
+| POST | `/api/offers` | K3 |
+| GET | `/api/offers/{offerId}` | K4 |
+| DELETE | `/api/offers/{offerId}` | K5 |
+
+## Peer review of rows 22 to 25
+
+Reviewed by: TODO (a team outside the ring of Sherehe, Kazi Connect and Ujuzi)
+
+| Reviewer comment | Row | Our response: fixed, or why we kept it |
+|---|---|---|
+| TODO | | |

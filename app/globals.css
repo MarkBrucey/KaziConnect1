@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* Kazi Connect's colours and type, taken from the original page. Tailwind turns each --color-* into
+   utilities such as bg-brown, text-muted and border-line. */
+@theme {
+  --color-brown: #554A40;
+  --color-brown-dark: #43392F;
+  --color-sky: #D7E5F0;
+  --color-cream: #FBF7F3;
+  --color-tag: #F2F1F0;
+  --color-ink: #111111;
+  --color-muted: #6E6862;
+  --color-line: #DDD8D2;
+  --color-edge: #CFCAC4;
+  --color-field: #C9C4BE;
+  --color-ok: #2F7A4D;
+  --color-ok-soft: #E3F2E8;
+  --color-bad: #A63D32;
+  --color-bad-soft: #F7E4E1;
+  --font-sans: "Inter", "Segoe UI", Arial, sans-serif;
+
+  --animate-glow: glow 1.4s ease-out 1;
+  @keyframes glow {
+    from { box-shadow: 0 0 0 6px var(--color-sky); }
+    to { box-shadow: 0 0 0 0 transparent; }
+  }
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font-sans); color: var(--color-ink); background: #fff; font-size: 16px; line-height: 1.55; }
+  :focus-visible { outline: 3px solid var(--color-brown); outline-offset: 2px; }
+  [id] { scroll-margin-top: 76px; }
+
+  /* Form fields look the same everywhere, as on the original page. */
+  select, input:not([type="radio"]):not([type="checkbox"]), textarea {
+    font: inherit; color: var(--color-ink); background: #fff;
+    border: 1px solid var(--color-field); border-radius: 10px; padding: 12px 14px; width: 100%;
+  }
+  input[type="radio"], input[type="checkbox"] { accent-color: var(--color-brown); }
+
+  /* Preflight removes the automatic centring of a dialog, so it is put back. */
+  dialog { margin: auto; color: var(--color-ink); }
+  dialog::backdrop { background: rgb(17 17 17 / 0.45); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .animate-glow { animation: none; }
+}
