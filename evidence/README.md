@@ -8,3 +8,8 @@
    write endpoints, including the tests with bad input.
 
    The full automated results are in VERIFICATION.md.
+
+   student-identity/ (4 November 2026, version 1.3.1, API keys switched on): the website asks a
+   visitor to log in before applying, a logged in student applies as themselves, and
+   browser_check.txt records that nobody else can apply with, or withdraw, a student's account
+   application, while a partner's own IDs work as before.

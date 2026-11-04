@@ -463,7 +463,7 @@ export interface paths {
         put?: never;
         /**
          * Creates a new application/service request on behalf of a graduate
-         * @description Statement 6. The job must exist and be active. Each call creates a new application, so this endpoint is not idempotent: sending the same body twice creates two applications.
+         * @description Statement 6. The job must exist and be active. Each call creates a new application, so this endpoint is not idempotent: sending the same body twice creates two applications. No login is needed: a partner such as Ujuzi sends its own ID for the student as studentId. A login is optional, and is checked when sent. IDs starting with usr_ belong to Kazi Connect accounts: only that student, logged in, may use one, so nobody can apply in another student's name. A logged in student must send their own account ID as studentId.
          */
         post: {
             parameters: {
@@ -487,21 +487,43 @@ export interface paths {
                         "application/json": components["schemas"]["Application"];
                     };
                 };
-                /** @description The body failed validation: a required field is missing, a field has the wrong type, a value is unusable (empty text, not a real date-time, a date in the past), a field is not allowed, or jobId does not match any job. Nothing is written. */
+                /** @description The body failed validation: a required field is missing, a field has the wrong type, a value is unusable (empty text, not a real date-time, a date in the past), a field is not allowed, or jobId does not match any job. Also when studentId is a Kazi Connect account ID (usr_...) and the caller is not logged in as that student, or when a logged in student sends any studentId other than their own account ID. Nothing is written. */
                 400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No valid API key was sent ("Missing or invalid API key"), or a login token was sent but is not valid or has expired. Sending no login token is fine. Nothing is written. */
+                401: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         /**
                          * @example {
-                         *       "message": "Missing required field(s): preferredDate"
+                         *       "message": "Your session has expired or is not valid. Log in again."
                          *     }
                          */
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                401: components["responses"]["MissingApiKey"];
+                /** @description Logged in as an employer. Only students can apply. Nothing is written. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "message": "Only students can do this."
+                         *     }
+                         */
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 /** @description The job exists but is closed, or another applicant has already been accepted for it (a job has one place, and the message then says the job is already filled). Nothing is written. */
                 409: {
                     headers: {
@@ -530,7 +552,7 @@ export interface paths {
         get?: never;
         /**
          * Updates an existing pending application (e.g. reschedule, edit details)
-         * @description Statement 7. Replaces the editable details of a pending application. This sets an absolute state: leaving note out clears it, and sending the same body twice leaves the application in the same state. A PUT to an ID that does not exist returns 404 and never creates one.
+         * @description Statement 7. Replaces the editable details of a pending application. This sets an absolute state: leaving note out clears it, and sending the same body twice leaves the application in the same state. A PUT to an ID that does not exist returns 404 and never creates one. No login is needed, except for an application made from a Kazi Connect account (its studentId starts with usr_): only that student, logged in, can change it.
          */
         put: {
             parameters: {
@@ -570,7 +592,34 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                401: components["responses"]["MissingApiKey"];
+                /** @description No valid API key was sent ("Missing or invalid API key"); or the application was made from a Kazi Connect account and no valid login was sent. Nothing is changed. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "message": "Application app_1005 was made from a Kazi Connect account. Log in as that student to change it."
+                         *     }
+                         */
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The application was made from another student's account. Nothing is changed. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "message": "You can only change your own applications."
+                         *     }
+                         */
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 /** @description Application ID not found. Nothing is created. */
                 404: {
                     headers: {
@@ -605,7 +654,7 @@ export interface paths {
         post?: never;
         /**
          * Cancels a pending application/service request
-         * @description Statement 8. Removes a pending application. Afterwards Endpoint 5 returns 404 for it, and Endpoint 6 subscribers receive a final message with status "cancelled".
+         * @description Statement 8. Removes a pending application. Afterwards Endpoint 5 returns 404 for it, and Endpoint 6 subscribers receive a final message with status "cancelled". No login is needed, except for an application made from a Kazi Connect account (its studentId starts with usr_): only that student, logged in, can withdraw it.
          */
         delete: {
             parameters: {
@@ -625,7 +674,34 @@ export interface paths {
                     };
                     content?: never;
                 };
-                401: components["responses"]["MissingApiKey"];
+                /** @description No valid API key was sent ("Missing or invalid API key"); or the application was made from a Kazi Connect account and no valid login was sent. Nothing is removed. */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "message": "Application app_1005 was made from a Kazi Connect account. Log in as that student to withdraw it."
+                         *     }
+                         */
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The application was made from another student's account. Nothing is removed. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "message": "You can only withdraw your own applications."
+                         *     }
+                         */
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 /** @description Application ID not found, including one that was already cancelled. */
                 404: {
                     headers: {
@@ -1474,7 +1550,10 @@ export interface components {
              * @example job_12345
              */
             jobId: string;
-            /** @example stu_0042 */
+            /**
+             * @description The partner's own ID for the student. IDs starting with usr_ are Kazi Connect account IDs: only that student, logged in, may send one.
+             * @example stu_0042
+             */
             studentId: string;
             /**
              * Format: date-time

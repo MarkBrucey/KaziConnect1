@@ -165,7 +165,8 @@ describe('Endpoint 16: GET /api/jobs/{jobId}/applications', () => {
   });
 
   it('shows the applicant\'s name when they applied from a Kazi Connect account', async () => {
-    await apply('job_12346', 'usr_1002');
+    // Logged in, as the website sends it: only that student may apply with their account ID.
+    await request(server).post('/api/applications').set(bearer(await student())).send({ jobId: 'job_12346', studentId: 'usr_1002', preferredDate: future(30) });
 
     const res = await request(server).get('/api/jobs/job_12346/applications').set(bearer(await employer()));
 

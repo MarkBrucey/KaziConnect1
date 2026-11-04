@@ -2,6 +2,7 @@
 //
 //   handle(fn)                    a public route
 //   withAuth(fn)                  a route that needs a valid login token
+//   withOptionalAuth(fn)          a public route that checks a login token when one is sent
 //   requireRole('employer')(fn)   a logged in route only one kind of account may use
 //
 // They run the same checks in the same order as the Express middleware did:
@@ -31,8 +32,13 @@ export interface AuthedContext<P> extends PublicContext<P> {
   tokenHash: string;
 }
 
+export interface MaybeAuthedContext<P> extends PublicContext<P> {
+  user: UserRow | null;
+}
+
 type PublicFn<P> = (req: NextRequest, ctx: PublicContext<P>) => Response | Promise<Response>;
 type AuthedFn<P> = (req: NextRequest, ctx: AuthedContext<P>) => Response | Promise<Response>;
+type MaybeAuthedFn<P> = (req: NextRequest, ctx: MaybeAuthedContext<P>) => Response | Promise<Response>;
 
 async function run(work: () => Response | Promise<Response>): Promise<Response> {
   try {
@@ -55,19 +61,38 @@ export function handle<P = Record<string, never>>(fn: PublicFn<P>): RouteHandler
   });
 }
 
+// Who the "Authorization: Bearer <token>" header belongs to, or the 401 to answer.
+async function loginFrom(req: NextRequest): Promise<{ user: UserRow; tokenHash: string } | Response> {
+  const header = req.headers.get('authorization') || '';
+  const match = /^Bearer\s+([a-f0-9]{64})$/i.exec(header.trim());
+  if (!match) return fail(401, 'Log in first, then send your token as: Authorization: Bearer <token>');
+  const tokenHash = hashToken(match[1]);
+  const session = await db.findSession(tokenHash);
+  if (!session || new Date(session.expires_at) <= new Date()) return fail(401, 'Your session has expired or is not valid. Log in again.');
+  const user = await db.findUserById(session.user_id);
+  if (!user) return fail(401, 'Your session is not valid. Log in again.');
+  return { user, tokenHash };
+}
+
 // The request must carry a valid "Authorization: Bearer <token>". On success the handler is given the user's row.
 export function withAuth<P = Record<string, never>>(fn: AuthedFn<P>): RouteHandler<P> {
   return (req, ctx) => run(async () => {
     const body = await readJson(req);
-    const header = req.headers.get('authorization') || '';
-    const match = /^Bearer\s+([a-f0-9]{64})$/i.exec(header.trim());
-    if (!match) return fail(401, 'Log in first, then send your token as: Authorization: Bearer <token>');
-    const tokenHash = hashToken(match[1]);
-    const session = await db.findSession(tokenHash);
-    if (!session || new Date(session.expires_at) <= new Date()) return fail(401, 'Your session has expired or is not valid. Log in again.');
-    const user = await db.findUserById(session.user_id);
-    if (!user) return fail(401, 'Your session is not valid. Log in again.');
-    return fn(req, { params: await ctx.params, body, user, tokenHash });
+    const login = await loginFrom(req);
+    if (login instanceof Response) return login;
+    return fn(req, { params: await ctx.params, body, ...login });
+  });
+}
+
+// No login needed, but a login that is sent is checked (the same 401s as withAuth). The handler is given the
+// user's row, or null when no Authorization header was sent.
+export function withOptionalAuth<P = Record<string, never>>(fn: MaybeAuthedFn<P>): RouteHandler<P> {
+  return (req, ctx) => run(async () => {
+    const body = await readJson(req);
+    if (!req.headers.get('authorization')) return fn(req, { params: await ctx.params, body, user: null });
+    const login = await loginFrom(req);
+    if (login instanceof Response) return login;
+    return fn(req, { params: await ctx.params, body, user: login.user });
   });
 }
 

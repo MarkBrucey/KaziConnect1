@@ -8,8 +8,9 @@
 import * as db from '@/db';
 import { toApplication } from '@/mappers';
 import { validateApplicationDecision, validateApplicationUpdate } from '@/validation';
-import { handle, requireRole, withAuth } from '@/lib/guards';
-import type { AuthedContext, PublicContext } from '@/lib/guards';
+import { requireRole, withAuth, withOptionalAuth } from '@/lib/guards';
+import type { AuthedContext, MaybeAuthedContext } from '@/lib/guards';
+import { whyNotOwner } from '@/lib/identity';
 import { fail, json, noContent } from '@/lib/http';
 import type { ApplicationUpdate } from '@/lib/contract';
 import { StoreConflict, filledForEmployer } from '@/lib/conflict';
@@ -18,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 type Params = { applicationId: string };
 
-export const PUT = handle(async (_req, { params, body }: PublicContext<Params>) => {
+export const PUT = withOptionalAuth(async (_req, { params, body, user }: MaybeAuthedContext<Params>) => {
   const id = params.applicationId;
 
   // 1. Validate the body.
@@ -30,12 +31,16 @@ export const PUT = handle(async (_req, { params, body }: PublicContext<Params>) 
   const row = await db.findApplicationById(id);
   if (!row) return fail(404, `Application ${id} not found`);
 
-  // 3. Only pending applications can be changed.
+  // 3. One made from a student's account can only be changed by that student (lib/identity.ts).
+  const refused = whyNotOwner(row, user, 'change');
+  if (refused) return fail(...refused);
+
+  // 4. Only pending applications can be changed.
   if (row.application_status !== 'pending') {
     return fail(409, `Application ${id} is ${row.application_status}; only pending applications can be changed`);
   }
 
-  // 4. Set the absolute state. Leaving note out clears it, so the same
+  // 5. Set the absolute state. Leaving note out clears it, so the same
   //    request sent twice always gives the same result.
   const updated = await db.replaceApplicationDetails(id, {
     preferredAt: new Date(b.preferredDate),
@@ -66,19 +71,23 @@ export const PATCH = withAuth(requireRole('employer')(async (_req, { params, use
   }
 }));
 
-export const DELETE = handle(async (_req, { params }: PublicContext<Params>) => {
+export const DELETE = withOptionalAuth(async (_req, { params, user }: MaybeAuthedContext<Params>) => {
   const id = params.applicationId;
 
   // 1. It must exist.
   const row = await db.findApplicationById(id);
   if (!row) return fail(404, `Application ${id} not found`);
 
-  // 2. Only pending applications can be cancelled.
+  // 2. One made from a student's account can only be withdrawn by that student (lib/identity.ts).
+  const refused = whyNotOwner(row, user, 'withdraw');
+  if (refused) return fail(...refused);
+
+  // 3. Only pending applications can be cancelled.
   if (row.application_status !== 'pending') {
     return fail(409, `Application ${id} is ${row.application_status}; only pending applications can be cancelled`);
   }
 
-  // 3. Delete it for real, then answer 204 with no body.
+  // 4. Delete it for real, then answer 204 with no body.
   await db.deleteApplication(id);
   return noContent();
 });

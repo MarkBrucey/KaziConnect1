@@ -11,7 +11,7 @@ Kazi Connect is a REST API of casual jobs and services in Kenya, such as campus 
 | Sherehe, our upstream partner (events) | TODO: Sherehe's live address, once its sub-team has deployed it |
 | Ujuzi, our downstream partner (skills training) | TODO: Ujuzi's live address, once its sub-team has deployed it |
 
-> **Which version this describes:** 1.3.0. Endpoints 22 to 25 (Event work, Part 3) reach the live address when `uat` is merged into `main` and deployed (TODO: record the date). The live address is on version 1.2.1 until then. It also adds API keys and a rate limit (see [API keys and rate limits](#api-keys-and-rate-limits)): the live address does not ask for a key until they are switched on there (TODO: record the date). Everything else in this README is unchanged and works on the live address today.
+> **Which version this describes:** 1.3.1. Endpoints 22 to 25 (Event work, Part 3) reach the live address when `uat` is merged into `main` and deployed (TODO: record the date). The live address is on version 1.2.1 until then. It also adds API keys and a rate limit (see [API keys and rate limits](#api-keys-and-rate-limits)): the live address does not ask for a key until they are switched on there (TODO: record the date). Everything else in this README is unchanged and works on the live address today.
 
 > **Before your first request:** the API runs on a free server that goes to sleep after 15 minutes without visitors. The first request after a quiet spell can take **up to a minute** to answer. That is normal: wait for it, don't cancel. Every request after that is fast.
 
@@ -255,7 +255,7 @@ curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/jo
 HTTP 200
 ```
 
-**Step 5. Request the job for a graduate** (U4, Endpoint 7). `studentId` is Ujuzi's own ID for the graduate (Ujuzi's look like `grd_0101`; the examples here use `stu_0042`). `preferredDate` is when the student can start: a date and time in the future, written like `2027-06-01T09:00:00Z`. `note` is optional, up to 500 characters. The reply is `201`, and the last line saves the request's ID as `APP_ID`.
+**Step 5. Request the job for a graduate** (U4, Endpoint 7). `studentId` is Ujuzi's own ID for the graduate (Ujuzi's look like `grd_0101`; the examples here use `stu_0042`). Any ID works except one starting with `usr_`, which is reserved for Kazi Connect accounts (see step 19). `preferredDate` is when the student can start: a date and time in the future, written like `2027-06-01T09:00:00Z`. `note` is optional, up to 500 characters. The reply is `201`, and the last line saves the request's ID as `APP_ID`.
 
 ```bash
 APP=$(curl -s -X POST https://kaziconnect1-1xmu.onrender.com/api/applications \
@@ -560,7 +560,9 @@ The replies for steps 18, 19 and 21 changed when a job became one place (October
 
 ### Students with an account
 
-**Step 19. Post a second job, register a student, request it, and list their requests** (W2, W1 and W5, Endpoints 14, 10, 7 and 19). The job from step 13 is filled, so the first command posts another one and saves its ID as `JOB_ID`. When a student requests a job with their account ID as `studentId`, the request appears in their own list.
+**Step 19. Post a second job, register a student, request it, and list their requests** (W2, W1 and W5, Endpoints 14, 10, 7 and 19). The job from step 13 is filled, so the first command posts another one and saves its ID as `JOB_ID`. A student with an account requests the job while logged in, with their own account ID as `studentId`, and the request appears in their own list.
+
+Students are told apart by their account, never by a typed ID. Each email can hold one account, and the server gives every account its own ID (`usr_...`). Only that student, logged in, can use it: the same request without the login, or with another student's login, is refused with `400` and nothing is saved, so nobody can apply in someone else's name. A request made this way can also only be changed (Endpoint 8) or withdrawn (Endpoint 9) by that student, logged in: anyone else gets `401` with no login or `403` with another login. Requests with a partner's own student ID, such as Ujuzi's `grd_0101`, work exactly as before, with no login (version 1.3.1, `CONTRACT_DEVIATIONS.md`).
 
 ```bash
 JOB_ID=$(curl -s -X POST https://kaziconnect1-1xmu.onrender.com/api/jobs \
@@ -575,6 +577,7 @@ STUDENT_TOKEN=$(echo "$STUDENT" | sed -nE 's/.*"token":"([a-f0-9]{64})".*/\1/p')
 STUDENT_ID=$(echo "$STUDENT" | sed -nE 's/.*"id":"([^"]+)".*/\1/p')
 curl -s -o /dev/null -X POST https://kaziconnect1-1xmu.onrender.com/api/applications \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $STUDENT_TOKEN" \
   -d '{"jobId":"'"$JOB_ID"'","studentId":"'"$STUDENT_ID"'","preferredDate":"2027-06-03T09:00:00Z"}'
 curl -s -w "\nHTTP %{http_code}\n" https://kaziconnect1-1xmu.onrender.com/api/me/applications \
   -H "Authorization: Bearer $STUDENT_TOKEN"
@@ -934,7 +937,7 @@ $body = @{ name = "Test Student"; email = "student$(Get-Random)@example.com"; pa
 $student = Invoke-RestMethod -Method Post -Uri "$API/api/auth/register" -ContentType "application/json" -Body $body
 $STUDENT_AUTH = @{ Authorization = "Bearer $($student.token)" }
 $body = @{ jobId = $JOB_ID; studentId = $student.user.id; preferredDate = "2027-06-03T09:00:00Z" } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "$API/api/applications" -ContentType "application/json" -Body $body | Out-Null
+Invoke-RestMethod -Method Post -Uri "$API/api/applications" -Headers $STUDENT_AUTH -ContentType "application/json" -Body $body | Out-Null
 Invoke-RestMethod "$API/api/me/applications" -Headers $STUDENT_AUTH
 ```
 
@@ -976,7 +979,7 @@ No Git? Open https://github.com/MarkBrucey/KaziConnect1, click the green **Code*
 After `npm start`, when it is ready, the terminal shows:
 
 ```text
-> kazi-connect-api@1.3.0 start
+> kazi-connect-api@1.3.1 start
 > tsx server.ts
 
 Kazi Connect API running on http://localhost:3000
@@ -1006,7 +1009,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 691 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript; 232 for Event work, which use a stand-in for Sherehe and never need the real one; 292 that prove the move changed nothing a client can see and check the tools below; and 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`). One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 690 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (82 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 708 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript (except that two of them now apply logged in, see 1.3.1 in `CONTRACT_DEVIATIONS.md`); 232 for Event work, which use a stand-in for Sherehe and never need the real one; 292 that prove the move changed nothing a client can see and check the tools below; 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`); and 17 that tell students apart (`__tests__/studentIdentity.test.js`). One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 707 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (83 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 
