@@ -2,7 +2,7 @@ import { Wrap } from './ui';
 
 const STEPS = [
   { title: 'Pick a job near you', text: 'Choose the kind of work and your county to see open jobs, where they are and what they pay.' },
-  { title: 'Apply in a minute', text: 'Log in, or use your student ID. Say when you can start and add a short note if you like.' },
+  { title: 'Apply in a minute', text: 'Log in to your free student account. Say when you can start and add a short note if you like.' },
   { title: 'Follow your application live', text: 'See the moment it is accepted. Change the date or cancel while it is waiting.' },
 ];
 
