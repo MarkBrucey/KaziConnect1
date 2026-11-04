@@ -235,8 +235,9 @@ describe('Endpoint 19: GET /api/me/applications', () => {
 
   it('lists the applications made under the student\'s account, newest first', async () => {
     const { body } = await login('student@kaziconnect.demo');
-    await request(server).post('/api/applications').send({ jobId: 'job_12345', studentId: 'usr_1002', preferredDate: future(30) });
-    await request(server).post('/api/applications').send({ jobId: 'job_12346', studentId: 'usr_1002', preferredDate: future(31) });
+    // Logged in, as the website sends them: only that student may apply with their account ID.
+    await request(server).post('/api/applications').set(bearer(body.token)).send({ jobId: 'job_12345', studentId: 'usr_1002', preferredDate: future(30) });
+    await request(server).post('/api/applications').set(bearer(body.token)).send({ jobId: 'job_12346', studentId: 'usr_1002', preferredDate: future(31) });
 
     const res = await request(server).get('/api/me/applications').set(bearer(body.token));
 

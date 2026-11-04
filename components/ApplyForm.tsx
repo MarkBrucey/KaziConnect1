@@ -1,6 +1,7 @@
 'use client';
 
-// Applying for a job. A logged in student applies as themselves; anyone else gives a student ID.
+// Applying for a job. Students apply from their own account, so every applicant is one known person: the account's
+// ID is made by the server, while a student ID typed into a box could belong to anyone (lib/identity.ts).
 
 import { useState } from 'react';
 import type { FormEvent } from 'react';
@@ -21,9 +22,10 @@ export function ApplyForm({ job, onSent }: { job: Job; onSent: (application: App
     e.preventDefault();
     setError('');
     const data = new FormData(e.currentTarget);
+    if (!asStudent || !user) { openAuth('login'); return; }
     const body: { jobId: string; studentId: string; preferredDate: string; note?: string } = {
       jobId: job.id,
-      studentId: asStudent && user ? user.id : String(data.get('studentId') || '').trim(),
+      studentId: user.id,
       preferredDate: toIso(String(data.get('preferredDate'))),
     };
     const note = String(data.get('note') || '').trim();
@@ -36,18 +38,25 @@ export function ApplyForm({ job, onSent }: { job: Job; onSent: (application: App
     onSent(res.body);
   }
 
+  if (!asStudent || !user) {
+    return (
+      <div className="grid gap-4">
+        <p className="m-0">
+          {user ? 'Only student accounts can apply. Log out, then log in with a student account.' : 'Log in to your student account to apply. Your applications are then saved to your account, and nobody else can apply, change or cancel in your name.'}
+        </p>
+        {user ? null : (
+          <>
+            <Button type="button" full onClick={() => openAuth('login')}>Log in to apply</Button>
+            <p className="m-0 text-center">New here? <TextButton onClick={() => openAuth('register')}>Create a free account</TextButton></p>
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={submit} className="grid gap-4">
-      {asStudent && user ? (
-        <p className="m-0">Applying as <strong>{user.name}</strong></p>
-      ) : (
-        <Field
-          label="Student ID"
-          hint={<>or <TextButton onClick={() => openAuth('login')}>log in</TextButton> so your applications are saved to your account</>}
-        >
-          <input name="studentId" required autoComplete="off" placeholder="For example stu_0042" />
-        </Field>
-      )}
+      <p className="m-0">Applying as <strong>{user.name}</strong></p>
       <Field label="When can you start?">
         <input name="preferredDate" type="datetime-local" required min={soonest()} />
       </Field>

@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Kazi Connect API
-  version: 1.3.0
+  version: 1.3.1
   description: >
     Kazi Connect job listings and job applications for Ujuzi graduates, plus accounts and
     employer tools for the Kazi Connect website. Endpoint numbers match ENDPOINT_LIST.md, and each
@@ -343,6 +343,14 @@ paths:
       description: >
         Statement 6. The job must exist and be active. Each call creates a new application, so this
         endpoint is not idempotent: sending the same body twice creates two applications.
+        No login is needed: a partner such as Ujuzi sends its own ID for the student as studentId.
+        A login is optional, and is checked when sent. IDs starting with usr_ belong to Kazi Connect
+        accounts: only that student, logged in, may use one, so nobody can apply in another student's
+        name. A logged in student must send their own account ID as studentId.
+      security:
+        - ApiKey: []
+        - ApiKey: []
+          bearerAuth: []
       requestBody:
         required: true
         content:
@@ -360,13 +368,28 @@ paths:
           description: >
             The body failed validation: a required field is missing, a field has the wrong type,
             a value is unusable (empty text, not a real date-time, a date in the past), a field
-            is not allowed, or jobId does not match any job. Nothing is written.
+            is not allowed, or jobId does not match any job. Also when studentId is a Kazi Connect
+            account ID (usr_...) and the caller is not logged in as that student, or when a logged
+            in student sends any studentId other than their own account ID. Nothing is written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingField:
+                  value:
+                    message: 'Missing required field(s): preferredDate'
+                someoneElsesAccount:
+                  value:
+                    message: 'studentId usr_1002 is a Kazi Connect account ID. Log in as that student to apply with it.'
+        '403':
+          description: Logged in as an employer. Only students can apply. Nothing is written.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: 'Missing required field(s): preferredDate'
+                message: Only students can do this.
         '409':
           description: >
             The job exists but is closed, or another applicant has already been accepted for it (a job
@@ -383,7 +406,15 @@ paths:
                   value:
                     message: 'Job job_12348 is already filled: another applicant was accepted, so it is not accepting applications.'
         '401':
-          $ref: '#/components/responses/MissingApiKey'
+          description: >
+            No valid API key was sent ("Missing or invalid API key"), or a login token was sent but is not
+            valid or has expired. Sending no login token is fine. Nothing is written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: 'Your session has expired or is not valid. Log in again.'
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
@@ -395,6 +426,12 @@ paths:
         Statement 7. Replaces the editable details of a pending application. This sets an absolute
         state: leaving note out clears it, and sending the same body twice leaves the application in
         the same state. A PUT to an ID that does not exist returns 404 and never creates one.
+        No login is needed, except for an application made from a Kazi Connect account (its studentId
+        starts with usr_): only that student, logged in, can change it.
+      security:
+        - ApiKey: []
+        - ApiKey: []
+          bearerAuth: []
       parameters:
         - name: applicationId
           in: path
@@ -440,14 +477,36 @@ paths:
               example:
                 message: 'Application app_1002 is accepted; only pending applications can be changed'
         '401':
-          $ref: '#/components/responses/MissingApiKey'
+          description: >
+            No valid API key was sent ("Missing or invalid API key"); or the application was made from a
+            Kazi Connect account and no valid login was sent. Nothing is changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Application app_1005 was made from a Kazi Connect account. Log in as that student to change it.
+        '403':
+          description: The application was made from another student's account. Nothing is changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: You can only change your own applications.
         '429':
           $ref: '#/components/responses/TooManyRequests'
     delete:
       summary: Cancels a pending application/service request
       description: >
         Statement 8. Removes a pending application. Afterwards Endpoint 5 returns 404 for it, and
-        Endpoint 6 subscribers receive a final message with status "cancelled".
+        Endpoint 6 subscribers receive a final message with status "cancelled". No login is needed,
+        except for an application made from a Kazi Connect account (its studentId starts with usr_):
+        only that student, logged in, can withdraw it.
+      security:
+        - ApiKey: []
+        - ApiKey: []
+          bearerAuth: []
       parameters:
         - name: applicationId
           in: path
@@ -475,7 +534,23 @@ paths:
               example:
                 message: 'Application app_1002 is accepted; only pending applications can be cancelled'
         '401':
-          $ref: '#/components/responses/MissingApiKey'
+          description: >
+            No valid API key was sent ("Missing or invalid API key"); or the application was made from a
+            Kazi Connect account and no valid login was sent. Nothing is removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Application app_1005 was made from a Kazi Connect account. Log in as that student to withdraw it.
+        '403':
+          description: The application was made from another student's account. Nothing is removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: You can only withdraw your own applications.
         '429':
           $ref: '#/components/responses/TooManyRequests'
     # ENDPOINT 18 (same path as Endpoints 8 and 9)
@@ -1098,6 +1173,9 @@ components:
         studentId:
           type: string
           minLength: 1
+          description: >
+            The partner's own ID for the student. IDs starting with usr_ are Kazi Connect account IDs:
+            only that student, logged in, may send one.
           example: stu_0042
         preferredDate:
           type: string

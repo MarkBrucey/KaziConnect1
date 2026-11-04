@@ -10,7 +10,7 @@ import { websiteKey } from '@/lib/apiKeys';
 
 export const metadata: Metadata = {
   title: 'Kazi Connect: find work nearby',
-  description: 'Short jobs and services near where you stay in Kenya. Apply with your student ID and follow your application live.',
+  description: 'Short jobs and services near where you stay in Kenya. Apply from your free student account and follow your application live.',
 };
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1 };

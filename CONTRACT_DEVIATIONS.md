@@ -200,3 +200,20 @@ Evidence, from 21 October 2026:
 Two things change for people who run the server themselves, not for any client of the API: it needs **Node.js 20.9 or newer** (it was 18; current Next.js requires 20.9), and it must be built once before it starts (`npm run build`, then `npm start`; `npm test` and `start_lab.bat` and `run.sh` do this for you). `NODE_ENV` no longer has to be set by hand.
 
 TODO: the humans change Render's build command to `npm ci && npm run build`, its start command to `npm start`, and its Node.js version to 20.9 or newer, and add `SHEREHE_API_URL` and `SHEREHE_API_KEY`. Record the date here once it is deployed and the live API has been checked again.
+
+# Telling students apart (version 1.3.0 to 1.3.1)
+
+**Agreement needed before this ships.** This changes answers on Endpoints 7, 8 and 9, but only for Kazi Connect account IDs (`usr_...`). Ujuzi applies with its own IDs (`grd_0101`), and for those every answer is the same as before. `CLAUDE.md` asks for Endpoints 1 to 21 to answer byte for byte as before and for the 156 tests to stay untouched, and the README promises that any change to Endpoints 1 to 9 is agreed with Ujuzi first. TODO: the date the team agreed, and the date Ujuzi's sub-team was told (R8).
+
+**The problem.** Students log in with their email, which holds one account only, and the server gives every account its own ID (`usr_...`), so two logged in students are never confused. But Endpoint 7 accepted any text as `studentId` with no login. Anyone could type another student's account ID, and the application then appeared in that student's own list (Endpoint 19) and, for the employer, under that student's name (Endpoint 16). Anyone could also change or withdraw a student's application by its ID (Endpoints 8 and 9). Checked on 4 November 2026: before this change, 11 of the 17 tests in `__tests__/studentIdentity.test.js` fail.
+
+## What changed
+
+1. **Endpoint 7 accepts an optional login,** as well as the API key. With no `Authorization` header it works as before. A login that is sent is checked: not valid gives `401`, an employer gives `403`, and nothing is saved.
+2. **Only the account's own student may use a `usr_` ID.** With no login, a `studentId` starting with `usr_` (in any letter case) answers `400` with `studentId usr_1002 is a Kazi Connect account ID. Log in as that student to apply with it.` This includes IDs no account has yet, so nobody can claim a future account. A logged in student must send their own account ID, or gets `400`.
+3. **An account's applications belong to it (Endpoints 8 and 9).** An application whose `studentId` starts with `usr_` can only be changed or withdrawn by that student, logged in: no login gives `401`, another student gives `403`, and nothing changes. Every other application works as before, with no login.
+4. **The website asks visitors to log in before applying** (`components/ApplyForm.tsx`). The free Student ID box is gone; the apply window offers "Log in to apply" and "Create a free account". A logged in student applies as themselves, as before.
+
+The rules live in `lib/identity.ts`, and `withOptionalAuth` in `lib/guards.ts` checks a login only when one is sent. `openapi.yaml` 1.3.1 documents the optional login (each operation's `security` lists the key alone, or the key with `bearerAuth`), the new `400`, `401` and `403` answers, and the `usr_` rule on `studentId`; `types/api.d.ts` was regenerated with `npm run types`. No field, path or other status code changed. `npm run verify` has one new check (83). Two of the 156 tests applied with the demo student's account ID and no login, the weakness fixed here; they now apply logged in, as the website does, and still check the same results. The 151 recorded Express answers still match, as none of them uses an account ID on Endpoints 7 to 9.
+
+**Left as it was, on purpose:** two partners, or two people at one partner, can still send the same made up ID such as `stu_0042`. Kazi Connect cannot know who is behind an ID it did not make, so each partner keeps its own IDs unique. The applications stay separate, each with its own `applicationId`.

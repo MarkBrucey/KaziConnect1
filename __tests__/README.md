@@ -1,8 +1,8 @@
-Automated tests for the Kazi Connect API: 691 tests in 20 files (690 run on the in-memory store; 1 more runs only when DATABASE_URL is set). Run them with: npm test
+Automated tests for the Kazi Connect API: 708 tests in 21 files (707 run on the in-memory store; 1 more runs only when DATABASE_URL is set). Run them with: npm test
 
 `npm test` builds the app first (`next build`), because the tests start the real server, then runs Jest one file at a time.
 
-The first 156 tests, in 5 files, cover Endpoints 1 to 21, one file per area. They are the same files as before the move to Next.js and TypeScript, byte for byte, and they pass unchanged:
+The first 156 tests, in 5 files, cover Endpoints 1 to 21, one file per area. They are the same files as before the move to Next.js and TypeScript, byte for byte, except for two tests changed in 1.3.1: accounts.test.js ("lists the applications made under the student's account") and employer.test.js ("shows the applicant's name when they applied from a Kazi Connect account") applied with the demo student's account ID and no login, which is the weakness 1.3.1 fixes, so they now apply logged in, as the website does, and check the same results:
 - jobs.test.js (21): Endpoints 1 to 4
 - applications.test.js (42): Endpoints 5 to 9
 - accounts.test.js (35): Endpoints 10 to 13 and 19
@@ -28,6 +28,8 @@ The other 232 tests, in 5 files, cover Event work (Endpoints 22 to 25, website n
 - staffingStore.test.js (16): the staffing offer functions of the data store
 
 11 more tests, in onePlacePerJob.test.js, hold the rule that a job has one place (Endpoints 7, 17 and 18): a filled job cannot be reopened, a second applicant cannot be accepted, a new applicant to a filled job is told it is filled, the data store refuses all three even if a route forgot to check, and two employers pressing Accept at the same moment leave exactly one accepted applicant.
+
+17 more tests, in studentIdentity.test.js, tell students apart (Endpoints 7, 8, 9 and 19): only a student, logged in, can apply with their own account ID (usr_...), so nobody can apply in their name or claim an account ID that does not exist yet; a logged in student must send their own ID; an employer's login is refused; an application made from an account can only be changed or withdrawn by that student; and a partner's own IDs, such as stu_0042, work as before with no login. 11 of them fail on the code before 1.3.1.
 
 They run on the in-memory store by default. With DATABASE_URL set they run on that PostgreSQL database, and they empty it first, so never point DATABASE_URL at data you want to keep.
 
