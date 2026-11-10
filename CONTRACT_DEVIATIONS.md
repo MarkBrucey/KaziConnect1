@@ -239,4 +239,4 @@ Running totals since the server started. It always needs a key: any valid `X-API
 * **Agreement needed before this ships (R8).** `CLAUDE.md` asks for Endpoints 1 to 21 to keep their headers byte for byte, and the README promises any change to Endpoints 1 to 9 is agreed with Ujuzi first. Adding headers breaks no client, but it is a change. TODO: the date the team agreed, and the date Ujuzi's sub team received `DEPRECATION_NOTICE.md` and replied.
 * As the course asks, **version 1 keeps running until after Demo Day** whatever the Sunset header says, so no demo breaks.
 
-Checks on 10 November 2026: `npm run typecheck` passes; `npm run verify` 89 of 89; `npm test` 776 passed and 1 skipped (it needs PostgreSQL).
+Checks on 10 November 2026: `npm run typecheck` passes; `npm run verify` 89 of 89; `npm test` 776 passed and 1 skipped (it needs PostgreSQL), and 777 of 777 against a local PostgreSQL database.
