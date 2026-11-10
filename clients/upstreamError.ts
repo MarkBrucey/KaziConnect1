@@ -8,6 +8,8 @@
 //                    ('invalid', 'not_found' or 'conflict'). The route answers 400, 404 or 409
 //                    in Kazi's own words.
 
+import { countPartner } from '../monitoring';
+
 // The one message a client sees for every UpstreamError.
 export const PARTNER_UNAVAILABLE = 'Event information is unavailable right now. Try again in a minute.';
 
@@ -40,8 +42,9 @@ export class PartnerRejection extends Error {
   }
 }
 
-// One line in the server log. Never the partner's reply, and never the API key.
+// One line in the server log. Never the partner's reply, and never the API key. Also counted for /api/stats (Week 12).
 export function logUpstream(err: unknown, where: string): void {
+  countPartner('failure');
   if (process.env.JEST_WORKER_ID) return;
   const what = err instanceof UpstreamError
     ? `${err.kind}${err.status ? ` (HTTP ${err.status})` : ''}${err.detail ? `: ${err.detail}` : ''}`

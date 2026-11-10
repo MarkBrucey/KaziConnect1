@@ -67,6 +67,7 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
   const [county, setCounty] = useState('');
   const [openings, setOpenings] = useState<EventOpening[] | null>(null);
   const [openingsProblem, setOpeningsProblem] = useState('');
+  const [savedAt, setSavedAt] = useState(''); // Week 11: set when Sherehe failed and these are the last roles we had
   const [offers, setOffers] = useState<StaffingOffer[] | null>(null);
   const [offersFailed, setOffersFailed] = useState(false);
   const [offerErrors, setOfferErrors] = useState<Record<string, string>>({});
@@ -76,11 +77,17 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
   const loadOpenings = useCallback(async () => {
     setOpenings(null);
     setOpeningsProblem('');
+    setSavedAt('');
     const res = await api<EventOpening[]>(`/api/event-openings${county ? `?county=${encodeURIComponent(county)}` : ''}`);
     if (res.status !== 200 || !res.body) {
       setOpenings([]);
       setOpeningsProblem(res.status === 502 ? UNAVAILABLE : 'The open roles could not be loaded. Try again.');
       return;
+    }
+    // A saved list must look saved: if nobody can tell the roles are old, the fallback becomes a lie.
+    if (res.headers?.get('Kazi-Stale') === 'true') {
+      const asOf = new Date(res.headers.get('Kazi-As-Of') || '');
+      setSavedAt(Number.isNaN(asOf.getTime()) ? 'earlier' : asOf.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     }
     setOpenings(res.body);
   }, [county]);
@@ -125,6 +132,14 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
       {message ? <SuccessText>{message}</SuccessText> : null}
 
       <h4 className="mb-3.5 mt-0 text-xl font-bold">Open roles</h4>
+      {savedAt && openings !== null && !openingsProblem ? (
+        <div id="ev-saved-banner" role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+          <span>
+            <strong>Showing saved roles from {savedAt}.</strong> Sherehe is not responding right now, so some of these may already be filled. Offers can only be sent once Sherehe answers again.
+          </span>
+          <Button small look="outline" onClick={() => { setMessage(''); void loadOpenings(); }}>Check again</Button>
+        </div>
+      ) : null}
       <div id="ev-openings">
         {openings === null ? (
           <p className="m-0 text-muted">Looking for open roles...</p>

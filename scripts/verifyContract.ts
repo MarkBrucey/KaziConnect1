@@ -21,6 +21,8 @@
 // the checks create and delete applications, which must not touch live data.
 import '../bootstrapEnv';
 delete process.env.DATABASE_URL;
+// The checks call the API the way a consumer with no key does when keys are off, and expect /api/stats to stay shut.
+delete process.env.STATS_KEY;
 
 import fs from 'fs';
 import path from 'path';
@@ -211,6 +213,15 @@ const allMatch = (field: string, value: string) => ({ body, problems }: { body: 
       .forEach((job: Json) => problems.push(`${job.id} has ${field} "${job[field]}", filter asked for "${value}"`));
 };
 
+// Week 13: whether an answer carries the three "this is going away" headers of version 1 of the job list.
+const deprecationHeaders = (expected: boolean) => ({ res, problems }: { res: Response; problems: string[] }): void => {
+  const sent = ['deprecation', 'sunset', 'link'].filter((name) => res.headers.get(name) !== null);
+  if (expected && sent.length !== 3) problems.push(`expected Deprecation, Sunset and Link, got ${sent.join(', ') || 'none'}`);
+  if (expected && res.headers.get('deprecation') !== 'true') problems.push('Deprecation should be "true"');
+  if (expected && !/rel="successor-version"/.test(res.headers.get('link') || '')) problems.push('Link should point to the successor version');
+  if (!expected && sent.length) problems.push(`v2 should carry no deprecation headers, got ${sent.join(', ')}`);
+};
+
 const P_JOBS = '/api/jobs';
 const P_JOB = '/api/jobs/{jobId}';
 const P_JOBSTATUS = '/api/jobs/{jobId}/status';
@@ -237,6 +248,18 @@ const readCases: Case[] = [
     also: ({ body, problems }) => { if (body.length !== 0) problems.push('expected an empty list'); } },
   { ep: 2, kind: 'http', path: P_JOBS, url: '/api/jobs?county=Nairobi&category=accommodation&statuts=active', expect: 400, what: 'old misspelt parameter statuts' },
   { ep: 2, kind: 'http', path: P_JOBS, url: '/api/jobs?county=&category=accommodation&status=active', expect: 400, what: 'county sent empty' },
+  // Week 13: version 1 is deprecated (same answers, three more headers); version 2 wraps the same list.
+  { ep: 1, kind: 'http', path: P_JOBS, url: '/api/jobs?status=active', expect: 200, what: 'v1 says it is deprecated: Deprecation, Sunset and Link headers', also: deprecationHeaders(true) },
+  { ep: 1, kind: 'http', path: '/api/v1/jobs', url: '/api/v1/jobs?status=active', expect: 200, what: 'v1 at its versioned address, a bare list', also: deprecationHeaders(true) },
+  { ep: 27, kind: 'http', path: '/api/v2/jobs', url: '/api/v2/jobs?status=active', expect: 200, what: 'v2: the same jobs wrapped as { data, count }',
+    also: (ctx) => {
+      deprecationHeaders(false)(ctx);
+      if (ctx.body.count !== ctx.body.data.length) ctx.problems.push(`count is ${ctx.body.count} but data holds ${ctx.body.data.length} jobs`);
+      if (ctx.body.data.length === 0) ctx.problems.push('expected the sample data\'s active jobs');
+    } },
+  { ep: 27, kind: 'http', path: '/api/v2/jobs', url: '/api/v2/jobs?status=', expect: 400, what: 'status sent empty' },
+  // Week 12: the totals always need a key (here API keys are off and no STATS_KEY is set, so nothing opens them).
+  { ep: 26, kind: 'http', path: '/api/stats', url: '/api/stats', expect: 401, what: 'no key' },
   { ep: 3, kind: 'http', path: P_JOB, url: '/api/jobs/job_12345', expect: 200, what: 'job exists',
     also: ({ body, problems }) => { if (body.id !== 'job_12345') problems.push('returned the wrong job'); } },
   { ep: 3, kind: 'http', path: P_JOB, url: '/api/jobs/job_99999', expect: 404, what: 'job not found' },
@@ -370,7 +393,14 @@ async function buildEventCases(base: string, stub: ShereheStub): Promise<Case[]>
       also: ({ body, problems }) => { if (body.length !== 0) problems.push('expected an empty list'); } }),
     http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', expect: 401, what: 'no login token' }),
     http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', headers: as(student), expect: 403, what: 'a student is not allowed' }),
-    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', headers: as(employer), expect: 502, what: 'Sherehe is down', ...down,
+    // Week 11: with Sherehe down, a list Kazi already had is sent again, marked stale; a county never asked for has nothing saved, so 502.
+    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', headers: as(employer), expect: 200, what: 'Sherehe is down: the saved list, marked stale', ...down,
+      also: ({ res, body, problems }) => {
+        if (res.headers.get('kazi-stale') !== 'true') problems.push(`Kazi-Stale should be "true", got ${res.headers.get('kazi-stale')}`);
+        if (!res.headers.get('kazi-as-of')) problems.push('Kazi-As-Of is missing');
+        if (!Array.isArray(body) || body.length === 0) problems.push('expected the roles saved by the first check');
+      } }),
+    http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings?county=Garissa', headers: as(employer), expect: 502, what: 'Sherehe is down and nothing is saved', ...down,
       also: ({ body, problems }) => { if (/hunter2|X-API-Key|stub/i.test(JSON.stringify(body))) problems.push("Sherehe's own words reached the client"); } }),
 
     // Endpoint 23: write
@@ -497,7 +527,8 @@ function writeReport(reads: Result[], writes: Result[], events: Result[]): void 
   const e = (fn: (r: Result) => boolean): Result[] => events.filter(fn);
   const eventBad = e((r) => (r.method === 'POST' || r.method === 'DELETE') && !r.good);
   lines.push('', '### Event work checklist', '');
-  lines.push(`* Every Sherehe failure answers 502 with Kazi's own message, and nothing Sherehe said reaches the client: **${mark(e((r) => r.expect === 502).every(ok))}**`);
+  lines.push(`* Every Sherehe failure with nothing saved answers 502 with Kazi's own message, and nothing Sherehe said reaches the client: **${mark(e((r) => r.expect === 502).every(ok))}**`);
+  lines.push(`* With Sherehe down, Endpoint 22 sends the list it saved, marked Kazi-Stale: true (Week 11): **${mark(e((r) => /the saved list, marked stale/.test(r.what)).every(ok))}**`);
   lines.push(`* Every success returns the correct status code (200 / 201 / 204): **${mark(e((r) => r.good || r.expect === 200).every(ok))}**`);
   lines.push(`* A rejected or failed request leaves our data and Sherehe's exactly as they were: **${mark(eventBad.every((r) => !r.problems.some((p) => /stored data changed/.test(p))))}**`);
   lines.push(`* Endpoint 24 still works while Sherehe is down: **${mark(e((r) => /still works when Sherehe is down/.test(r.what)).every(ok))}**`);

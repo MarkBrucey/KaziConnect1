@@ -7,6 +7,7 @@
 //   stub.setMode('drop' | 'error' | 'garbage' | 'wrongShape' | 'redirect' | 'huge' | 'up')   misbehave
 //   stub.failOn('/roles')              answer 503 only for paths containing this text
 //   stub.setDelay(ms)                  answer slowly
+//   stub.failNext(n, status, retryAfter?)   answer the next n requests with this status (Week 11: flaky for a moment)
 //   stub.decide(offerId, 'accepted' | 'declined')   what the organiser would do on Sherehe's website
 //   stub.fillRole(roleId)              make a role full
 //   stub.dropOffer(offerId)            Sherehe loses an offer behind Kazi's back
@@ -59,6 +60,7 @@ interface StubState {
   mode: StubMode;
   failOn: string | null;
   delayMs: number;
+  failNext: { count: number; status: number; retryAfter: number | null };
   requests: StubRequest[];
 }
 
@@ -68,7 +70,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const INVALID_JSON = Symbol('invalid-json');
 
 function freshState(): StubState {
-  return { events: clone(EVENTS), roles: clone(ROLES), offers: new Map(), nextOffer: 4001, bulk: true, mode: 'up', failOn: null, delayMs: 0, requests: [] };
+  return { events: clone(EVENTS), roles: clone(ROLES), offers: new Map(), nextOffer: 4001, bulk: true, mode: 'up', failOn: null, delayMs: 0, failNext: { count: 0, status: 503, retryAfter: null }, requests: [] };
 }
 
 export interface ShereheStub {
@@ -82,6 +84,7 @@ export interface ShereheStub {
   setMode(mode: StubMode): void;
   failOn(text: string | null): void;
   setDelay(ms: number): void;
+  failNext(count: number, status?: number, retryAfter?: number | null): void;
   decide(offerId: string, status: 'accepted' | 'declined'): void;
   dropOffer(offerId: string): void;
   fillRole(roleId: string): void;
@@ -146,6 +149,11 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
     if (st.mode === 'redirect') { res.writeHead(302, { Location: 'http://127.0.0.1:9/elsewhere' }); res.end(); return; }
     if (st.mode === 'huge') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify([{ filler: 'x'.repeat(2 * 1024 * 1024) }])); return; }
 
+    if (st.failNext.count > 0) {
+      st.failNext.count -= 1;
+      if (st.failNext.retryAfter !== null) res.setHeader('Retry-After', String(st.failNext.retryAfter));
+      return message(res, st.failNext.status, 'stub: failing for a moment');
+    }
     if (st.failOn && url.pathname.includes(st.failOn)) return message(res, 503, 'stub internal failure');
     if (req.headers['x-api-key'] !== apiKey) return message(res, 401, 'Send your partner key as X-API-Key');
 
@@ -215,6 +223,7 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
     setMode(mode: StubMode): void { state.mode = mode; },
     failOn(text: string | null): void { state.failOn = text; },
     setDelay(ms: number): void { state.delayMs = ms; },
+    failNext(count: number, status = 503, retryAfter: number | null = null): void { state.failNext = { count, status, retryAfter }; },
     // What the organiser does on Sherehe's own website: decide a pending offer.
     decide(offerId: string, status: 'accepted' | 'declined'): void {
       const offer = state.offers.get(offerId);

@@ -1,0 +1,9 @@
+HTTP/1.1 200 OK
+access-control-allow-headers: Content-Type, Authorization
+access-control-allow-methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+access-control-allow-origin: *
+content-length: 1279
+content-type: application/json; charset=utf-8
+Connection: keep-alive
+Keep-Alive: timeout=5
+

@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Kazi Connect API
-  version: 1.3.1
+  version: 1.4.0
   description: >
     Kazi Connect job listings and job applications for Ujuzi graduates, plus accounts and
     employer tools for the Kazi Connect website. Endpoint numbers match ENDPOINT_LIST.md, and each
@@ -13,6 +13,11 @@ info:
     send it on every call as "X-API-Key: YOUR_API_KEY". Without a valid key an endpoint answers 401 and
     does nothing. Each consumer has its own key and its own rate limit (100 calls a minute by default); past
     it an endpoint answers 429 with a Retry-After header. This file and the docs page need no key.
+
+
+    Version 1.4.0 (Week 13): GET /api/jobs (Endpoints 1 and 2) is deprecated. It answers exactly as before, plus
+    three headers (Deprecation, Sunset, Link). Its successor is GET /api/v2/jobs, the same jobs wrapped as
+    { "data": [...], "count": N }. GET /api/v1/jobs is version 1 under a versioned address. See DEPRECATION_NOTICE.md.
 servers:
   - url: http://localhost:3000
     description: Local development server
@@ -26,12 +31,16 @@ paths:
   #---ENDPOINT 1 and ENDPOINT 2 (same path; Endpoint 2 adds the county and category filters)---
   /api/jobs:
     get:
-      summary: Returns active job/service listings, optionally filtered by county and category
+      summary: Returns active job/service listings, optionally filtered by county and category (version 1, deprecated)
+      deprecated: true
       description: >
         Endpoint 1 (Statement 1): send only status=active to get every active listing.
         Endpoint 2 (Statement 2): also send county and category to get the active listings near a
         student's accommodation. The filters are query parameters on the jobs resource, not a
         separate path. An empty list means nothing matched.
+        Deprecated in 1.4.0: it still answers exactly as before, and every answer also carries the
+        Deprecation, Sunset and Link headers. Move to GET /api/v2/jobs, which wraps the same list as
+        { data, count }. GET /api/v1/jobs is this same version under a versioned address.
       parameters:
         - name: status
           in: query
@@ -57,6 +66,22 @@ paths:
       responses:
         '200':
           description: The matching job listings. Empty list if none match.
+          headers:
+            Deprecation:
+              description: Always "true". This version of the job list is deprecated (Week 13).
+              schema:
+                type: string
+                example: 'true'
+            Sunset:
+              description: When this version stops working, as an HTTP date. Midnight in Nairobi at the end of 10 November 2026.
+              schema:
+                type: string
+                example: Tue, 10 Nov 2026 21:00:00 GMT
+            Link:
+              description: Where its replacement is.
+              schema:
+                type: string
+                example: </api/v2/jobs>; rel="successor-version"
           content:
             application/json:
               schema:
@@ -64,7 +89,23 @@ paths:
                 items:
                   $ref: '#/components/schemas/Job'
         '400':
-          description: status is missing, or county or category was sent empty.
+          description: status is missing, or county or category was sent empty. No body.
+          headers:
+            Deprecation:
+              description: Always "true". This version of the job list is deprecated (Week 13).
+              schema:
+                type: string
+                example: 'true'
+            Sunset:
+              description: When this version stops working, as an HTTP date. Midnight in Nairobi at the end of 10 November 2026.
+              schema:
+                type: string
+                example: Tue, 10 Nov 2026 21:00:00 GMT
+            Link:
+              description: Where its replacement is.
+              schema:
+                type: string
+                example: </api/v2/jobs>; rel="successor-version"
         '401':
           $ref: '#/components/responses/MissingApiKey'
         '429':
@@ -869,7 +910,22 @@ paths:
             example: Nairobi
       responses:
         '200':
-          description: Open roles as Kazi event openings.
+          description: >
+            Open roles as Kazi event openings. Week 11: when Sherehe cannot be reached (after two retries), the
+            last list Kazi had for the same county is sent instead, with Kazi-Stale true and the time it was
+            saved. With nothing saved, the answer is the 502.
+          headers:
+            Kazi-Stale:
+              description: false when the list is live from Sherehe (through Kazi's 5-minute cache); true when Sherehe failed and this is the last list saved.
+              schema:
+                type: string
+                enum: ['true', 'false']
+            Kazi-As-Of:
+              description: When this list was built (live) or saved (stale), as an ISO 8601 time in UTC.
+              schema:
+                type: string
+                format: date-time
+                example: '2026-11-10T13:45:15.595Z'
           content:
             application/json:
               schema:
@@ -882,6 +938,159 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '502':
           $ref: '#/components/responses/PartnerUnavailable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  #---VERSION 1 of Endpoints 1 and 2, under a versioned address (Week 13)---
+  /api/v1/jobs:
+    get:
+      summary: Version 1 of the job list, at a versioned address (deprecated)
+      deprecated: true
+      description: >
+        Exactly the same answers as GET /api/jobs (Endpoints 1 and 2), including the Deprecation, Sunset and
+        Link headers. Only GET is offered here; other methods answer 404 with no body.
+      parameters:
+        - name: status
+          in: query
+          required: true
+          description: active returns jobs that can still be requested; closed returns jobs that are filled or withdrawn.
+          schema:
+            type: string
+            example: active
+        - name: county
+          in: query
+          required: false
+          description: Endpoint 2 filter. Matches the job's county, ignoring upper and lower case.
+          schema:
+            type: string
+            example: Nairobi
+        - name: category
+          in: query
+          required: false
+          description: Endpoint 2 filter. Matches the job's category, ignoring upper and lower case.
+          schema:
+            type: string
+            example: accommodation
+      responses:
+        '200':
+          description: The matching job listings, a bare list. Empty list if none match.
+          headers:
+            Deprecation:
+              description: Always "true". This version of the job list is deprecated (Week 13).
+              schema:
+                type: string
+                example: 'true'
+            Sunset:
+              description: When this version stops working, as an HTTP date. Midnight in Nairobi at the end of 10 November 2026.
+              schema:
+                type: string
+                example: Tue, 10 Nov 2026 21:00:00 GMT
+            Link:
+              description: Where its replacement is.
+              schema:
+                type: string
+                example: </api/v2/jobs>; rel="successor-version"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+        '400':
+          description: status is missing, or county or category was sent empty. No body.
+          headers:
+            Deprecation:
+              description: Always "true". This version of the job list is deprecated (Week 13).
+              schema:
+                type: string
+                example: 'true'
+            Sunset:
+              description: When this version stops working, as an HTTP date. Midnight in Nairobi at the end of 10 November 2026.
+              schema:
+                type: string
+                example: Tue, 10 Nov 2026 21:00:00 GMT
+            Link:
+              description: Where its replacement is.
+              schema:
+                type: string
+                example: </api/v2/jobs>; rel="successor-version"
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  #---ENDPOINT 27: VERSION 2 of the job list (Week 13)---
+  /api/v2/jobs:
+    get:
+      summary: Version 2 of the job list, wrapped as { data, count }
+      description: >
+        The successor of GET /api/jobs. The same query parameters, the same jobs with the same fields, in the
+        same order, the same empty 400 and the same API key. The one change: the list is wrapped as
+        { "data": [...], "count": N }, so paging can be added later without another breaking change.
+        Only GET is offered here; other methods answer 404 with no body.
+      parameters:
+        - name: status
+          in: query
+          required: true
+          description: active returns jobs that can still be requested; closed returns jobs that are filled or withdrawn.
+          schema:
+            type: string
+            example: active
+        - name: county
+          in: query
+          required: false
+          description: Endpoint 2 filter. Matches the job's county, ignoring upper and lower case.
+          schema:
+            type: string
+            example: Nairobi
+        - name: category
+          in: query
+          required: false
+          description: Endpoint 2 filter. Matches the job's category, ignoring upper and lower case.
+          schema:
+            type: string
+            example: accommodation
+      responses:
+        '200':
+          description: The matching job listings, wrapped. data is empty and count is 0 if none match.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobList'
+        '400':
+          description: status is missing, or county or category was sent empty. No body.
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  #---ENDPOINT 26: monitoring (Week 12)---
+  /api/stats:
+    get:
+      summary: Running totals since this server started (monitoring)
+      description: >
+        Week 12. How many requests this server has answered since it started, how many were 4xx (usually the
+        caller's mistake) and 5xx (ours), the error rate (5xx only, as a percent), the average time, a row per
+        endpoint pattern (so /api/jobs/job_1 and /api/jobs/job_2 share the row GET /api/jobs/:jobId), and how
+        Sherehe is doing (retries, failed calls, and how often Event work served its saved list instead).
+        The numbers live in memory, so they start again from zero on every restart or deploy, and the reply
+        does not count itself (it shows up in the next one). It always needs a key: any valid X-API-Key when
+        API keys are on, and otherwise the X-API-Key must equal the server's STATS_KEY setting.
+      responses:
+        '200':
+          description: The totals.
+          headers:
+            Cache-Control:
+              description: Always no-store.
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
@@ -1065,6 +1274,83 @@ components:
           example:
             message: Event information is unavailable right now. Try again in a minute.
   schemas:
+    JobList:
+      type: object
+      description: Version 2 of the job list (Week 13).
+      required: [data, count]
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+        count:
+          type: integer
+          minimum: 0
+          description: The number of jobs in data.
+          example: 2
+    RouteStats:
+      type: object
+      required: [count, clientErrors, serverErrors, avgMs, maxMs]
+      additionalProperties: false
+      properties:
+        count:
+          type: integer
+        clientErrors:
+          type: integer
+        serverErrors:
+          type: integer
+        avgMs:
+          type: number
+        maxMs:
+          type: number
+    Stats:
+      type: object
+      description: What GET /api/stats answers (Week 12).
+      required: [startedAt, uptimeSeconds, total, clientErrors, serverErrors, errorRatePercent, avgMs, routes, partner]
+      additionalProperties: false
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+        uptimeSeconds:
+          type: integer
+        total:
+          type: integer
+          description: Every request answered since the server started (Next.js build files are not counted).
+        clientErrors:
+          type: integer
+          description: 4xx answers.
+        serverErrors:
+          type: integer
+          description: 5xx answers.
+        errorRatePercent:
+          type: number
+          description: serverErrors divided by total, as a percent.
+        avgMs:
+          type: number
+        routes:
+          type: object
+          description: One row per method and endpoint pattern, for example "GET /api/jobs/:jobId". Website pages have their own rows (for example "GET /"), and requests to no known path are "(no route)".
+          additionalProperties:
+            $ref: '#/components/schemas/RouteStats'
+        partner:
+          type: object
+          required: [name, retries, failures, savedListServed]
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+              example: Sherehe
+            retries:
+              type: integer
+              description: Attempts at Sherehe that failed and were tried again.
+            failures:
+              type: integer
+              description: Calls to Sherehe that still failed after their retries.
+            savedListServed:
+              type: integer
+              description: How often Event work (Endpoint 22) sent its saved list because Sherehe failed.
     Job:
       type: object
       required: [id, title, category, county, area, duration, urgent, status, payRange]

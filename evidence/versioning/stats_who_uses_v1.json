@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-11-10T15:55:08.507Z",
+  "uptimeSeconds": 2,
+  "total": 8,
+  "clientErrors": 0,
+  "serverErrors": 0,
+  "errorRatePercent": 0,
+  "avgMs": 17.4,
+  "routes": {
+    "GET /api/jobs": {
+      "count": 3,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "avgMs": 11.6,
+      "maxMs": 23.9
+    },
+    "GET /api/v1/jobs": {
+      "count": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "avgMs": 11,
+      "maxMs": 11
+    },
+    "GET /api/v2/jobs": {
+      "count": 3,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "avgMs": 6.5,
+      "maxMs": 7.9
+    },
+    "GET /openapi.yaml": {
+      "count": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "avgMs": 74.2,
+      "maxMs": 74.2
+    }
+  },
+  "partner": {
+    "name": "Sherehe",
+    "retries": 0,
+    "failures": 0,
+    "savedListServed": 0
+  }
+}

@@ -13,6 +13,9 @@ import { ApplyForm } from './ApplyForm';
 import { Dialog, DialogHead } from './Dialog';
 import { Button, EmptyBox, Tag, TextButton, UrgentTag, Wrap } from './ui';
 
+// Week 13: the website reads version 2 of the list, { data, count } (version 1, a bare list, is deprecated).
+type JobList = { data: Job[]; count: number };
+
 export const FLASH_KEY = 'kazi-flash';
 
 export function Price({ payRange }: { payRange: { min: number; max: number } }) {
@@ -59,10 +62,10 @@ export function JobsSection() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await api<Job[]>('/api/jobs?status=active');
-      if (cancelled || res.status !== 200 || !res.body) return;
-      setKinds([...new Set(res.body.map((j) => j.category))].sort());
-      setCounties([...new Set(res.body.map((j) => j.county))].sort());
+      const res = await api<JobList>('/api/v2/jobs?status=active');
+      if (cancelled || res.status !== 200 || !Array.isArray(res.body?.data)) return;
+      setKinds([...new Set(res.body.data.map((j) => j.category))].sort());
+      setCounties([...new Set(res.body.data.map((j) => j.county))].sort());
     })();
     return () => { cancelled = true; };
   }, []);
@@ -73,9 +76,9 @@ export function JobsSection() {
     if (category) params.set('category', category);
     setFailed(false);
     setJobs(null);
-    const res = await api<Job[]>(`/api/jobs?${params}`);
-    if (res.status !== 200 || !res.body) { setFailed(true); return; }
-    setJobs(res.body);
+    const res = await api<JobList>(`/api/v2/jobs?${params}`);
+    if (res.status !== 200 || !Array.isArray(res.body?.data)) { setFailed(true); return; }
+    setJobs(res.body.data);
   }, [county, category]);
   useEffect(() => { void load(); }, [load]);
 

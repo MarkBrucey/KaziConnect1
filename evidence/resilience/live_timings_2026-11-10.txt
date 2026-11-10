@@ -1,0 +1,13 @@
+wake Kazi: 200 in 44325 ms
+Nairobi   first 502 10186 ms (? roles)   cached 502 10313 ms   Sherehe about -127 ms
+Mombasa   first 502 10812 ms (? roles)   cached 502 10465 ms   Sherehe about 347 ms
+Kisumu    first 502 10244 ms (? roles)   cached 200  718 ms   Sherehe about 9526 ms
+Nakuru    first 200   187 ms (0 roles)   cached 200  165 ms   Sherehe about 22 ms
+Kiambu    first 200   438 ms (1 roles)   cached 200  156 ms   Sherehe about 282 ms
+Machakos  first 200   190 ms (0 roles)   cached 200  159 ms   Sherehe about 31 ms
+Kajiado   first 200   187 ms (0 roles)   cached 200  150 ms   Sherehe about 37 ms
+Nyeri     first 200   178 ms (0 roles)   cached 200  148 ms   Sherehe about 30 ms
+Meru      first 200   180 ms (0 roles)   cached 200  148 ms   Sherehe about 32 ms
+Embu      first 200   183 ms (0 roles)   cached 200  139 ms   Sherehe about 44 ms
+
+[exited with code 0]
