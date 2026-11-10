@@ -4,13 +4,18 @@
 // Event work page all use it, so none of them needs the real Sherehe or its API key.
 //
 // Beyond the contract it has controls for the things a test must make happen:
-//   stub.setMode('drop' | 'error' | 'garbage' | 'wrongShape' | 'redirect' | 'huge' | 'up')   misbehave
+//   stub.setMode('drop' | 'error' | 'garbage' | 'wrongShape' | 'redirect' | 'huge' | 'flaky' | 'up')   misbehave
+//                                      ('flaky' answers 503 twice, then works, and so on: 2 of every 3 requests fail)
+//   stub.failNext(n, { status, retryAfter })   answer the next n requests with that status (a 429 can send Retry-After)
 //   stub.failOn('/roles')              answer 503 only for paths containing this text
 //   stub.setDelay(ms)                  answer slowly
 //   stub.decide(offerId, 'accepted' | 'declined')   what the organiser would do on Sherehe's website
 //   stub.fillRole(roleId)              make a role full
 //   stub.dropOffer(offerId)            Sherehe loses an offer behind Kazi's back
 //   stub.requests                      every request received (method, path, key, body)
+//
+// With { controls: true } (the standalone run) it also answers GET /__mode/ok|slow|flaky|error|down without a restart,
+// so a person can switch its behaviour while a page is open.
 //
 // Run it by hand with: npx tsx helpers/shereheStub.ts   (it prints the address and the key)
 
@@ -24,7 +29,7 @@ type Event = components['schemas']['Event'];
 type Role = components['schemas']['Role'];
 type Offer = components['schemas']['Offer'];
 
-export type StubMode = 'up' | 'drop' | 'error' | 'garbage' | 'wrongShape' | 'redirect' | 'huge';
+export type StubMode = 'up' | 'drop' | 'error' | 'garbage' | 'wrongShape' | 'redirect' | 'huge' | 'flaky';
 
 export interface StubRequest {
   method: string;
@@ -59,6 +64,8 @@ interface StubState {
   mode: StubMode;
   failOn: string | null;
   delayMs: number;
+  calls: number; // requests since the mode last changed, for 'flaky'
+  failNext: { times: number; status: number; retryAfter?: number } | null;
   requests: StubRequest[];
 }
 
@@ -68,7 +75,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const INVALID_JSON = Symbol('invalid-json');
 
 function freshState(): StubState {
-  return { events: clone(EVENTS), roles: clone(ROLES), offers: new Map(), nextOffer: 4001, bulk: true, mode: 'up', failOn: null, delayMs: 0, requests: [] };
+  return { events: clone(EVENTS), roles: clone(ROLES), offers: new Map(), nextOffer: 4001, bulk: true, mode: 'up', failOn: null, delayMs: 0, calls: 0, failNext: null, requests: [] };
 }
 
 export interface ShereheStub {
@@ -80,6 +87,7 @@ export interface ShereheStub {
   stop(): Promise<void>;
   reset(): void;
   setMode(mode: StubMode): void;
+  failNext(times: number, options?: { status?: number; retryAfter?: number }): void;
   failOn(text: string | null): void;
   setDelay(ms: number): void;
   decide(offerId: string, status: 'accepted' | 'declined'): void;
@@ -91,7 +99,7 @@ export interface ShereheStub {
   setBulk(on: boolean): void;
 }
 
-export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {}): ShereheStub {
+export function createShereheStub({ apiKey = STUB_KEY, controls = false }: { apiKey?: string; controls?: boolean } = {}): ShereheStub {
   let server: http.Server | null = null;
   let state = freshState();
 
@@ -136,6 +144,17 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
     try { body = raw ? JSON.parse(raw) : undefined; } catch { body = INVALID_JSON; }
     const method = req.method || 'GET';
     st.requests.push({ method, path: url.pathname, search: url.search, key: (req.headers['x-api-key'] as string | undefined) || null, body: body === INVALID_JSON ? raw : body });
+    // The switch answers at once, whatever mode the stub is in: a stub that is down or slow must still be switchable.
+    if (controls && method === 'GET' && url.pathname.startsWith('/__mode/')) {
+      const wanted = url.pathname.slice('/__mode/'.length);
+      const modes: Record<string, { mode: StubMode; delayMs: number }> = {
+        ok: { mode: 'up', delayMs: 0 }, slow: { mode: 'up', delayMs: 10000 }, flaky: { mode: 'flaky', delayMs: 0 },
+        error: { mode: 'error', delayMs: 0 }, down: { mode: 'drop', delayMs: 0 },
+      };
+      if (!modes[wanted]) return message(res, 404, 'mode must be ok, slow, flaky, error or down');
+      st.mode = modes[wanted].mode; st.delayMs = modes[wanted].delayMs; st.calls = 0;
+      return send(res, 200, { mode: wanted });
+    }
     if (st.delayMs) await sleep(st.delayMs);
 
     // Misbehaviour comes first, so it applies whatever was asked.
@@ -146,6 +165,12 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
     if (st.mode === 'redirect') { res.writeHead(302, { Location: 'http://127.0.0.1:9/elsewhere' }); res.end(); return; }
     if (st.mode === 'huge') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify([{ filler: 'x'.repeat(2 * 1024 * 1024) }])); return; }
 
+    st.calls += 1;
+    if (st.mode === 'flaky' && st.calls % 3 !== 0) return message(res, 503, 'Try again');
+    if (st.failNext && st.failNext.times > 0) {
+      st.failNext.times -= 1;
+      return send(res, st.failNext.status, { message: 'stub is busy' }, st.failNext.retryAfter ? { 'Retry-After': String(st.failNext.retryAfter) } : {});
+    }
     if (st.failOn && url.pathname.includes(st.failOn)) return message(res, 503, 'stub internal failure');
     if (req.headers['x-api-key'] !== apiKey) return message(res, 401, 'Send your partner key as X-API-Key');
 
@@ -212,7 +237,8 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
       return new Promise((resolve) => { server!.closeAllConnections(); server!.close(() => resolve()); });
     },
     reset(): void { state = freshState(); },
-    setMode(mode: StubMode): void { state.mode = mode; },
+    setMode(mode: StubMode): void { state.mode = mode; state.calls = 0; },
+    failNext(times: number, { status = 503, retryAfter }: { status?: number; retryAfter?: number } = {}): void { state.failNext = { times, status, retryAfter }; },
     failOn(text: string | null): void { state.failOn = text; },
     setDelay(ms: number): void { state.delayMs = ms; },
     // What the organiser does on Sherehe's own website: decide a pending offer.
@@ -237,9 +263,10 @@ export function createShereheStub({ apiKey = STUB_KEY }: { apiKey?: string } = {
 
 // Run by hand: npx tsx helpers/shereheStub.ts
 if (require.main === module) {
-  const stub = createShereheStub();
+  const stub = createShereheStub({ controls: true });
   stub.start(Number(process.env.STUB_PORT) || 4000).then(() => {
     console.log(`Sherehe stub running on ${stub.url}`);
     console.log(`Use it with:  SHEREHE_API_URL=${stub.url} SHEREHE_API_KEY=${stub.apiKey} npm start`);
+    console.log(`Switch it without a restart:  curl ${stub.url}/__mode/ok|slow|flaky|error|down`);
   });
 }

@@ -11,7 +11,7 @@ Kazi Connect is a REST API of casual jobs and services in Kenya, such as campus 
 | Sherehe, our upstream partner (events) | TODO: Sherehe's live address, once its sub-team has deployed it |
 | Ujuzi, our downstream partner (skills training) | TODO: Ujuzi's live address, once its sub-team has deployed it |
 
-> **Which version this describes:** 1.3.1. Endpoints 22 to 25 (Event work, Part 3) reach the live address when `uat` is merged into `main` and deployed (TODO: record the date). The live address is on version 1.2.1 until then. It also adds API keys and a rate limit (see [API keys and rate limits](#api-keys-and-rate-limits)): the live address does not ask for a key until they are switched on there (TODO: record the date). Everything else in this README is unchanged and works on the live address today.
+> **Which version this describes:** 1.4.0 (1.3.1 plus the request log and `GET /api/stats`, Part 4). Endpoints 22 to 25 (Event work, Part 3) reach the live address when `uat` is merged into `main` and deployed (TODO: record the date). The live address is on version 1.2.1 until then. It also adds API keys and a rate limit (see [API keys and rate limits](#api-keys-and-rate-limits)): the live address does not ask for a key until they are switched on there (TODO: record the date). Everything else in this README is unchanged and works on the live address today.
 
 > **Before your first request:** the API runs on a free server that goes to sleep after 15 minutes without visitors. The first request after a quiet spell can take **up to a minute** to answer. That is normal: wait for it, don't cancel. Every request after that is fast.
 
@@ -140,6 +140,44 @@ Guessing keys is slowed down too: after 20 wrong keys from one address in a minu
 | `API_FAILED_KEY_LIMIT` | Wrong keys allowed per address per window before `429` (default 20) |
 
 A consumer named `website` is special: the website's own pages carry that key so they can call the API. Every visitor can see it, so it only says "this call came from the website" and gives each visitor their own allowance; a person's data is protected by their own login token, not by it. `/openapi.yaml` and the docs page stay public on purpose: they are the documentation and hold no data. The browser's preflight (`OPTIONS`) is answered without a key, because a preflight cannot carry one.
+
+## Part 4: Monitoring (the request log and `/api/stats`)
+
+**The log.** Every `/api` request writes one line of JSON to the terminal (or Render's Logs tab) when its answer has been sent:
+
+```json
+{"time":"2026-11-10T14:36:12.310Z","method":"GET","path":"/api/jobs","status":401,"ms":1.1,"caller":"none"}
+```
+
+`caller` is `key-` and six characters of a hash of the API key when the key is valid, so you can tell Ujuzi's calls from yours without the key ever being written, and `none` when no key, or a wrong one, was sent. Calls the key check or the rate limit refuse (401, 429) are in the log too. The path has no query string, and keys, tokens, passwords and bodies are never written. The website's own pages and files are not logged. To keep a copy: `npm start | tee requests.log` (`*.log` is ignored by git). To silence it, set `REQUEST_LOG=off`.
+
+**Endpoint 26, `GET /api/stats`.** Needs the **team** key (`API_KEYS=...,team:<key>`): another valid key gets `403`, no key `401`, and while API keys are off it answers `403` rather than being open to everyone. It does not count itself in its own answer.
+
+```bash
+curl -s -H "X-API-Key: <your-api-key>" http://localhost:3000/api/stats
+```
+
+```json
+{
+  "startedAt": "2026-11-10T14:36:04.810Z",
+  "uptimeSeconds": 94,
+  "total": 123,
+  "clientErrors": 50,
+  "serverErrors": 0,
+  "errorRatePercent": 0,
+  "avgMs": 3.2,
+  "routes": {
+    "GET /api/jobs": { "count": 67, "clientErrors": 19, "serverErrors": 0, "avgMs": 3.3, "maxMs": 33.7 },
+    "GET /api/jobs/:jobId": { "count": 39, "clientErrors": 14, "serverErrors": 0, "avgMs": 2.9, "maxMs": 10.7 },
+    "GET (no route)": { "count": 17, "clientErrors": 17, "serverErrors": 0, "avgMs": 3, "maxMs": 10.1 }
+  },
+  "sherehe": { "retries": 0, "savedDataServed": 0 }
+}
+```
+
+`total` is every finished `/api` request since the server started. `clientErrors` are 4xx answers (usually the caller's mistake, including refused keys) and `serverErrors` are 5xx (ours); `errorRatePercent` is built from the 5xx only. An id in a path is counted under its pattern, so `/api/jobs/job_1` and `/api/jobs/job_2` are one row. A path that is not one of ours is `(no route)`; a refused call is counted under the path it asked for. `maxMs` shows the slowest single call, which an average hides. `sherehe.retries` and `sherehe.savedDataServed` say how often Sherehe had to be asked again and how often saved data was shown. The numbers live in the server's memory, so they start again from zero when it restarts.
+
+**Traffic to look at.** `API=http://localhost:3000 KEY=<a key> npm run traffic` sends a random mix of good requests, missing ids, calls with no key and paths that do not exist (`N=120` for more, `PAUSE_MS=50` to see the 429 on purpose). `MONITORING_NOTES.md` has what it showed.
 
 ## Which terminal to use
 
@@ -804,6 +842,8 @@ HTTP 404
 
 **What happens when the organiser decides.** Sherehe cannot call Kazi Connect, so Kazi Connect asks Sherehe about each waiting offer every 3 minutes. When the organiser accepts, a job opens for the employer and the offer's `jobId` is filled in, within about 3 minutes. The job is an ordinary Kazi Connect job: its category comes from the role, its county from the event, and its `payRange` has the same `min` and `max`, because Sherehe pays one amount per shift. Ujuzi can request it with Endpoint 7 like any other job. When the organiser declines, the offer becomes `declined` and nothing opens. On the free server this check only runs while the server is awake.
 
+**When Sherehe is slow or fails now and then.** A read from Sherehe that a person is waiting for gives up after 3 seconds an attempt and is tried again at most twice (after 200 ms, then 400 ms; a 429 waits as long as Sherehe's `Retry-After` says, up to 5 seconds), so the longest anyone waits is 9.6 seconds. Only reads are retried: never an offer or a withdrawal, never a 4xx other than 429, and never the 3-minute offer check. If Endpoint 22 still cannot get an answer, it returns the last good list (up to an hour old) with the header `X-Data-Saved-At` holding the time it was saved, and the Event work page shows "Showing saved open roles from ...". With no saved list it answers the `502` below. A role that is not in the saved list is never answered "no such role" from saved data: the question is asked of Sherehe, and if that fails it is a `502` too. `RESILIENCE_NOTES.md` has the numbers.
+
 **When Sherehe cannot be reached.** Endpoints 22, 23 and 25 answer `502` with a message that says nothing about Sherehe's side, and change nothing. Endpoint 24 and every endpoint in Parts 1 and 2 keep working. The reply is the same when Sherehe's address or key is not set up. This is what Endpoint 22 answers then:
 
 ```json
@@ -1009,7 +1049,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 708 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript (except that two of them now apply logged in, see 1.3.1 in `CONTRACT_DEVIATIONS.md`); 232 for Event work, which use a stand-in for Sherehe and never need the real one; 292 that prove the move changed nothing a client can see and check the tools below; 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`); and 17 that tell students apart (`__tests__/studentIdentity.test.js`). One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 707 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (83 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 781 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript (except that two of them now apply logged in, see 1.3.1 in `CONTRACT_DEVIATIONS.md`); 232 for Event work, which use a stand-in for Sherehe and never need the real one; 296 that prove the move changed nothing a client can see and check the tools below; 69 for Weeks 11 and 12 (retries and saved data, the request log and `GET /api/stats`: `retries.test.js`, `savedOpenings.test.js`, `monitoring.test.ts`); 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`); and 17 that tell students apart (`__tests__/studentIdentity.test.js`). One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 780 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (87 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 

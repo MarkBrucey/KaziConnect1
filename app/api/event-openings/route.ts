@@ -1,5 +1,6 @@
 // ENDPOINT 22: GET /api/event-openings?county=Nairobi   (website need W7, Sherehe needs K1 and K2)
-// Only ever reaches Sherehe through clients/shereheClient. When Sherehe cannot be used the shared
+// Only ever reaches Sherehe through clients/shereheClient. When Sherehe cannot be asked but an earlier answer is saved,
+// that list is returned with an X-Data-Saved-At header. When Sherehe cannot be used at all the shared
 // wrapper in lib/guards answers 502 in our own words, and Endpoints 1 to 21 never notice.
 
 import * as shereheClient from '@/clients/shereheClient';
@@ -13,8 +14,10 @@ export const GET = withAuth(requireRole('employer')(async (req) => {
   const raw = new URL(req.url).searchParams.getAll('county');
   const county = raw.length === 1 ? raw[0].trim() : '';
   if (county.length > 60) return json([]); // no county has a name this long, so nothing matches
-  const found = await shereheClient.findOpenings({ county: county || undefined });
-  return json(found.map(({ event, role }) => toEventOpening(event, role)));
+  const { openings, savedAt } = await shereheClient.findOpeningsWithSavedAt({ county: county || undefined });
+  // When Sherehe could not be asked, the last good list is returned and this header says when it was saved,
+  // so the page can say so. The body is the same list either way.
+  return json(openings.map(({ event, role }) => toEventOpening(event, role)), 200, savedAt === null ? {} : { 'X-Data-Saved-At': new Date(savedAt).toISOString() });
 }));
 
 export { notFound as POST, notFound as PUT, notFound as PATCH, notFound as DELETE } from '@/lib/notFound';

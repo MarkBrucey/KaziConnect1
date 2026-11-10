@@ -58,6 +58,9 @@ These serve website need W7 and are the only place Kazi Connect calls its upstre
 | 23 | POST | `/api/staffing-offers` | Offers Kazi workers for a Sherehe role; a job opens when the organiser accepts (employers) | W7 (K3) |
 | 24 | GET | `/api/me/staffing-offers` | Lists the logged in employer's offers and their status (optional) | W7 (K4) |
 | 25 | DELETE | `/api/staffing-offers/{offerId}` | Withdraws a pending offer at Sherehe and deletes it here (the employer who made it) | W7 (K5) |
+| 26 | GET | `/api/stats` | How the API has been used since the server started: counts, error rate, average time, per route (team key only; Week 12, monitoring) | The team's own need to see the API (no need statement) |
+
+Endpoint 26 is not a need of Ujuzi, Sherehe or the website: it serves the team, who need to see how the API is doing without reading the log line by line. It is a noun in the path, like the others.
 
 Notes, following the same REST rules:
 

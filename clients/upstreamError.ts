@@ -40,6 +40,15 @@ export class PartnerRejection extends Error {
   }
 }
 
+// One line for a retry: which attempt failed and why, and how long we wait. The path only: no address, no query,
+// never the API key and never the partner's reply.
+export function logRetry(url: string, attempt: number, attempts: number, why: string, waitMs: number): void {
+  if (process.env.JEST_WORKER_ID) return;
+  let path = '';
+  try { path = new URL(url).pathname; } catch { /* not a URL: leave the path out */ }
+  console.warn(`[sherehe] attempt ${attempt} of ${attempts} failed (${why}) for ${path}, retrying in ${waitMs} ms`);
+}
+
 // One line in the server log. Never the partner's reply, and never the API key.
 export function logUpstream(err: unknown, where: string): void {
   if (process.env.JEST_WORKER_ID) return;

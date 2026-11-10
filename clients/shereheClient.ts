@@ -28,7 +28,11 @@ interface CallOptions {
   cache?: boolean;
   refresh?: boolean;
   signal?: AbortSignal;
+  onSaved?: (savedAt: number) => void;
 }
+
+// Passed down to a read so the caller learns when saved data was used in place of a live answer.
+type SavedNote = (savedAt: number) => void;
 
 function config(): { base: string; headers: Record<string, string> } {
   const base = (process.env.SHEREHE_API_URL || '').trim().replace(/\/+$/, '');
@@ -73,17 +77,17 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
 }
 
 // K1: upcoming events, optionally in one county. Cached for 5 minutes.
-export async function listUpcomingEvents({ county, mode = 'user', refresh = false, signal }: { county?: string; mode?: Mode; refresh?: boolean; signal?: AbortSignal } = {}): Promise<PartnerEvent[]> {
+export async function listUpcomingEvents({ county, mode = 'user', refresh = false, signal, onSaved }: { county?: string; mode?: Mode; refresh?: boolean; signal?: AbortSignal; onSaved?: SavedNote } = {}): Promise<PartnerEvent[]> {
   const filter = county ? `&county=${encodeURIComponent(county)}` : '';
-  const res = await call(`/api/events?status=upcoming${filter}`, { cache: true, refresh, mode, signal });
+  const res = await call(`/api/events?status=upcoming${filter}`, { cache: true, refresh, mode, signal, onSaved });
   if (res.status === 400) return []; // the only thing we vary is the county, so Sherehe does not know that county
   if (res.status !== 200) throw unexpected(res);
   return asList(res.body, 'events').map(fromShereheEvent);
 }
 
 // K2: the roles of one event. Cached for 5 minutes. An event that has gone has no roles.
-export async function listRoles(eventId: string, { mode = 'user', refresh = false, signal }: { mode?: Mode; refresh?: boolean; signal?: AbortSignal } = {}): Promise<PartnerRole[]> {
-  const res = await call(`/api/events/${encodeURIComponent(eventId)}/roles`, { cache: true, refresh, mode, signal });
+export async function listRoles(eventId: string, { mode = 'user', refresh = false, signal, onSaved }: { mode?: Mode; refresh?: boolean; signal?: AbortSignal; onSaved?: SavedNote } = {}): Promise<PartnerRole[]> {
+  const res = await call(`/api/events/${encodeURIComponent(eventId)}/roles`, { cache: true, refresh, mode, signal, onSaved });
   if (res.status === 404) return [];
   if (res.status !== 200) throw unexpected(res);
   return asList(res.body, 'roles').map(fromShereheRole);
@@ -92,9 +96,9 @@ export async function listRoles(eventId: string, { mode = 'user', refresh = fals
 // K1 + K2 in ONE call: the upcoming events with their roles (GET /api/events?include=roles). Cached for 5 minutes.
 // Returns null when this Sherehe does not have that feature (it answers 400, or ignores include and sends events
 // with no roles), so the caller uses the two calls above instead.
-async function listUpcomingWithRoles({ county, mode = 'user', refresh = false, signal }: { county?: string; mode?: Mode; refresh?: boolean; signal?: AbortSignal }): Promise<Array<{ event: PartnerEvent; roles: PartnerRole[] }> | null> {
+async function listUpcomingWithRoles({ county, mode = 'user', refresh = false, signal, onSaved }: { county?: string; mode?: Mode; refresh?: boolean; signal?: AbortSignal; onSaved?: SavedNote }): Promise<Array<{ event: PartnerEvent; roles: PartnerRole[] }> | null> {
   const filter = county ? `&county=${encodeURIComponent(county)}` : '';
-  const res = await call(`/api/events?status=upcoming${filter}&include=roles`, { cache: true, refresh, mode, signal });
+  const res = await call(`/api/events?status=upcoming${filter}&include=roles`, { cache: true, refresh, mode, signal, onSaved });
   if (res.status === 400) return null;
   if (res.status !== 200) throw unexpected(res);
   const list = asList(res.body, 'events');
@@ -107,19 +111,30 @@ async function listUpcomingWithRoles({ county, mode = 'user', refresh = false, s
 // soonest shift first. One call when Sherehe can send events with their roles; otherwise one call for the events and one
 // more for each event. One failed call fails the whole list. All the calls share one deadline,
 // so a person waits no longer than the user timeout in total, however many calls it takes.
-export async function findOpenings({ county, mode = 'user', refresh = false }: { county?: string; mode?: Mode; refresh?: boolean } = {}): Promise<Opening[]> {
+export async function findOpenings(options: { county?: string; mode?: Mode; refresh?: boolean } = {}): Promise<Opening[]> {
+  return (await findOpeningsWithSavedAt(options)).openings;
+}
+
+// findOpenings, and when Sherehe could not be asked and the last good lists were used instead, the time the oldest of
+// those copies was saved (epoch ms), so the page can say "saved data from ...". savedAt is null for live data.
+// A re-read (refresh: true) never uses saved data: it returns the truth or fails.
+export async function findOpeningsWithSavedAt({ county, mode = 'user', refresh = false }: { county?: string; mode?: Mode; refresh?: boolean } = {}): Promise<{ openings: Opening[]; savedAt: number | null }> {
   const signal = fetcher.deadline(mode);
-  const bulk = await listUpcomingWithRoles({ county, mode, refresh, signal });
+  let savedAt: number | null = null;
+  const onSaved: SavedNote = (time) => { savedAt = savedAt === null ? time : Math.min(savedAt, time); };
+  const byShift = (a: Opening, b: Opening): number => a.role.shiftStart.localeCompare(b.role.shiftStart) || a.role.id.localeCompare(b.role.id);
+  const bulk = await listUpcomingWithRoles({ county, mode, refresh, signal, onSaved });
   if (bulk) {
-    return bulk
+    const openings = bulk
       .filter(({ event }) => event.status === 'upcoming')
       .flatMap(({ event, roles }) => roles.filter((role) => role.openSlots >= 1).map((role) => ({ event, role })))
-      .sort((a, b) => a.role.shiftStart.localeCompare(b.role.shiftStart) || a.role.id.localeCompare(b.role.id));
+      .sort(byShift);
+    return { openings, savedAt };
   }
-  const events = (await listUpcomingEvents({ county, mode, refresh, signal })).filter((event) => event.status === 'upcoming');
+  const events = (await listUpcomingEvents({ county, mode, refresh, signal, onSaved })).filter((event) => event.status === 'upcoming');
   const perEvent = await mapLimit(events, ROLE_LOOKUPS_AT_ONCE, async (event): Promise<Opening[]> =>
-    (await listRoles(event.id, { mode, refresh, signal })).filter((role) => role.openSlots >= 1).map((role) => ({ event, role })));
-  return perEvent.flat().sort((a, b) => a.role.shiftStart.localeCompare(b.role.shiftStart) || a.role.id.localeCompare(b.role.id));
+    (await listRoles(event.id, { mode, refresh, signal, onSaved })).filter((role) => role.openSlots >= 1).map((role) => ({ event, role })));
+  return { openings: perEvent.flat().sort(byShift), savedAt };
 }
 
 // One opening by its role id, or null. Sherehe has no "get one role" call, so this reads the

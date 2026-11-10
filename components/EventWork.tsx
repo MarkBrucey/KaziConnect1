@@ -67,6 +67,7 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
   const [county, setCounty] = useState('');
   const [openings, setOpenings] = useState<EventOpening[] | null>(null);
   const [openingsProblem, setOpeningsProblem] = useState('');
+  const [savedAt, setSavedAt] = useState(''); // when the shown roles were saved, if Sherehe could not be asked
   const [offers, setOffers] = useState<StaffingOffer[] | null>(null);
   const [offersFailed, setOffersFailed] = useState(false);
   const [offerErrors, setOfferErrors] = useState<Record<string, string>>({});
@@ -76,6 +77,7 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
   const loadOpenings = useCallback(async () => {
     setOpenings(null);
     setOpeningsProblem('');
+    setSavedAt('');
     const res = await api<EventOpening[]>(`/api/event-openings${county ? `?county=${encodeURIComponent(county)}` : ''}`);
     if (res.status !== 200 || !res.body) {
       setOpenings([]);
@@ -83,6 +85,7 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
       return;
     }
     setOpenings(res.body);
+    setSavedAt(res.savedAt || '');
   }, [county]);
 
   const loadOffers = useCallback(async () => {
@@ -125,6 +128,11 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
       {message ? <SuccessText>{message}</SuccessText> : null}
 
       <h4 className="mb-3.5 mt-0 text-xl font-bold">Open roles</h4>
+      {savedAt && openings !== null && !openingsProblem ? (
+        <p id="ev-saved" role="status" className="mb-4 mt-0 rounded-lg border border-line bg-white p-3 text-muted">
+          Showing saved open roles from {new Date(savedAt).toLocaleTimeString()}. Sherehe is not responding, so these may be out of date.
+        </p>
+      ) : null}
       <div id="ev-openings">
         {openings === null ? (
           <p className="m-0 text-muted">Looking for open roles...</p>

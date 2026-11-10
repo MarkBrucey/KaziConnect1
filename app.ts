@@ -8,6 +8,7 @@
 import http from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
 import next from 'next';
+import { monitor } from './monitoring';
 import { attachRealtime } from './realtime';
 
 // Express matched /api paths without regard to letter case and ignored a trailing slash, so
@@ -16,7 +17,7 @@ import { attachRealtime } from './realtime';
 // slash is dropped before Next sees the request. Ids are left exactly as they were sent.
 const FIXED_WORDS = new Set([
   'api', 'jobs', 'status', 'applications', 'subscribe', 'auth', 'register', 'login', 'logout',
-  'password-resets', 'password', 'me', 'event-openings', 'staffing-offers',
+  'password-resets', 'password', 'me', 'event-openings', 'staffing-offers', 'stats',
 ]);
 
 function normaliseApiPath(req: IncomingMessage): void {
@@ -81,6 +82,7 @@ export function createServer(): http.Server {
   ready.catch((err: unknown) => console.error('Next.js could not start. Has `npm run build` been run?', err));
 
   const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
+    monitor(req, res); // first, so a call refused or failed before any handler runs is still logged and counted
     normaliseApiPath(req);
     if (hasMalformedId(req.url || '') && req.method !== 'OPTIONS') { internalServerError(res); return; }
     dropNextOnlyHeaders(req, res);

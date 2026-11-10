@@ -21,6 +21,7 @@
 // the checks create and delete applications, which must not touch live data.
 import '../bootstrapEnv';
 delete process.env.DATABASE_URL;
+process.env.REQUEST_LOG = 'off'; // the report is the output here, not one log line per check
 
 import fs from 'fs';
 import path from 'path';
@@ -355,7 +356,20 @@ async function buildEventCases(base: string, stub: ShereheStub): Promise<Case[]>
   const openingBody = { roleId: 'rol_3001', workersOffered: 4, note: 'Four trained catering students' };
   const http = (c: Omit<Case, 'kind'>): Case => ({ kind: 'http', ...c });
 
+  // Endpoint 26 reads who called, so these cases switch API keys on for their own request only.
+  const TEAM_KEY = 'verify-team-key-0123456789abcdef';
+  const OTHER_KEY = 'verify-other-key-0123456789abcdef';
+  const keysOn = { before: () => { process.env.API_KEYS = `team:${TEAM_KEY},other:${OTHER_KEY}`; }, after: () => { delete process.env.API_KEYS; } };
+  const P_STATS = '/api/stats';
+
   return [
+    // Endpoint 26: monitoring
+    http({ ep: 26, path: P_STATS, url: P_STATS, headers: { 'X-API-Key': TEAM_KEY }, expect: 200, good: true, what: 'the team key reads the totals', ...keysOn,
+      also: ({ body, problems }) => { if (typeof body.total !== 'number' || typeof body.routes !== 'object') problems.push('no totals in the answer'); } }),
+    http({ ep: 26, path: P_STATS, url: P_STATS, headers: { 'X-API-Key': OTHER_KEY }, expect: 403, what: "another consumer's valid key is refused", ...keysOn }),
+    http({ ep: 26, path: P_STATS, url: P_STATS, expect: 401, what: 'no key while keys are on', ...keysOn }),
+    http({ ep: 26, path: P_STATS, url: P_STATS, expect: 403, what: 'keys not switched on: statistics are not open to everyone' }),
+
     // Endpoint 22: read
     http({ ep: 22, path: P_OPENINGS, url: '/api/event-openings', headers: as(employer), expect: 200, what: 'open roles on upcoming events',
       also: ({ body, problems }) => {
@@ -490,7 +504,7 @@ function writeReport(reads: Result[], writes: Result[], events: Result[]): void 
   lines.push(`* Sending the same valid PUT twice produces the same end state: **${mark(w((r) => /same PUT again/.test(r.what)).every(ok))}**`);
   lines.push(`* Bad input cases tested: **${bad.length}**, good input cases tested: **${writes.length - bad.length}**`);
 
-  lines.push('', '## Event work: Endpoints 22 to 25, against a local Sherehe stand-in', '');
+  lines.push('', '## Event work and monitoring: Endpoints 22 to 26, against a local Sherehe stand-in', '');
   lines.push('These endpoints call Sherehe. They are checked against `helpers/shereheStub.ts`, a local stand-in built from `partner-tests/sherehe_openapi.yaml`, so this report never needs the real Sherehe or its API key. The stand-in is taken down on purpose in some cases, to prove what Kazi Connect does when Sherehe cannot be used.', '');
   lines.push('| Endpoint | Request | Case | Contract expects | Got | Result |', '|---|---|---|---|---|---|');
   for (const r of events) lines.push(`| ${r.ep} | \`${requestLabel(r)}\` | ${r.what} | ${r.expect} | ${r.status} | ${ok(r) ? 'Pass' : 'FAIL'} |`);
@@ -550,7 +564,7 @@ async function main(): Promise<void> {
   console.log('\nWeek 6: write endpoints, good and bad input');
   const writes = await run(writeCases, base, wsBase);
 
-  console.log('\nEvent work: Endpoints 22 to 25, against a local Sherehe stand-in');
+  console.log('\nEvent work and monitoring: Endpoints 22 to 26, against a local Sherehe stand-in');
   const stub = createShereheStub();
   await stub.start();
   process.env.SHEREHE_API_URL = stub.url;

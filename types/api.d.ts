@@ -1263,6 +1263,8 @@ export interface paths {
                 /** @description Open roles as Kazi event openings. */
                 200: {
                     headers: {
+                        /** @description Only present when Sherehe could not be asked (it was tried again twice first) and this is the last good list, up to an hour old. The time it was saved. The body is the same list either way. */
+                        "X-Data-Saved-At"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -1449,6 +1451,61 @@ export interface paths {
                 };
                 401: components["responses"]["NotLoggedIn"];
                 403: components["responses"]["Forbidden"];
+                429: components["responses"]["TooManyRequests"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reports how the API has been used since the server started
+         * @description Week 12, monitoring. Requests, 4xx and 5xx counts, error rate, average time and a row for each route (an id in a path is counted under its pattern, for example GET /api/jobs/:jobId; requests that reached no route are counted as "GET (no route)"). It shows every caller's traffic, so only the "team" key may read it, and it is not available at all while API keys are switched off. The numbers live in the server's memory: they start again from zero when it restarts. The call does not count itself in its own answer. The sherehe counters say how often a read from Sherehe had to be retried and how often saved data was shown.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The totals. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Stats"];
+                    };
+                };
+                401: components["responses"]["MissingApiKey"];
+                /** @description The key is valid but not the team key, or API keys are not switched on. Nothing was shown. */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "message": "Statistics are for the team key only."
+                         *     }
+                         */
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 429: components["responses"]["TooManyRequests"];
             };
         };
@@ -1812,6 +1869,70 @@ export interface components {
              * @example 2026-11-20T09:15:00Z
              */
             createdAt: string;
+        };
+        Stats: {
+            /**
+             * Format: date-time
+             * @example 2026-11-10T08:00:00.000Z
+             */
+            startedAt: string;
+            /** @example 3600 */
+            uptimeSeconds: number;
+            /**
+             * @description Every /api request that has finished since the server started.
+             * @example 142
+             */
+            total: number;
+            /**
+             * @description Answers in the 400s, usually the caller's mistake (including the 401 and 429 from the key check).
+             * @example 12
+             */
+            clientErrors: number;
+            /**
+             * @description Answers in the 500s, which are ours.
+             * @example 0
+             */
+            serverErrors: number;
+            /**
+             * @description serverErrors divided by total, as a percent. 4xx answers do not count.
+             * @example 0
+             */
+            errorRatePercent: number;
+            /** @example 6.3 */
+            avgMs: number;
+            /**
+             * @description One row for each route pattern, keyed by method and pattern.
+             * @example {
+             *       "GET /api/jobs": {
+             *         "count": 80,
+             *         "clientErrors": 3,
+             *         "serverErrors": 0,
+             *         "avgMs": 4.1,
+             *         "maxMs": 38.2
+             *       }
+             *     }
+             */
+            routes: {
+                [key: string]: {
+                    count: number;
+                    clientErrors: number;
+                    serverErrors: number;
+                    avgMs: number;
+                    maxMs: number;
+                };
+            };
+            sherehe: {
+                /**
+                 * @description Times a read from Sherehe was tried again after a failure.
+                 * @example 2
+                 */
+                retries: number;
+                /**
+                 * @description Times saved data was returned because Sherehe could not be asked.
+                 * @example 1
+                 */
+                savedDataServed: number;
+            };
         };
     };
     responses: {

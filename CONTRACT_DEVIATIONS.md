@@ -217,3 +217,22 @@ TODO: the humans change Render's build command to `npm ci && npm run build`, its
 The rules live in `lib/identity.ts`, and `withOptionalAuth` in `lib/guards.ts` checks a login only when one is sent. `openapi.yaml` 1.3.1 documents the optional login (each operation's `security` lists the key alone, or the key with `bearerAuth`), the new `400`, `401` and `403` answers, and the `usr_` rule on `studentId`; `types/api.d.ts` was regenerated with `npm run types`. No field, path or other status code changed. `npm run verify` has one new check (83). Two of the 156 tests applied with the demo student's account ID and no login, the weakness fixed here; they now apply logged in, as the website does, and still check the same results. The 151 recorded Express answers still match, as none of them uses an account ID on Endpoints 7 to 9.
 
 **Left as it was, on purpose:** two partners, or two people at one partner, can still send the same made up ID such as `stu_0042`. Kazi Connect cannot know who is behind an ID it did not make, so each partner keeps its own IDs unique. The applications stay separate, each with its own `applicationId`.
+
+# Monitoring and resilience (version 1.3.1 to 1.4.0)
+
+Weeks 11 and 12 of the course. Every change is an addition. **Endpoints 1 to 21: no request, response, header or status code changes.** The 156 original tests pass as they are.
+
+## What is new
+
+1. **Endpoint 26, `GET /api/stats`.** How the API has been used since the server started: total requests, 4xx and 5xx counts, error rate, average time, a row for each route, and two counters for the Sherehe calls (`retries`, `savedDataServed`). It shows every caller's traffic, so only the consumer named `team` may read it (any other valid key gets 403), and while API keys are switched off it answers 403 for everyone instead of being open. Without a key it answers 401 like every endpoint. It does not count itself in its own answer. The numbers are held in the server's memory and start again from zero when it restarts. Nobody outside the team needs this endpoint, and Ujuzi does not use it.
+2. **A header on Endpoint 22.** When Sherehe cannot be asked, `GET /api/event-openings` returns the last good list (up to an hour old) with the header `X-Data-Saved-At: <time it was saved>`. The body is the same list either way. Without the header the data is live. Before this change the same situation answered 502 once the 5-minute copy had run out.
+3. **A sentence in the API key description.** Keys are for systems that call from their own server. A web page on another site cannot send `X-API-Key`, because the CORS answer (unchanged) does not allow that header, and a key in a page can be read by everyone. This was already true and already in this file under Week 9; the contract now says it where a reader of `openapi.yaml` will see it. It came from a real question by Ujuzi's team while checking Part B of the Week 10 lab from the browser's side (`INTEGRATION_LOG.md`).
+
+## Changes with no effect on what a client sends or receives
+
+* **Request log.** Every `/api` request writes one JSON line when its answer has been sent: time, method, path (no query string), status, milliseconds and a caller label. The label is `key-` and six characters of a hash of the key when the key is valid, and `none` otherwise. Keys, tokens, passwords, bodies and query strings are never written. The website's own pages and files are not logged. `REQUEST_LOG=off` silences it.
+* **Retries and a shorter wait for Sherehe.** A person waiting for a read from Sherehe now waits at most 3 seconds an attempt, with 2 retries after 200 ms and 400 ms (a 429 waits as long as its `Retry-After` says, up to 5 seconds): 9.6 seconds in the worst case, about the 10 seconds it was before. Only reads are retried, never a POST or DELETE, never a 4xx other than 429, and never background work. Details and measurements are in `RESILIENCE_NOTES.md`.
+
+## Ujuzi
+
+Nothing Ujuzi calls changes. Under R8 the Ujuzi sub-team is told before this is deployed: TODO: record the date it was told. The key for Endpoint 26 is the team key, which Ujuzi never receives.

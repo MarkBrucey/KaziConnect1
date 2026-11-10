@@ -13,6 +13,7 @@ export interface SchemaNode {
   $ref?: string;
   type?: string;
   properties?: Record<string, SchemaNode>;
+  additionalProperties?: SchemaNode | boolean; // a map: any key, every value of this schema (GET /api/stats routes)
   items?: SchemaNode;
   enum?: unknown[];
   format?: string;
@@ -90,8 +91,11 @@ export function createChecker(contract: ContractDoc): Checker {
         if (!(key in value)) problems.push(`${where}.${key} is missing`);
         else schemaCheck(value[key], props[key], `${where}.${key}`, problems);
       }
+      const extra = typeof schema.additionalProperties === 'object' ? schema.additionalProperties : null;
       for (const key of Object.keys(value)) {
-        if (!(key in props)) problems.push(`${where}.${key} is not in the contract`);
+        if (key in props) continue;
+        if (extra) schemaCheck(value[key], extra, `${where}["${key}"]`, problems);
+        else problems.push(`${where}.${key} is not in the contract`);
       }
       return;
     }

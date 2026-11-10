@@ -117,7 +117,7 @@ describe('findOpenings (K1 and K2)', () => {
   it('gives a person one time budget for the whole list, not one per call', async () => {
     // Two calls in a row (the events, then their roles) at 300 ms each: 600 ms in all.
     // Each call is inside the 500 ms limit on its own, but together they are not.
-    fetcher.configure({ userTimeoutMs: 500 });
+    fetcher.configure({ userTimeoutMs: 500, retries: 0 }); // with no retries the budget of one call is the 500 ms
     stub.setBulk(false); // the two-step path
     stub.setDelay(300);
 

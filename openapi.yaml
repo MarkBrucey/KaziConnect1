@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Kazi Connect API
-  version: 1.3.1
+  version: 1.4.0
   description: >
     Kazi Connect job listings and job applications for Ujuzi graduates, plus accounts and
     employer tools for the Kazi Connect website. Endpoint numbers match ENDPOINT_LIST.md, and each
@@ -870,6 +870,15 @@ paths:
       responses:
         '200':
           description: Open roles as Kazi event openings.
+          headers:
+            X-Data-Saved-At:
+              description: >
+                Only present when Sherehe could not be asked (it was tried again twice first) and this is the
+                last good list, up to an hour old. The time it was saved. The body is the same list either way.
+              schema:
+                type: string
+                format: date-time
+                example: '2026-11-10T09:15:00.000Z'
           content:
             application/json:
               schema:
@@ -1000,13 +1009,46 @@ paths:
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
+  #---ENDPOINT 26---
+  /api/stats:
+    get:
+      summary: Reports how the API has been used since the server started
+      description: >
+        Week 12, monitoring. Requests, 4xx and 5xx counts, error rate, average time and a row for each route
+        (an id in a path is counted under its pattern, for example GET /api/jobs/:jobId; requests that reached no
+        route are counted as "GET (no route)"). It shows every caller's traffic, so only the "team" key may
+        read it, and it is not available at all while API keys are switched off. The numbers live in the server's
+        memory: they start again from zero when it restarts. The call does not count itself in its own answer.
+        The sherehe counters say how often a read from Sherehe had to be retried and how often saved data was shown.
+      security:
+        - ApiKey: []
+      responses:
+        '200':
+          description: The totals.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '401':
+          $ref: '#/components/responses/MissingApiKey'
+        '403':
+          description: The key is valid but not the team key, or API keys are not switched on. Nothing was shown.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Statistics are for the team key only.
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
 components:
   securitySchemes:
     ApiKey:
       type: apiKey
       in: header
       name: X-API-Key
-      description: 'The key issued to your system, sent on every call. Only the key goes here, with no prefix. A browser WebSocket, which cannot set headers, sends it as the subprotocol "kazi-key.YOUR_KEY" instead.'
+      description: 'The key issued to your system, sent on every call. Only the key goes here, with no prefix. Keys are for systems that call from their own server: a web page on another site cannot send this header, because the CORS answer does not allow it, and a key in a page can be read by everyone. A browser WebSocket, which cannot set headers, sends it as the subprotocol "kazi-key.YOUR_KEY" instead.'
     bearerAuth:
       type: http
       scheme: bearer
@@ -1526,3 +1568,69 @@ components:
           type: string
           format: date-time
           example: '2026-11-20T09:15:00Z'
+    Stats:
+      type: object
+      required: [startedAt, uptimeSeconds, total, clientErrors, serverErrors, errorRatePercent, avgMs, routes, sherehe]
+      properties:
+        startedAt:
+          type: string
+          format: date-time
+          example: '2026-11-10T08:00:00.000Z'
+        uptimeSeconds:
+          type: integer
+          example: 3600
+        total:
+          type: integer
+          description: Every /api request that has finished since the server started.
+          example: 142
+        clientErrors:
+          type: integer
+          description: Answers in the 400s, usually the caller's mistake (including the 401 and 429 from the key check).
+          example: 12
+        serverErrors:
+          type: integer
+          description: Answers in the 500s, which are ours.
+          example: 0
+        errorRatePercent:
+          type: number
+          description: serverErrors divided by total, as a percent. 4xx answers do not count.
+          example: 0
+        avgMs:
+          type: number
+          example: 6.3
+        routes:
+          type: object
+          description: One row for each route pattern, keyed by method and pattern.
+          additionalProperties:
+            type: object
+            required: [count, clientErrors, serverErrors, avgMs, maxMs]
+            properties:
+              count:
+                type: integer
+              clientErrors:
+                type: integer
+              serverErrors:
+                type: integer
+              avgMs:
+                type: number
+              maxMs:
+                type: number
+          example:
+            'GET /api/jobs':
+              count: 80
+              clientErrors: 3
+              serverErrors: 0
+              avgMs: 4.1
+              maxMs: 38.2
+        sherehe:
+          type: object
+          required: [retries, savedDataServed]
+          properties:
+            retries:
+              type: integer
+              description: Times a read from Sherehe was tried again after a failure.
+              example: 2
+            savedDataServed:
+              type: integer
+              description: Times saved data was returned because Sherehe could not be asked.
+              example: 1

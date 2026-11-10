@@ -54,3 +54,21 @@ describe('anyOf', () => {
     expect(check([{ id: 1, name: 'N' }], either)).toEqual(['reply[0].id should be a string, got number']);
   });
 });
+
+describe('additionalProperties (a map: any key, every value of one schema)', () => {
+  const map: SchemaNode = { type: 'object', additionalProperties: { type: 'object', properties: { count: { type: 'integer' } } } };
+
+  it('accepts any keys when every value fits, and an empty map', () => {
+    expect(check({ 'GET /a': { count: 1 }, 'GET /b': { count: 2 } }, map)).toEqual([]);
+    expect(check({}, map)).toEqual([]);
+  });
+
+  it('checks every value: a wrong type or an extra field inside one is reported with its key', () => {
+    expect(check({ 'GET /a': { count: 'x' } }, map)).toEqual(['reply["GET /a"].count should be an integer']);
+    expect(check({ 'GET /a': { count: 1, extra: 2 } }, map)).toEqual(['reply["GET /a"].extra is not in the contract']);
+  });
+
+  it('still refuses unknown keys when the schema does not declare a map', () => {
+    expect(check({ other: 1 }, { type: 'object', properties: { id: { type: 'string' } } })).toEqual(['reply.id is missing', 'reply.other is not in the contract']);
+  });
+});

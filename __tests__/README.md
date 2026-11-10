@@ -1,4 +1,4 @@
-Automated tests for the Kazi Connect API: 708 tests in 21 files (707 run on the in-memory store; 1 more runs only when DATABASE_URL is set). Run them with: npm test
+Automated tests for the Kazi Connect API: 781 tests in 24 files (780 run on the in-memory store; 1 more runs only when DATABASE_URL is set). Run them with: npm test
 
 `npm test` builds the app first (`next build`), because the tests start the real server, then runs Jest one file at a time.
 
@@ -9,11 +9,11 @@ The first 156 tests, in 5 files, cover Endpoints 1 to 21, one file per area. The
 - employer.test.js (39): Endpoints 14 to 18
 - passwordReset.test.js (19): Endpoints 20 and 21
 
-292 more tests prove the move to Next.js and TypeScript changed nothing a client can see, and check the tools around the API and the Week 9 security work:
+296 more tests prove the move to Next.js and TypeScript changed nothing a client can see, and check the tools around the API and the Week 9 security work:
 - parityWithExpress.test.js (153): sends 151 requests (happy paths, every error path, wrong methods, malformed JSON, the exact 20 KB limit, odd ids) and compares every status, every header except Date, and every body with the answer the real Express version gave to the same request. The recorded answers are in fixtures/parity.golden.json and fixtures/parityCases.js lists the requests. Two more tests check that all of them were replayed and that no answer carries X-Powered-By or ETag
-- apiKeys.test.ts (58): API keys and the rate limit. One request per operation in openapi.yaml proves each answers 401 without a key; `200 200 200 429 429` with its Retry-After header and JSON body; each consumer counted on its own; the website key counted per visitor; wrong keys slowed down; fail-closed REQUIRE_API_KEY; the WebSocket (header, browser subprotocol, 401, 429); the website pages carrying only the website key; and that with no key set the API stays open
+- apiKeys.test.ts (59): API keys and the rate limit. One request per operation in openapi.yaml proves each answers 401 without a key; `200 200 200 429 429` with its Retry-After header and JSON body; each consumer counted on its own; the website key counted per visitor; wrong keys slowed down; fail-closed REQUIRE_API_KEY; the WebSocket (header, browser subprotocol, 401, 429); the website pages carrying only the website key; and that with no key set the API stays open
 - mailerLog.test.ts (2): a password-reset link is printed to the log on your own computer, and never on a deployment (API keys on)
-- schemaCheck.test.ts (6): the contract checker that npm run verify, ring:status and ring:check share understands anyOf and allOf (it used to skip such a reply silently, so Sherehe's event list stopped being checked)
+- schemaCheck.test.ts (9): the contract checker that npm run verify, ring:status and ring:check share understands anyOf and allOf (it used to skip such a reply silently, so Sherehe's event list stopped being checked)
 - ringStatus.test.ts (33): `npm run ring:status`, the report on how far each system in the ring has got, and how it tells a part that is not built yet from a real error (including Kazi Connect asking for an API key)
 - ringCheck.test.ts (17): `npm run ring:check`, the end-to-end check of Kazi Connect's part of the ring, including when Sherehe is down or refuses the key, and that it leaves nothing behind
 - sourceGuards.test.ts (10): checks on the website source: nothing from Sherehe or the API can be read as markup, links only go to pages of the site, and the Event work page offers the shared list of 47 counties
@@ -30,6 +30,11 @@ The other 232 tests, in 5 files, cover Event work (Endpoints 22 to 25, website n
 11 more tests, in onePlacePerJob.test.js, hold the rule that a job has one place (Endpoints 7, 17 and 18): a filled job cannot be reopened, a second applicant cannot be accepted, a new applicant to a filled job is told it is filled, the data store refuses all three even if a route forgot to check, and two employers pressing Accept at the same moment leave exactly one accepted applicant.
 
 17 more tests, in studentIdentity.test.js, tell students apart (Endpoints 7, 8, 9 and 19): only a student, logged in, can apply with their own account ID (usr_...), so nobody can apply in their name or claim an account ID that does not exist yet; a logged in student must send their own ID; an employer's login is refused; an application made from an account can only be changed or withdrawn by that student; and a partner's own IDs, such as stu_0042, work as before with no login. 11 of them fail on the code before 1.3.1.
+
+69 more tests, in 3 files, hold the Week 11 and 12 work. Sherehe is the local stand-in, which can now fail some of the time:
+- retries.test.js (37): the fetcher's numbers (3 s an attempt, 2 retries, 200 ms then 400 ms, 9.6 s at worst), what is retried (timeouts, dropped connections, 5xx, a 429 after its Retry-After) and what never is (a 4xx, a redirect, a POST, a DELETE, background work, anything past the shared deadline), saved data and when it is not given (a refresh, a 401, older than an hour, never read), and the stand-in's own switch
+- savedOpenings.test.js (7): Endpoint 22 through the real server: the same list with `X-Data-Saved-At` when Sherehe cannot be asked, the 502 when nothing was saved, an offer never made from saved data, recovery
+- monitoring.test.ts (25): the request log (one JSON line per request, refused calls included, never a key, query, body or password) and `GET /api/stats` (totals, rows per route pattern, error rate from 5xx only, team key only, 403 while keys are off)
 
 They run on the in-memory store by default. With DATABASE_URL set they run on that PostgreSQL database, and they empty it first, so never point DATABASE_URL at data you want to keep.
 

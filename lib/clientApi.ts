@@ -4,6 +4,8 @@
 export interface ApiResult<T = unknown> {
   status: number; // 0 when the server could not be reached at all
   body: T | null;
+  // When the server answered with saved data because a partner could not be asked: when it was saved (ISO time).
+  savedAt?: string | null;
 }
 
 const TOKEN_KEY = 'kazi-token';
@@ -58,7 +60,7 @@ export async function api<T = unknown>(path: string, options: { method?: string;
     let body: T | null = null;
     try { body = text ? (JSON.parse(text) as T) : null; } catch { body = null; }
     if (res.status === 401 && token && !path.startsWith('/api/auth/') && onSessionExpired) onSessionExpired();
-    return { status: res.status, body };
+    return { status: res.status, body, savedAt: res.headers.get('x-data-saved-at') };
   } catch {
     return { status: 0, body: null };
   } finally {
