@@ -1,0 +1,37 @@
+Week 11 drill, BEFORE Week 11 (the code on uat today, 1.3.1), run 2026-11-10T13:44:40.399Z
+Kazi Connect at http://localhost:3301 (data in memory), stand-in Sherehe at http://localhost:4000.
+Every load asks for a new county, so it misses the 5-minute cache and reaches the stand-in.
+
+Normal (mode ok), measured three ways:
+  the stand-in on its own: 7 ms
+  the stand-in on its own: 7 ms
+  the stand-in on its own: 2 ms
+  Event work load 1 (county Nairobi): HTTP 200 after 41 ms, 2 roles
+  Event work load 2 (county Mombasa): HTTP 200 after 16 ms, 1 roles
+  Event work load 3 (county Kisumu): HTTP 200 after 12 ms, 0 roles
+
+Slow (every answer takes 10 seconds):
+  Event work load (county Nakuru): HTTP 502 after 10013 ms, message "Event information is unavailable right now. Try again in a minute."
+      log: [sherehe] a request to Sherehe: timeout
+
+Flaky (fails twice, then works), three loads:
+  load 1 (county Kiambu): HTTP 502 after 9 ms, message "Event information is unavailable right now. Try again in a minute."
+      log: [sherehe] a request to Sherehe: status (HTTP 503)
+  load 2 (county Machakos): HTTP 502 after 9 ms, message "Event information is unavailable right now. Try again in a minute."
+      log: [sherehe] a request to Sherehe: status (HTTP 503)
+  load 3 (county Kajiado): HTTP 200 after 15 ms, 0 roles
+
+Error (always 500):
+  Event work load (county Nyeri): HTTP 502 after 8 ms, message "Event information is unavailable right now. Try again in a minute."
+      log: [sherehe] a request to Sherehe: status (HTTP 500)
+
+Sherehe gone (the stand-in stopped):
+  Event work load (county Meru): HTTP 502 after 18 ms, message "Event information is unavailable right now. Try again in a minute."
+      log: [sherehe] a request to Sherehe: network: ECONNREFUSED
+
+Kazi restarted (anything saved is gone), Sherehe slow:
+  Event work load (county Embu): HTTP 502 after 10016 ms, message "Event information is unavailable right now. Try again in a minute."
+      log: [sherehe] a request to Sherehe: timeout
+
+Sherehe back (mode ok), no code changed:
+  Event work load (county Kilifi): HTTP 200 after 13 ms, 0 roles
