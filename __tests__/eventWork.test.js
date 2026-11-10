@@ -7,6 +7,7 @@ const request = require('supertest');
 const { createServer } = require('../app');
 const db = require('../db');
 const fetcher = require('../clients/fetcher');
+const saved = require('../lib/savedOpenings');
 const { PARTNER_UNAVAILABLE } = require('../clients/upstreamError');
 const { createShereheStub } = require('../helpers/shereheStub');
 const { DEMO_PASSWORD } = require('../seedData');
@@ -55,6 +56,7 @@ beforeEach(async () => {
   await db.reset();
   stub.reset();
   fetcher.reset();
+  saved.forget(); // a fresh server: no saved list of open roles yet (Week 11), so Sherehe down means 502
   process.env.SHEREHE_API_URL = stub.url;
   process.env.SHEREHE_API_KEY = stub.apiKey;
 });

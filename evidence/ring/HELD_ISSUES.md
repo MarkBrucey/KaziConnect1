@@ -29,15 +29,15 @@ The rule that matters: a 404 or "no such address" is a **missing part**; a 5xx o
 
 ## Where the ring stands
 
-Last checked: **2026-10-21**, with `npm run ring:status`.
+Last checked: **2026-10-21**, with `npm run ring:status`. Statuses of H-1, H-2, H-3 and H-5 updated on **2026-11-10** from the live sites.
 
 | ID | What was observed | System | Verdict | Waiting for | Recheck with | Status |
 |---|---|---|---|---|---|---|
-| H-1 | Sherehe's address is the placeholder `https://sherehe-TODO.onrender.com`, so the partner tests and the live read in `npm run ring:check` cannot run | Sherehe | `not-configured` | Sherehe's sub-team to deploy and share the address (requirement R3) | `npm run ring:status`, then `npm run test:partner` | Held |
-| H-2 | Ujuzi's address is the placeholder `https://ujuzi-TODO.onrender.com` | Ujuzi | `not-configured` | Ujuzi's sub-team to deploy and share the address | `npm run ring:status` | Held |
-| H-3 | The live Kazi Connect site is up and on contract **1.2.1**; Endpoint 1 answers correctly (9 active jobs, all matching the contract). Endpoints 22 to 25 answer 404 there | Kazi Connect | `pending-deploy` | Humans: tell Ujuzi (requirement R8), merge `uat` into `main`, let Render deploy | `npm run ring:status` | Held. **Not an error**: expected until the merge |
+| H-1 | Sherehe's address is the placeholder `https://sherehe-TODO.onrender.com`, so the partner tests and the live read in `npm run ring:check` cannot run | Sherehe | `not-configured` | Sherehe's sub-team to deploy and share the address (requirement R3) | `npm run ring:status`, then `npm run test:partner` | Resolved 10 November 2026: Sherehe is live at https://sherehe-r0qm.onrender.com, and the live Kazi reads it |
+| H-2 | Ujuzi's address is the placeholder `https://ujuzi-TODO.onrender.com` | Ujuzi | `not-configured` | Ujuzi's sub-team to deploy and share the address | `npm run ring:status` | Partly resolved 10 November 2026: Mark deployed Ujuzi to Render and it reads the live Kazi. TODO: its address |
+| H-3 | The live Kazi Connect site is up and on contract **1.2.1**; Endpoint 1 answers correctly (9 active jobs, all matching the contract). Endpoints 22 to 25 answer 404 there | Kazi Connect | `pending-deploy` | Humans: tell Ujuzi (requirement R8), merge `uat` into `main`, let Render deploy | `npm run ring:status` | Resolved 4 November 2026: the live Kazi runs 1.3.1 from `main`, with Endpoints 22 to 25 |
 | H-4 | Ujuzi has not yet re-run its tests against Kazi 1.3.0. This cannot be seen from outside | Ujuzi | `manual` | H-2 and H-3, then Ujuzi's sub-team to run its partner tests and report | Ask Ujuzi; record the result in `PARTNER_TEST_RESULTS.md` | Held |
-| H-5 | Sherehe's API key (`X-API-Key`) has not been issued to Kazi Connect (Week 9, requirement R4) | Sherehe | `not-configured` | Sherehe's sub-team to issue the key; the humans set `SHEREHE_API_KEY` in Render and in `.env` | `npm run ring:status` | Held |
+| H-5 | Sherehe's API key (`X-API-Key`) has not been issued to Kazi Connect (Week 9, requirement R4) | Sherehe | `not-configured` | Sherehe's sub-team to issue the key; the humans set `SHEREHE_API_KEY` in Render and in `.env` | `npm run ring:status` | Resolved by 4 November 2026: Sherehe issued Kazi a key, kept in Render's `SHEREHE_API_KEY` |
 | H-6 | The Sherehe contract Kazi built against is a **draft** (version 0.1.0). Sherehe's own starter notes that its website endpoints are still to be added before the real handoff | Sherehe | not yet observable | The final handoff from Sherehe | `npm run ring:status` reports `drift` on the contract line when their published version differs; then refresh `partner-tests/sherehe_openapi.yaml`, run `npm run types` and `npm run typecheck` | Held |
 
 ## Keeping watch

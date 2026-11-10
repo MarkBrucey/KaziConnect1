@@ -1,0 +1,37 @@
+Week 13 drill, run 2026-11-10T15:55:09.157Z, branch uat-weeks11-14, data in memory, API keys on (team, ujuzi, website).
+Caller labels: our own key key-77383b, the key issued to Ujuzi key-f7d2fe, the website key-c055d3.
+
+Part C, evidence 1: diff v1_before.json v1_after.json
+  (no output) v1 unchanged
+  Headers of GET /api/jobs?status=active now:
+    HTTP 200
+    access-control-allow-headers: Content-Type, Authorization
+    access-control-allow-methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+    access-control-allow-origin: *
+    content-length: 1279
+    content-type: application/json; charset=utf-8
+    deprecation: true
+    link: </api/v2/jobs>; rel="successor-version"
+    sunset: Tue, 10 Nov 2026 21:00:00 GMT
+
+Part B, step 6: the three addresses
+  GET /api/v1/jobs?status=active: 200, Deprecation: true, starts [{"id":"job_12345","title":"Campus Housing Assistant","category":"acco...
+  GET /api/v2/jobs?status=active: 200, Deprecation: (none), starts {"data":[{"id":"job_12345","title":"Campus Housing Assistant","categor...
+  GET /api/jobs?status=active: 200, Deprecation: true, starts [{"id":"job_12345","title":"Campus Housing Assistant","category":"acco...
+
+Part A prediction, checked with Ujuzi's real client (lib/clients/kaziClient.ts on Ujuzi's main, unchanged):
+  Kazi as deployed with this change (v1 still at /api/jobs):
+    Ujuzi's listActiveJobs() at http://localhost:3313: OK, 6 jobs, first job_12345
+  Kazi after v1 is switched off (a stand-in that answers /api/jobs with v2):
+    Ujuzi's listActiveJobs() at http://localhost:3314: FAILED with KaziUnavailableError: Kazi Connect answered 200 to the job list
+
+Part F: who still uses v1? /api/stats rows for the job list:
+  GET /api/jobs      {"count":3,"clientErrors":0,"serverErrors":0,"avgMs":11.6,"maxMs":23.9}
+  GET /api/v1/jobs   {"count":1,"clientErrors":0,"serverErrors":0,"avgMs":11,"maxMs":11}
+  GET /api/v2/jobs   {"count":3,"clientErrors":0,"serverErrors":0,"avgMs":6.5,"maxMs":7.9}
+  The log, calls to the job list by path and caller:
+    /api/jobs key-77383b: 2
+    /api/v1/jobs key-77383b: 1
+    /api/v2/jobs key-77383b: 2
+    /api/jobs key-f7d2fe: 1
+    /api/v2/jobs key-f7d2fe: 1

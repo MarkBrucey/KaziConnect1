@@ -12,8 +12,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Returns active job/service listings, optionally filtered by county and category
-         * @description Endpoint 1 (Statement 1): send only status=active to get every active listing. Endpoint 2 (Statement 2): also send county and category to get the active listings near a student's accommodation. The filters are query parameters on the jobs resource, not a separate path. An empty list means nothing matched.
+         * Returns active job/service listings, optionally filtered by county and category (version 1, deprecated)
+         * @deprecated
+         * @description Endpoint 1 (Statement 1): send only status=active to get every active listing. Endpoint 2 (Statement 2): also send county and category to get the active listings near a student's accommodation. The filters are query parameters on the jobs resource, not a separate path. An empty list means nothing matched. Deprecated in 1.4.0: it still answers exactly as before, and every answer also carries the Deprecation, Sunset and Link headers. Move to GET /api/v2/jobs, which wraps the same list as { data, count }. GET /api/v1/jobs is this same version under a versioned address.
          */
         get: {
             parameters: {
@@ -34,15 +35,27 @@ export interface paths {
                 /** @description The matching job listings. Empty list if none match. */
                 200: {
                     headers: {
+                        /** @description Always "true". This version of the job list is deprecated (Week 13). */
+                        Deprecation?: string;
+                        /** @description When this version stops working, as an HTTP date. Midnight in Nairobi at the end of 10 November 2026. */
+                        Sunset?: string;
+                        /** @description Where its replacement is. */
+                        Link?: string;
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": components["schemas"]["Job"][];
                     };
                 };
-                /** @description status is missing, or county or category was sent empty. */
+                /** @description status is missing, or county or category was sent empty. No body. */
                 400: {
                     headers: {
+                        /** @description Always "true". This version of the job list is deprecated (Week 13). */
+                        Deprecation?: string;
+                        /** @description When this version stops working, as an HTTP date. Midnight in Nairobi at the end of 10 November 2026. */
+                        Sunset?: string;
+                        /** @description Where its replacement is. */
+                        Link?: string;
                         [name: string]: unknown;
                     };
                     content?: never;
@@ -1260,9 +1273,13 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Open roles as Kazi event openings. */
+                /** @description Open roles as Kazi event openings. Week 11: when Sherehe cannot be reached (after two retries), the last list Kazi had for the same county is sent instead, with Kazi-Stale true and the time it was saved. With nothing saved, the answer is the 502. */
                 200: {
                     headers: {
+                        /** @description false when the list is live from Sherehe (through Kazi's 5-minute cache); true when Sherehe failed and this is the last list saved. */
+                        "Kazi-Stale"?: "true" | "false";
+                        /** @description When this list was built (live) or saved (stale), as an ISO 8601 time in UTC. */
+                        "Kazi-As-Of"?: string;
                         [name: string]: unknown;
                     };
                     content: {
@@ -1273,6 +1290,172 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 429: components["responses"]["TooManyRequests"];
                 502: components["responses"]["PartnerUnavailable"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Version 1 of the job list, at a versioned address (deprecated)
+         * @deprecated
+         * @description Exactly the same answers as GET /api/jobs (Endpoints 1 and 2), including the Deprecation, Sunset and Link headers. Only GET is offered here; other methods answer 404 with no body.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description active returns jobs that can still be requested; closed returns jobs that are filled or withdrawn. */
+                    status: string;
+                    /** @description Endpoint 2 filter. Matches the job's county, ignoring upper and lower case. */
+                    county?: string;
+                    /** @description Endpoint 2 filter. Matches the job's category, ignoring upper and lower case. */
+                    category?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The matching job listings, a bare list. Empty list if none match. */
+                200: {
+                    headers: {
+                        /** @description Always "true". This version of the job list is deprecated (Week 13). */
+                        Deprecation?: string;
+                        /** @description When this version stops working, as an HTTP date. Midnight in Nairobi at the end of 10 November 2026. */
+                        Sunset?: string;
+                        /** @description Where its replacement is. */
+                        Link?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Job"][];
+                    };
+                };
+                /** @description status is missing, or county or category was sent empty. No body. */
+                400: {
+                    headers: {
+                        /** @description Always "true". This version of the job list is deprecated (Week 13). */
+                        Deprecation?: string;
+                        /** @description When this version stops working, as an HTTP date. Midnight in Nairobi at the end of 10 November 2026. */
+                        Sunset?: string;
+                        /** @description Where its replacement is. */
+                        Link?: string;
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["MissingApiKey"];
+                429: components["responses"]["TooManyRequests"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Version 2 of the job list, wrapped as { data, count }
+         * @description The successor of GET /api/jobs. The same query parameters, the same jobs with the same fields, in the same order, the same empty 400 and the same API key. The one change: the list is wrapped as { "data": [...], "count": N }, so paging can be added later without another breaking change. Only GET is offered here; other methods answer 404 with no body.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description active returns jobs that can still be requested; closed returns jobs that are filled or withdrawn. */
+                    status: string;
+                    /** @description Endpoint 2 filter. Matches the job's county, ignoring upper and lower case. */
+                    county?: string;
+                    /** @description Endpoint 2 filter. Matches the job's category, ignoring upper and lower case. */
+                    category?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The matching job listings, wrapped. data is empty and count is 0 if none match. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JobList"];
+                    };
+                };
+                /** @description status is missing, or county or category was sent empty. No body. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["MissingApiKey"];
+                429: components["responses"]["TooManyRequests"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Running totals since this server started (monitoring)
+         * @description Week 12. How many requests this server has answered since it started, how many were 4xx (usually the caller's mistake) and 5xx (ours), the error rate (5xx only, as a percent), the average time, a row per endpoint pattern (so /api/jobs/job_1 and /api/jobs/job_2 share the row GET /api/jobs/:jobId), and how Sherehe is doing (retries, failed calls, and how often Event work served its saved list instead). The numbers live in memory, so they start again from zero on every restart or deploy, and the reply does not count itself (it shows up in the next one). It always needs a key: any valid X-API-Key when API keys are on, and otherwise the X-API-Key must equal the server's STATS_KEY setting.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The totals. */
+                200: {
+                    headers: {
+                        /** @description Always no-store. */
+                        "Cache-Control"?: string;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Stats"];
+                    };
+                };
+                401: components["responses"]["MissingApiKey"];
+                429: components["responses"]["TooManyRequests"];
             };
         };
         put?: never;
@@ -1464,6 +1647,51 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Version 2 of the job list (Week 13). */
+        JobList: {
+            data: components["schemas"]["Job"][];
+            /**
+             * @description The number of jobs in data.
+             * @example 2
+             */
+            count: number;
+        };
+        RouteStats: {
+            count: number;
+            clientErrors: number;
+            serverErrors: number;
+            avgMs: number;
+            maxMs: number;
+        };
+        /** @description What GET /api/stats answers (Week 12). */
+        Stats: {
+            /** Format: date-time */
+            startedAt: string;
+            uptimeSeconds: number;
+            /** @description Every request answered since the server started (Next.js build files are not counted). */
+            total: number;
+            /** @description 4xx answers. */
+            clientErrors: number;
+            /** @description 5xx answers. */
+            serverErrors: number;
+            /** @description serverErrors divided by total, as a percent. */
+            errorRatePercent: number;
+            avgMs: number;
+            /** @description One row per method and endpoint pattern, for example "GET /api/jobs/:jobId". Website pages have their own rows (for example "GET /"), and requests to no known path are "(no route)". */
+            routes: {
+                [key: string]: components["schemas"]["RouteStats"];
+            };
+            partner: {
+                /** @example Sherehe */
+                name: string;
+                /** @description Attempts at Sherehe that failed and were tried again. */
+                retries: number;
+                /** @description Calls to Sherehe that still failed after their retries. */
+                failures: number;
+                /** @description How often Event work (Endpoint 22) sent its saved list because Sherehe failed. */
+                savedListServed: number;
+            };
+        };
         Job: {
             /** @example job_12345 */
             id: string;

@@ -115,7 +115,7 @@ describe('timeouts', () => {
     expect(res.status).toBe(200);
   });
 
-  it('uses 10 seconds for a waiting person and 60 seconds in the background by default', () => {
+  it('uses 2 seconds an attempt for a waiting person (Week 11; 10 seconds before) and 60 seconds in the background by default', () => {
     // Not waited for, so only the settings are checked: a slow call is tested above with shorter ones.
     const spy = jest.spyOn(AbortSignal, 'timeout');
     stub.setMode('up');
@@ -124,9 +124,19 @@ describe('timeouts', () => {
       fetcher.request(EVENTS(), { headers: keyed() }),
       fetcher.request(EVENTS(), { headers: keyed(), mode: 'background' }),
     ]).then(() => {
-      expect(spy.mock.calls.map((c) => c[0])).toEqual([10000, 60000]);
+      expect(spy.mock.calls.map((c) => c[0])).toEqual([2000, 60000]);
       spy.mockRestore();
     });
+  });
+
+  it('a shared deadline still allows a waiting person 10 seconds in all, and the background 60', () => {
+    const spy = jest.spyOn(AbortSignal, 'timeout');
+
+    fetcher.deadline();
+    fetcher.deadline('background');
+
+    expect(spy.mock.calls.map((c) => c[0])).toEqual([10000, 60000]);
+    spy.mockRestore();
   });
 });
 

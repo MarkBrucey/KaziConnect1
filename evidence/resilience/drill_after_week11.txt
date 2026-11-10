@@ -1,0 +1,49 @@
+Week 11 drill, AFTER Week 11 (branch uat-weeks11-14), run 2026-11-10T13:45:12.998Z
+Kazi Connect at http://localhost:3302 (data in memory), stand-in Sherehe at http://localhost:4000.
+Kazi's 5-minute cache is off (PARTNER_CACHE_SECONDS=0), so every load reaches the stand-in.
+
+Normal (mode ok), measured three ways:
+  the stand-in on its own: 7 ms
+  the stand-in on its own: 3 ms
+  the stand-in on its own: 2 ms
+  Event work load 1: HTTP 200 after 56 ms, 3 roles, Kazi-Stale: false
+  Event work load 2: HTTP 200 after 10 ms, 3 roles, Kazi-Stale: false
+  Event work load 3: HTTP 200 after 18 ms, 3 roles, Kazi-Stale: false
+
+Slow (every answer takes 10 seconds):
+  Event work load: HTTP 200 after 6619 ms, 3 roles, Kazi-Stale: true, saved at 2026-11-10T13:45:15.595Z
+      log: [partner] GET /api/events attempt 1 of 3 failed (timeout), retrying in 200 ms
+      log: [partner] GET /api/events attempt 2 of 3 failed (timeout), retrying in 400 ms
+      log: [sherehe] event openings (served the saved list instead): timeout
+
+Flaky (fails twice, then works), three loads:
+  load 1: HTTP 200 after 617 ms, 3 roles, Kazi-Stale: false
+      log: [partner] GET /api/events attempt 1 of 3 failed (HTTP 503), retrying in 200 ms
+      log: [partner] GET /api/events attempt 2 of 3 failed (HTTP 503), retrying in 400 ms
+  load 2: HTTP 200 after 613 ms, 3 roles, Kazi-Stale: false
+      log: [partner] GET /api/events attempt 1 of 3 failed (HTTP 503), retrying in 200 ms
+      log: [partner] GET /api/events attempt 2 of 3 failed (HTTP 503), retrying in 400 ms
+  load 3: HTTP 200 after 618 ms, 3 roles, Kazi-Stale: false
+      log: [partner] GET /api/events attempt 1 of 3 failed (HTTP 503), retrying in 200 ms
+      log: [partner] GET /api/events attempt 2 of 3 failed (HTTP 503), retrying in 400 ms
+
+Error (always 500):
+  Event work load: HTTP 200 after 618 ms, 3 roles, Kazi-Stale: true, saved at 2026-11-10T13:45:25.287Z
+      log: [partner] GET /api/events attempt 1 of 3 failed (HTTP 500), retrying in 200 ms
+      log: [partner] GET /api/events attempt 2 of 3 failed (HTTP 500), retrying in 400 ms
+      log: [sherehe] event openings (served the saved list instead): status (HTTP 500)
+
+Sherehe gone (the stand-in stopped):
+  Event work load: HTTP 200 after 614 ms, 3 roles, Kazi-Stale: true, saved at 2026-11-10T13:45:25.287Z
+      log: [partner] GET /api/events attempt 1 of 3 failed (network), retrying in 200 ms
+      log: [partner] GET /api/events attempt 2 of 3 failed (network), retrying in 400 ms
+      log: [sherehe] event openings (served the saved list instead): network: ECONNREFUSED
+
+Kazi restarted (anything saved is gone), Sherehe slow:
+  Event work load: HTTP 502 after 6628 ms, message "Event information is unavailable right now. Try again in a minute."
+      log: [partner] GET /api/events attempt 1 of 3 failed (timeout), retrying in 200 ms
+      log: [partner] GET /api/events attempt 2 of 3 failed (timeout), retrying in 400 ms
+      log: [sherehe] a request to Sherehe: timeout
+
+Sherehe back (mode ok), no code changed:
+  Event work load: HTTP 200 after 24 ms, 3 roles, Kazi-Stale: false

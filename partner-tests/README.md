@@ -5,7 +5,7 @@ Week 7 partner tests, now against our new upstream, Sherehe, written only from S
 Run them against Sherehe's live server:
 
 ```bash
-SHEREHE_URL=https://sherehe-TODO.onrender.com SHEREHE_API_KEY=... npm run test:partner
+SHEREHE_URL=https://sherehe-r0qm.onrender.com SHEREHE_API_KEY=... npm run test:partner
 ```
 
 To check the tests themselves before using the real Sherehe, run them against the local stand-in (it is built from the same contract, so this proves the tests, not Sherehe). In one terminal run `npx tsx helpers/shereheStub.ts`, then in another:

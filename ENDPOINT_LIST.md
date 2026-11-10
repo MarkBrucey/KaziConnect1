@@ -64,6 +64,16 @@ Notes, following the same REST rules:
 - `event-openings` and `staffing-offers` are Kazi's own resources, named in Kazi's words; Sherehe's own names (events, roles, offers) stay inside `shereheClient`.
 - Status changes arrive by polling Sherehe (K4), so no verb such as `/sync` appears in a path.
 
+## Monitoring and versioning (added November 2026, version 1.4.0)
+
+| # | Method | Path | What it does | Need |
+|---|--------|------|--------------|------|
+| 26 | GET | `/api/stats` | Running totals since the server started: requests, 4xx and 5xx counts, error rate, average time, one row per endpoint, and how Sherehe is doing. Always needs a key | Week 12 (our own operations) |
+| 27 | GET | `/api/v2/jobs` | Version 2 of Endpoints 1 and 2: the same jobs, wrapped as `{ data, count }` | U1, U2 (Week 13) |
+| (1, 2) | GET | `/api/v1/jobs` | Version 1 of Endpoints 1 and 2 under a versioned address; same answers as `/api/jobs` | U1, U2 |
+
+Endpoints 1 and 2 (`GET /api/jobs`) are **deprecated** from 1.4.0: they answer exactly as before, plus `Deprecation`, `Sunset` and `Link` headers pointing to Endpoint 27. See `DEPRECATION_NOTICE.md`.
+
 ## Endpoints Kazi Connect consumes from Sherehe (for reference)
 
 | Method | Sherehe path | Need |
