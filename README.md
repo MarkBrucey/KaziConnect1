@@ -179,6 +179,22 @@ An example reply (shortened to two routes; captured locally on 10 November 2026)
 
 `clientErrors` are `4xx` (usually the caller's mistake) and `serverErrors` are `5xx` (ours); `errorRatePercent` counts `5xx` only. Each route is a pattern, so `/api/jobs/job_1` and `/api/jobs/job_2` share the row `GET /api/jobs/:jobId`; `(no route)` holds paths that match no endpoint. `partner` shows how Sherehe is doing: attempts tried again, calls that failed after every attempt, and how often Event work showed the saved list instead. The numbers live in memory, so they start again at every restart (a Render deploy is a restart). A reply does not count itself; it shows up in the next one. `MONITORING_NOTES.md` has what our own traffic showed.
 
+## Versions of the job list (Week 13)
+
+The job list has two versions. **Version 1 is deprecated** and keeps answering exactly as before; **version 2** wraps the same jobs:
+
+| Address | Answer |
+|---|---|
+| `GET /api/jobs?status=active` (Endpoints 1 and 2) and `GET /api/v1/jobs?status=active` | a bare list `[ ... ]`, plus `Deprecation: true`, `Sunset: Tue, 10 Nov 2026 21:00:00 GMT` and `Link: </api/v2/jobs>; rel="successor-version"` |
+| `GET /api/v2/jobs?status=active` (Endpoint 27) | `{ "data": [ ... ], "count": N }`: the same jobs, the same filters, the same key |
+
+```bash
+curl -s -i "https://kaziconnect1-1xmu.onrender.com/api/jobs?status=active" | grep -i -E "^(HTTP|deprecation|sunset|link)"
+curl -s "https://kaziconnect1-1xmu.onrender.com/api/v2/jobs?status=active"
+```
+
+(Add `-H "X-API-Key: <your-api-key>"` when keys are switched on.) The website already uses version 2. `DEPRECATION_NOTICE.md` is the notice sent to Ujuzi, and `VERSIONING_NOTES.md` says why and how. As the course promises, version 1 keeps answering until after Demo Day.
+
 ## Which terminal to use
 
 | Your computer | Use |

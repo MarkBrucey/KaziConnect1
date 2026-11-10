@@ -1,0 +1,7 @@
+{"time":"2026-11-10T15:55:09.186Z","method":"GET","path":"/api/jobs","status":200,"ms":23.9,"caller":"key-77383b"}
+{"time":"2026-11-10T15:55:09.212Z","method":"GET","path":"/api/v1/jobs","status":200,"ms":11,"caller":"key-77383b"}
+{"time":"2026-11-10T15:55:09.222Z","method":"GET","path":"/api/v2/jobs","status":200,"ms":7.9,"caller":"key-77383b"}
+{"time":"2026-11-10T15:55:09.229Z","method":"GET","path":"/api/jobs","status":200,"ms":5.3,"caller":"key-77383b"}
+{"time":"2026-11-10T15:55:09.520Z","method":"GET","path":"/api/jobs","status":200,"ms":5.6,"caller":"key-f7d2fe"}
+{"time":"2026-11-10T15:55:09.802Z","method":"GET","path":"/api/v2/jobs","status":200,"ms":5.2,"caller":"key-f7d2fe"}
+{"time":"2026-11-10T15:55:09.829Z","method":"GET","path":"/api/v2/jobs","status":200,"ms":6.3,"caller":"key-77383b"}

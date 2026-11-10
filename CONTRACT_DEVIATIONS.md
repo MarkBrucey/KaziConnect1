@@ -217,3 +217,26 @@ TODO: the humans change Render's build command to `npm ci && npm run build`, its
 The rules live in `lib/identity.ts`, and `withOptionalAuth` in `lib/guards.ts` checks a login only when one is sent. `openapi.yaml` 1.3.1 documents the optional login (each operation's `security` lists the key alone, or the key with `bearerAuth`), the new `400`, `401` and `403` answers, and the `usr_` rule on `studentId`; `types/api.d.ts` was regenerated with `npm run types`. No field, path or other status code changed. `npm run verify` has one new check (83). Two of the 156 tests applied with the demo student's account ID and no login, the weakness fixed here; they now apply logged in, as the website does, and still check the same results. The 151 recorded Express answers still match, as none of them uses an account ID on Endpoints 7 to 9.
 
 **Left as it was, on purpose:** two partners, or two people at one partner, can still send the same made up ID such as `stu_0042`. Kazi Connect cannot know who is behind an ID it did not make, so each partner keeps its own IDs unique. The applications stay separate, each with its own `applicationId`.
+
+# Resilience, monitoring and version 2 of the job list (version 1.3.1 to 1.4.0)
+
+Weeks 11 to 13. Two changes only add things (Endpoint 22's headers, Endpoint 26). The third is the course's planned breaking change, shipped **beside** the old version so nobody breaks: Endpoints 1 and 2 keep answering exactly as before, with three more headers.
+
+## Week 11: Endpoint 22 says how fresh its list is (additive)
+
+When Sherehe cannot be reached after two retries, `GET /api/event-openings` now sends the last list Kazi had for the same county instead of a 502, and every `200` carries two new headers: `Kazi-Stale` (`false` live, `true` saved) and `Kazi-As-Of` (when the list was built or saved). The body is the same `EventOpening[]` as before; with nothing saved the answer is still the `502`. Only Kazi's own Event work page reads this endpoint. Reads from Sherehe are now tried up to 3 times (timeout 2 s each, waits of 200 and 400 ms); writes never are. Details and the drill: `RESILIENCE_NOTES.md`.
+
+## Week 12: Endpoint 26, `GET /api/stats` (new)
+
+Running totals since the server started. It always needs a key: any valid `X-API-Key` when API keys are on, otherwise the server's `STATS_KEY` setting (kept in Render's environment, never in git). Every request is also logged as one JSON line (time, method, path without the query string, status, milliseconds, and a six-character fingerprint of the caller's key). No key, token, query string or body is ever logged. Details: `MONITORING_NOTES.md` and the README section "Monitoring".
+
+## Week 13: version 2 of the job list; version 1 deprecated
+
+* **New, Endpoint 27: `GET /api/v2/jobs`.** The same query parameters, the same jobs with the same fields in the same order, the same empty `400` and the same API key. The one change: the list is wrapped as `{ "data": [...], "count": N }`, so paging can be added later without another break.
+* **`GET /api/jobs` (Endpoints 1 and 2) is deprecated, and unchanged.** Every answer (the empty `400` too) also carries `Deprecation: true`, `Sunset: Tue, 10 Nov 2026 21:00:00 GMT` (midnight in Nairobi at the end of the day before Demo Day) and `Link: </api/v2/jobs>; rel="successor-version"`. `GET /api/v1/jobs` is the same version 1 at a versioned address. `POST /api/jobs` (Endpoint 14) and one job (Endpoint 3) are not affected.
+* **Evidence that version 1 did not change:** `diff evidence/versioning/v1_before.json evidence/versioning/v1_after.json` prints nothing; `__tests__/versions.test.ts` pins the exact field names, the bare list and the empty 400; and the 151 recorded Express answers in `parityWithExpress.test.js` still match once the three new headers are set aside (a new test there checks that those headers appear on every `GET` and `HEAD` of the job list, and on nothing else).
+* **The website moved first:** its job list now reads `/api/v2/jobs`.
+* **Agreement needed before this ships (R8).** `CLAUDE.md` asks for Endpoints 1 to 21 to keep their headers byte for byte, and the README promises any change to Endpoints 1 to 9 is agreed with Ujuzi first. Adding headers breaks no client, but it is a change. TODO: the date the team agreed, and the date Ujuzi's sub team received `DEPRECATION_NOTICE.md` and replied.
+* As the course asks, **version 1 keeps running until after Demo Day** whatever the Sunset header says, so no demo breaks.
+
+Checks on 10 November 2026: `npm run typecheck` passes; `npm run verify` 89 of 89; `npm test` 776 passed and 1 skipped (it needs PostgreSQL).
