@@ -9,6 +9,7 @@ import http from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
 import next from 'next';
 import { attachRealtime } from './realtime';
+import { monitor } from './monitoring';
 
 // Express matched /api paths without regard to letter case and ignored a trailing slash, so
 // /API/Jobs/job_1/ and /api/jobs/job_1 were the same request. Next is strict about both (it redirects
@@ -16,7 +17,7 @@ import { attachRealtime } from './realtime';
 // slash is dropped before Next sees the request. Ids are left exactly as they were sent.
 const FIXED_WORDS = new Set([
   'api', 'jobs', 'status', 'applications', 'subscribe', 'auth', 'register', 'login', 'logout',
-  'password-resets', 'password', 'me', 'event-openings', 'staffing-offers',
+  'password-resets', 'password', 'me', 'event-openings', 'staffing-offers', 'stats', 'v1', 'v2',
 ]);
 
 function normaliseApiPath(req: IncomingMessage): void {
@@ -81,6 +82,7 @@ export function createServer(): http.Server {
   ready.catch((err: unknown) => console.error('Next.js could not start. Has `npm run build` been run?', err));
 
   const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
+    monitor(req, res); // Week 12: FIRST, so requests refused for a missing key (401) or the rate limit (429) are logged too
     normaliseApiPath(req);
     if (hasMalformedId(req.url || '') && req.method !== 'OPTIONS') { internalServerError(res); return; }
     dropNextOnlyHeaders(req, res);

@@ -22,6 +22,7 @@
 // is too big, or a 2xx answer that is not JSON.
 
 import { singleton } from '../lib/singleton';
+import { countPartner } from '../monitoring';
 import { UpstreamError } from './upstreamError';
 
 export type Mode = 'user' | 'background';
@@ -259,6 +260,7 @@ export async function request(url: string, { method = 'GET', headers = {}, body,
       if (Number.isFinite(asked) && asked > 0) wait = Math.min(asked * 1000, state.settings.retryAfterCapMs); // as asked, up to 5 s
       why = 'HTTP 429';
     }
+    countPartner('retry'); // Week 12: /api/stats shows how often the partner needed a second try
     state.settings.onRetry(`${method} ${pathOf(url)} attempt ${attempt + 1} of ${maxRetries + 1} failed (${why!}), retrying in ${wait} ms`);
     await pause(wait, signal);
   }

@@ -1,0 +1,100 @@
+Week 12 drill, run 2026-11-10T13:52:02.462Z, branch uat-weeks11-14, data in memory, API keys on (consumers team and ujuzi), rate limit 100 a minute
+Caller labels this run: our own key = key-f58840, the key issued to Ujuzi = key-aea0c0
+
+Part B: one request with our key, one with a wrong key, one with none. Their three log lines:
+  {"time":"2026-11-10T13:52:03.612Z","method":"GET","path":"/api/jobs","status":200,"ms":20,"caller":"key-f58840"}
+  {"time":"2026-11-10T13:52:03.620Z","method":"GET","path":"/api/jobs","status":401,"ms":3.7,"caller":"none"}
+  {"time":"2026-11-10T13:52:03.625Z","method":"GET","path":"/api/jobs","status":401,"ms":3.3,"caller":"none"}
+
+Part D: our own traffic, N=60, then N=200 (more than the 100 a minute the rate limit allows):
+  N=60: Status codes received: { '200': 26, '401': 10, '404': 24 }
+  N=200: Status codes received: { '200': 35, '401': 8, '404': 14, '429': 143 }
+
+Ujuzi's own code: its `npm run ring:check` (scripts/ringCheck.ts), pointed at this Kazi with the key issued to Ujuzi.
+Only its Kazi steps (1 and 2) can pass here; steps 3 and 4 need a running Ujuzi, which this drill does not start.
+  Ring check: Sherehe -> Kazi Connect -> Ujuzi -> Sherehe (this run covers Kazi and Ujuzi)
+  Kazi Connect at http://localhost:3305
+  PASS live read: GET /api/jobs?status=active answers 200 with jobs  (6 jobs)
+  PASS every job matches Kazi's contract (types/kazi.d.ts Job)
+  PASS POST /api/applications creates a pending application  (app_1005)
+  PASS WebSocket opens and sends the current status  ({"applicationId":"app_1005","status":"pending"})
+  PASS WebSocket closes cleanly
+  PASS the application it made is withdrawn again
+  Ujuzi at http://localhost:9 (the partner API Sherehe calls)
+  FAIL UJUZI_API_KEY is not set  (export the partner key (the ring keeps it in env/sherehe.env as UJUZI_API_KEY))
+  Ujuzi -> Kazi Connect (a graduate through Ujuzi)
+  FAIL Ujuzi -> Kazi  (fetch failed)
+  ring:check: 2 check(s) FAILED
+  Kazi logged 3 request(s) from Ujuzi's label key-aea0c0, for example:
+    {"time":"2026-11-10T13:53:20.013Z","method":"GET","path":"/api/jobs","status":200,"ms":5.8,"caller":"key-aea0c0"}
+    {"time":"2026-11-10T13:53:20.073Z","method":"POST","path":"/api/applications","status":201,"ms":10.2,"caller":"key-aea0c0"}
+    {"time":"2026-11-10T13:53:20.104Z","method":"DELETE","path":"/api/applications/app_1005","status":204,"ms":10.9,"caller":"key-aea0c0"}
+
+/api/stats now, with our key:
+{
+  "startedAt": "2026-11-10T13:52:02.936Z",
+  "uptimeSeconds": 78,
+  "total": 267,
+  "clientErrors": 201,
+  "serverErrors": 0,
+  "errorRatePercent": 0,
+  "avgMs": 3.4,
+  "routes": {
+    "DELETE /api/applications/:applicationId": {
+      "count": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "avgMs": 10.9,
+      "maxMs": 10.9
+    },
+    "GET (no route)": {
+      "count": 53,
+      "clientErrors": 53,
+      "serverErrors": 0,
+      "avgMs": 3.3,
+      "maxMs": 12.2
+    },
+    "GET /api/jobs": {
+      "count": 132,
+      "clientErrors": 90,
+      "serverErrors": 0,
+      "avgMs": 3.2,
+      "maxMs": 20
+    },
+    "GET /api/jobs/:jobId": {
+      "count": 79,
+      "clientErrors": 58,
+      "serverErrors": 0,
+      "avgMs": 3,
+      "maxMs": 10.2
+    },
+    "GET /openapi.yaml": {
+      "count": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "avgMs": 61.1,
+      "maxMs": 61.1
+    },
+    "POST /api/applications": {
+      "count": 1,
+      "clientErrors": 0,
+      "serverErrors": 0,
+      "avgMs": 10.2,
+      "maxMs": 10.2
+    }
+  },
+  "partner": {
+    "name": "Sherehe",
+    "retries": 0,
+    "failures": 0,
+    "savedListServed": 0
+  }
+}
+
+Key check (grep -c on requests.log): our key 0, Ujuzi's key 0, a query string (?status=) 0
+Log lines by caller: {"none":46,"key-f58840":219,"key-aea0c0":3}
+
+An idea tested on purpose: does GET /api/jobs?status=active slow down with many more jobs? (a fresh server, keys off, rate limit off)
+  6 active jobs: median 3.5 ms, slowest 9.3 ms over 30 calls
+  after posting 500 more: 506 active jobs: median 5 ms, slowest 11.5 ms over 30 calls
+  /api/stats for that server: GET /api/jobs {"count":65,"clientErrors":0,"serverErrors":0,"avgMs":3.7,"maxMs":21}, POST /api/jobs {"count":500,"clientErrors":0,"serverErrors":0,"avgMs":2.8,"maxMs":14.6}

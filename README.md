@@ -141,6 +141,44 @@ Guessing keys is slowed down too: after 20 wrong keys from one address in a minu
 
 A consumer named `website` is special: the website's own pages carry that key so they can call the API. Every visitor can see it, so it only says "this call came from the website" and gives each visitor their own allowance; a person's data is protected by their own login token, not by it. `/openapi.yaml` and the docs page stay public on purpose: they are the documentation and hold no data. The browser's preflight (`OPTIONS`) is answered without a key, because a preflight cannot carry one.
 
+## Monitoring: the request log and `/api/stats`
+
+**The log.** Every request is written to the server's output as one line of JSON (on Render: the service's **Logs** tab), after its reply has been sent:
+
+```text
+{"time":"2026-11-10T13:52:03.612Z","method":"GET","path":"/api/jobs","status":200,"ms":20,"caller":"key-f58840"}
+{"time":"2026-11-10T13:52:03.620Z","method":"GET","path":"/api/jobs","status":401,"ms":3.7,"caller":"none"}
+```
+
+`path` never includes the query string, and nothing in a line is a key, a login token or a body. `caller` is `key-` and the first 6 characters of the SHA-256 of the key sent, so each consumer has its own label and the key cannot be worked back out; a missing key, or a wrong one when keys are on, is `none`. Requests refused for a key or the rate limit (`401`, `429`) are logged too. To keep a copy on your own computer: `npm start | tee requests.log` (`*.log` is in `.gitignore`).
+
+**The numbers.** `GET /api/stats` (Endpoint 26) gives the totals since the server started. It always needs a key: with keys switched on, any valid `X-API-Key`; with keys off (the live site today), the `X-API-Key` must equal the `STATS_KEY` setting, and with no `STATS_KEY` it always answers `401`.
+
+```bash
+curl -s -H "X-API-Key: <your-api-key>" "https://kaziconnect1-1xmu.onrender.com/api/stats"
+```
+
+An example reply (shortened to two routes; captured locally on 10 November 2026):
+
+```json
+{
+  "startedAt": "2026-11-10T13:52:02.936Z",
+  "uptimeSeconds": 78,
+  "total": 267,
+  "clientErrors": 201,
+  "serverErrors": 0,
+  "errorRatePercent": 0,
+  "avgMs": 3.4,
+  "routes": {
+    "GET /api/jobs": { "count": 132, "clientErrors": 90, "serverErrors": 0, "avgMs": 3.2, "maxMs": 20 },
+    "GET /api/jobs/:jobId": { "count": 79, "clientErrors": 58, "serverErrors": 0, "avgMs": 3, "maxMs": 10.2 }
+  },
+  "partner": { "name": "Sherehe", "retries": 0, "failures": 0, "savedListServed": 0 }
+}
+```
+
+`clientErrors` are `4xx` (usually the caller's mistake) and `serverErrors` are `5xx` (ours); `errorRatePercent` counts `5xx` only. Each route is a pattern, so `/api/jobs/job_1` and `/api/jobs/job_2` share the row `GET /api/jobs/:jobId`; `(no route)` holds paths that match no endpoint. `partner` shows how Sherehe is doing: attempts tried again, calls that failed after every attempt, and how often Event work showed the saved list instead. The numbers live in memory, so they start again at every restart (a Render deploy is a restart). A reply does not count itself; it shows up in the next one. `MONITORING_NOTES.md` has what our own traffic showed.
+
 ## Which terminal to use
 
 | Your computer | Use |
@@ -1062,6 +1100,7 @@ npm run typecheck
 | 23 | `POST /api/staffing-offers` | employer | 201 | Website W7 (K3) | 23 |
 | 24 | `GET /api/me/staffing-offers` | employer | 200 | Website W7 (K4) | 24 |
 | 25 | `DELETE /api/staffing-offers/{offerId}` | the employer who made it | 204 | Website W7 (K5) | 25 |
+| 26 | `GET /api/stats` | a key (see [Monitoring](#monitoring-the-request-log-and-apistats)) | 200 | Our own team (Week 12) | |
 
 Full request and response shapes for every endpoint are on the docs page: https://kaziconnect1-1xmu.onrender.com/docs. The need statements themselves are in `API_NEEDS.md`.
 
@@ -1073,7 +1112,7 @@ Full request and response shapes for every endpoint are on the docs page: https:
 * The rate limit lives in the server's memory (see [API keys and rate limits](#api-keys-and-rate-limits)). The address used to tell website visitors apart comes from the `X-Forwarded-For` header. Render's proxy appends the caller's address to the END of `X-Forwarded-For` (Ujuzi's Render blueprint says so), and Kazi reads the FIRST entry, which a caller can set to anything. So on Render the per-visitor allowance for the website key and the wrong-key limit can be sidestepped by sending a made-up `X-Forwarded-For`; the per-consumer limits of the other keys are not affected. This is not fixed yet: Kazi should read the entry the proxy added (a trusted-hops setting, as Ujuzi has) and ignore the header when there is no proxy.
 * The website's own key is visible to every visitor, by necessity. Keys are for systems that call Kazi Connect from a server; they do not protect a person's data, their login token does.
 * Keys are compared and rate limited per consumer, not per student, and a leaked key stays valid until it is removed from `API_KEYS` and the server is restarted.
-* Event work (Part 3) depends on Sherehe. When Sherehe is down, Endpoints 22, 23 and 25 answer `502`; everything else keeps working. An organiser's decision reaches Kazi Connect within about 3 minutes, and only while the server is awake. Only one offer can wait on a role at a time.
+* Event work (Part 3) depends on Sherehe. A read from Sherehe that fails for a moment is tried again up to twice (Week 11, see `RESILIENCE_NOTES.md`). When Sherehe is down, Endpoint 22 shows the last list it had, marked `Kazi-Stale: true` (or answers `502` if it has none yet), Endpoints 23 and 25 answer `502`, and everything else keeps working. The saved list lives in memory, so a restart clears it. An organiser's decision reaches Kazi Connect within about 3 minutes, and only while the server is awake. Only one offer can wait on a role at a time.
 * Sherehe's contract is still a draft (version 0.1.0), and Kazi Connect has not yet been run against the real Sherehe. When the final contract arrives, Event work may need small changes.
 * The docs page uses a library with 4 moderate-severity advisories in `npm audit` that have no fix yet. They can only matter in the browser page, and not here (see the note under [Run the API on your own computer](#run-the-api-on-your-own-computer)); the API is not affected.
 
