@@ -90,8 +90,8 @@ Sherehe (events) -> Kazi Connect (casual jobs) -> Ujuzi (skills training) -> She
 
 | Partner | Direction | What passes between us | Address |
 |---|---|---|---|
-| **Sherehe** | Upstream: Kazi Connect calls it | K1 to K5: read upcoming events and their open staffing roles, offer workers for a role, read an offer's status, withdraw an offer. Every call carries Sherehe's partner key in `X-API-Key`; the key lives in the server's settings and never in git | TODO |
-| **Ujuzi** | Downstream: it calls Kazi Connect | U1 to U6: Endpoints 1 to 9 of Part 1, with no login | TODO |
+| **Sherehe** | Upstream: Kazi Connect calls it | K1 to K5: read upcoming events and their open staffing roles, offer workers for a role, read an offer's status, withdraw an offer. Every call carries Sherehe's partner key in `X-API-Key`; the key lives in the server's settings and never in git | https://sherehe-r0qm.onrender.com |
+| **Ujuzi** | Downstream: it calls Kazi Connect | U1 to U6: Endpoints 1 to 9 of Part 1, with no login | On Render since 10 November 2026. TODO: its address |
 
 Sherehe's own words (events, roles, offers) stay inside one module of Kazi Connect and never reach its API: Part 3 uses Kazi Connect's own names, `event-openings` and `staffing-offers`. Sherehe's contract is kept as `partner-tests/sherehe_openapi.yaml`; it is still a draft (version 0.1.0).
 

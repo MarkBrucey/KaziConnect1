@@ -10,7 +10,7 @@ Ring order: **Sherehe, then Kazi Connect, then Ujuzi.** In Sherehe's slot we are
 | Tests pass | `npm test`: 776 passed, 1 skipped (it needs PostgreSQL); against a local PostgreSQL database, 777 of 777. `npm run typecheck` passes |
 | Our integration uses the partner's v2 | **Not possible:** Sherehe has not shipped a v2 or sent a notice (`VERSIONING_NOTES.md`, Part E). We call Sherehe's only version |
 | Keys valid both ways | Kazi to Sherehe: the live Event work page answered `200` on 10 November once Sherehe was awake. Ujuzi to Kazi: API keys are off on the live site, so Ujuzi needs none. **Do one real call each way on the morning of the demo** |
-| Partner URLs current | Kazi: https://kaziconnect1-1xmu.onrender.com. Sherehe's address is the `SHEREHE_API_URL` setting on Render. Both are on Render, so the venue Wi-Fi does not matter |
+| Partner URLs current | Kazi: https://kaziconnect1-1xmu.onrender.com. Sherehe: https://sherehe-r0qm.onrender.com. Ujuzi: deployed to Render on 10 November (its address is on its Render page). All three are on Render, so the venue Wi-Fi does not matter |
 | Demo data ready | The live database's jobs (Campus Housing Assistant, Hostel Front Desk Attendant, ...) and the demo logins below. No "test" or "asdf" rows |
 | Nothing secret on screen | Never open Render's **Environment** page on the projector; use the **Logs** tab only. Keys live in Render, never in a terminal you show |
 
@@ -19,13 +19,14 @@ Ring order: **Sherehe, then Kazi Connect, then Ujuzi.** In Sherehe's slot we are
 1. Wait for Render's deploy to finish (kaziconnect1, **Events**: "Deploy live"), then open https://kaziconnect1-1xmu.onrender.com/api/v2/jobs?status=active. You should see `{"data":[...],"count":...}`.
 2. Send `DEPRECATION_NOTICE.md` to Ujuzi's sub team (the full text, not only a link), and ask them to reply when they have read it.
 3. Agree the fallback below with Ujuzi's and Sherehe's presenters.
-4. Optional, for showing `/api/stats` live: in Render, add a setting `STATS_KEY` with a long random value (at least 16 characters). Keep it off the projector.
+4. Close the three jobs that already have an accepted applicant (Campus Housing Assistant, Student Residence Cleaner, Cafeteria Server): log in to the live Kazi as the demo employer, **Dashboard, Your job postings**, close each one. Otherwise they stay in the job list, and an application from Ujuzi or the website for them gets "already filled" (`INTEGRATION_LOG.md`, row 14).
+5. Optional, for showing `/api/stats` live: in Render, add a setting `STATS_KEY` with a long random value (at least 16 characters). Keep it off the projector.
 
 ## 15 minutes before our slot
 
 Render's free plan puts every service to sleep. On 10 November Kazi took **44 seconds** to wake, and Sherehe was asleep too. So:
 
-* Open Kazi's, Sherehe's and Ujuzi's home pages, and wait until each one loads.
+* Open Kazi's (https://kaziconnect1-1xmu.onrender.com), Sherehe's (https://sherehe-r0qm.onrender.com) and Ujuzi's home pages, and wait until each one loads. Ujuzi keeps its data in memory, so it starts each wake with its demo courses again.
 * Log in to Kazi as the demo employer (`employer@kaziconnect.demo`, password `KaziDemo2026`). Open **Dashboard, Event work**, and wait until the open roles appear. That wakes Sherehe.
 * Open Render's **Logs** tab for kaziconnect1 in a window the audience can see. Each request appears there as one line.
 
@@ -37,7 +38,7 @@ Render's free plan puts every service to sleep. On 10 November Kazi took **44 se
 | 0:30 | **Read:** open the home page; the job list comes from `GET /api/v2/jobs`. **Write:** log in as the demo student (`student@kaziconnect.demo`, `KaziDemo2026`) and apply for a job: "Application sent". **Failure:** run the command below the table and say: "Nobody can apply using someone else's account ID. That's our 400." Point at the `400` line in the log |
 | 1:30 | **Lifecycle, a few seconds each:** the docs at `/docs`; tests (776, and `npm run verify` 89 of 89 in `VERIFICATION.md`); auth (login tokens; API keys and the rate limit are built, tested and switched off on the live site); monitoring (the log lines on screen); versioning (`curl -s -i .../api/jobs?status=active` shows `Deprecation: true` and the `Sunset` date) |
 | 2:00 | **Ujuzi calls us, live.** Ujuzi's presenter opens a course page listing Kazi jobs, and the audience sees `"path":"/api/jobs","status":200` appear in our log. Ujuzi keeps our list for 5 minutes, so ask them to choose a course or county they have not opened in the last 5 minutes. Otherwise the call is answered from their copy and nothing appears |
-| 2:45 | **Not finished:** "API keys are off on the live site until Ujuzi's server sends its key. Sherehe hasn't shipped a version 2, so we still call its version 1. Our saved Event work list lives in memory, so a restart loses it." |
+| 2:45 | **Not finished:** "API keys are off on the live site until Ujuzi's server sends its key. Sherehe hasn't shipped a version 2, so we still call its version 1. A job that is already filled still shows as active until the employer closes it; version 2 of our job list is where we'd fix that." |
 | 3:00 | Questions |
 
 The failure command for 0:30 (Git Bash, macOS or Linux):

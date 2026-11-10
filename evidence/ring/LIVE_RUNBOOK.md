@@ -11,6 +11,7 @@ Never paste a real key into a chat, a file in git, or this document: keys live o
   API keys, and none of the one-place rule or the one-call Sherehe read exists there. `main` on GitHub has not changed
   since 13 October; everything new is on `uat`. **So deploying Kazi 1.3.0 comes before any ring test on Render.**
 - Sherehe and Ujuzi have no Render address yet (`sherehe-TODO` and `ujuzi-TODO` in `.env.example`).
+- **Update, 10 November 2026:** Kazi is live on 1.3.1 (since 4 November), Sherehe is live at https://sherehe-r0qm.onrender.com, and Ujuzi was deployed to Render on 10 November (see `INTEGRATION_LOG.md`, rows 13 and 14).
 
 ## 1. Before Kazi is deployed
 
