@@ -2,7 +2,7 @@
 
 Format: *"[Consumer] needs to [verb] [resource] in order to [reason]."*
 
-> DRAFT for the new ring (October 2026). Rewrite K1 to K5 and U1 to U6 with what Sherehe and Ujuzi actually say in the interviews, then delete this note. The statements for Shamba Direct and SettleIn are kept below as history.
+> Written for the new ring in October 2026, before Sherehe and Ujuzi had built anything. Checked on 14 November 2026 against what they actually built: Sherehe's contract (version 0.1.0) and the code Ujuzi uses to call us (`lib/clients/kaziClient.ts`). The statements stand as written; the gaps found are under "Check against the audit" and "Reflection on the new ring". The statements for Shamba Direct and SettleIn are kept below as history.
 
 ## Our needs from Sherehe, upstream
 
@@ -29,11 +29,15 @@ Ujuzi replaces SettleIn and uses the same Endpoints 1 to 9. The last column maps
 
 ## Check against the audit
 
-K1 to K5 map to a new audit item, "Event work: see Sherehe staffing roles and offer workers" (TEAM_CHARTER.md, update of October 2026). U1 to U6 map to the existing Jobs and Applications items, exactly as SettleIn's statements did. Gaps flagged: TODO after the interviews.
+K1 to K5 map to a new audit item, "Event work: see Sherehe staffing roles and offer workers" (TEAM_CHARTER.md, update of October 2026). U1 to U6 map to the existing Jobs and Applications items, exactly as SettleIn's statements did. Gaps found on 14 November 2026:
+
+* K1 to K5 are all in Sherehe's contract, and all five pass end to end in Sherehe's `ring:e2e` run against the three systems together.
+* Ujuzi never calls Endpoints 3 or 4, so U3 is served but unused: Ujuzi shows pay and availability from the job list instead.
+* Ujuzi still reads version 1 of the job list (`/api/jobs`), not `/api/v2/jobs`; `DEPRECATION_NOTICE.md` tells them how to move.
 
 ## Reflection on the new ring
 
-TODO after the interviews: one honest paragraph. Likely material: Kazi expected organisers' phone numbers from Sherehe, which Sherehe will not share, and a pay range where Sherehe stores one pay per shift; Ujuzi expected employer names on jobs and a way to list one student's applications without a Kazi login, and neither exists.
+What we expected and what the ring built turned out close, with four differences. Sherehe shares no organiser phone numbers, so Event work shows the event and its venue area, and an employer reaches the organiser only through an offer. Sherehe keeps one pay per shift for each role, not a range, so a job opened from an accepted offer carries that one amount at both ends of its pay range. Ujuzi cannot show which employer posted a job, because our jobs carry no employer name. And Ujuzi cannot list one graduate's applications from us without a Kazi login, so it keeps its own record of the applications it makes. None of the four stopped the ring working, but two of them (the single pay and the missing employer name) are things a graduate would notice.
 
 ## The Kazi Connect website's own needs (added after Week 7)
 

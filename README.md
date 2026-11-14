@@ -8,10 +8,10 @@ Kazi Connect is a REST API of casual jobs and services in Kenya, such as campus 
 | Interactive docs (Swagger UI, every endpoint) | https://kaziconnect1-1xmu.onrender.com/docs |
 | The contract itself | https://kaziconnect1-1xmu.onrender.com/openapi.yaml |
 | Kazi Connect website, built on this API | https://kaziconnect1-1xmu.onrender.com |
-| Sherehe, our upstream partner (events) | TODO: Sherehe's live address, once its sub-team has deployed it |
-| Ujuzi, our downstream partner (skills training) | TODO: Ujuzi's live address, once its sub-team has deployed it |
+| Sherehe, our upstream partner (events) | https://sherehe-r0qm.onrender.com |
+| Ujuzi, our downstream partner (skills training) | https://ujuzi-vgp4.onrender.com |
 
-> **Which version this describes:** 1.3.1. Endpoints 22 to 25 (Event work, Part 3) reach the live address when `uat` is merged into `main` and deployed (TODO: record the date). The live address is on version 1.2.1 until then. It also adds API keys and a rate limit (see [API keys and rate limits](#api-keys-and-rate-limits)): the live address does not ask for a key until they are switched on there (TODO: record the date). Everything else in this README is unchanged and works on the live address today.
+> **Which version this describes:** 1.4.0, on the live address since 10 November 2026, when pull request #6 merged `uat` into `main` and Render deployed it. That includes Event work (Endpoints 22 to 25, Part 3) and version 2 of the job list (Endpoint 27). API keys and a rate limit are built and tested (see [API keys and rate limits](#api-keys-and-rate-limits)), but the live address does not ask for a key: they stay off there until Ujuzi's server sends a key of its own.
 
 > **Before your first request:** the API runs on a free server that goes to sleep after 15 minutes without visitors. The first request after a quiet spell can take **up to a minute** to answer. That is normal: wait for it, don't cancel. Every request after that is fast.
 
@@ -91,7 +91,7 @@ Sherehe (events) -> Kazi Connect (casual jobs) -> Ujuzi (skills training) -> She
 | Partner | Direction | What passes between us | Address |
 |---|---|---|---|
 | **Sherehe** | Upstream: Kazi Connect calls it | K1 to K5: read upcoming events and their open staffing roles, offer workers for a role, read an offer's status, withdraw an offer. Every call carries Sherehe's partner key in `X-API-Key`; the key lives in the server's settings and never in git | https://sherehe-r0qm.onrender.com |
-| **Ujuzi** | Downstream: it calls Kazi Connect | U1 to U6: Endpoints 1 to 9 of Part 1, with no login | On Render since 10 November 2026. TODO: its address |
+| **Ujuzi** | Downstream: it calls Kazi Connect | U1 to U6: Endpoints 1 to 9 of Part 1, with no login | https://ujuzi-vgp4.onrender.com (on Render since 10 November 2026) |
 
 Sherehe's own words (events, roles, offers) stay inside one module of Kazi Connect and never reach its API: Part 3 uses Kazi Connect's own names, `event-openings` and `staffing-offers`. Sherehe's contract is kept as `partner-tests/sherehe_openapi.yaml`; it is still a draft (version 0.1.0).
 
@@ -714,7 +714,7 @@ HTTP 401
 
 Employers can see staffing roles on upcoming Sherehe events and offer Kazi Connect workers for them (need W7, Endpoints 22 to 25). When the organiser accepts an offer, a job opens for that employer and appears in the listings of Part 1. This is the one place Kazi Connect calls another team's API from code.
 
-> **Read this before running Part 3.** Endpoints 22 to 25 are new in version 1.3.0, so they are not on the live address yet. Sherehe's own address and key are also not shared yet (TODO). Until both are in place, run Part 3 on your own computer against a **stand-in for Sherehe** (`helpers/shereheStub.ts`, the same one the automated tests use). It is not Sherehe: it answers from the examples in Sherehe's draft contract. The replies below were captured from that stand-in, and the data in them (the wedding, its roles and pay) is the stand-in's sample data. TODO: capture them again against the real Sherehe once it is live.
+> **Read this before running Part 3.** Endpoints 22 to 25 have been on the live address since 10 November 2026, where they call the real Sherehe (https://sherehe-r0qm.onrender.com) with Kazi Connect's key, which is kept in Render's settings. The commands below run on your own computer against a **stand-in for Sherehe** (`helpers/shereheStub.ts`, the same one the automated tests use), so you need no key. It is not Sherehe: it answers from the examples in Sherehe's contract. The replies below were captured from that stand-in, and the data in them (the wedding, its roles and pay) is the stand-in's sample data; the real Sherehe's events and roles are different.
 
 First start the stand-in and Kazi Connect on your own computer (see [Run the API on your own computer](#run-the-api-on-your-own-computer)). In one terminal, run this, which leaves the stand-in running on port 4000:
 
@@ -1022,8 +1022,6 @@ npm run build
 npm start
 ```
 
-> Until `uat` is merged into `main` (TODO: remove this note then), clone `uat` instead: `git clone --branch uat https://github.com/MarkBrucey/KaziConnect1.git`.
-
 No Git? Open https://github.com/MarkBrucey/KaziConnect1, click the green **Code** button, then **Download ZIP**. Extract it, open a terminal in the extracted folder that contains `package.json`, and run `npm install`, `npm run build` and then `npm start`.
 
 `npm run build` prepares the website and the API for running, and takes a minute or two. Run it again after you change any code. To work on the code instead, use `npm run dev`, which rebuilds as you save. Two shortcuts do the whole sequence for you (install, build, check against the contract, start): `sh run.sh` on macOS and Linux, and double-clicking `start_lab.bat` on Windows.
@@ -1033,7 +1031,7 @@ No Git? Open https://github.com/MarkBrucey/KaziConnect1, click the green **Code*
 After `npm start`, when it is ready, the terminal shows:
 
 ```text
-> kazi-connect-api@1.3.1 start
+> kazi-connect-api@1.4.0 start
 > tsx server.ts
 
 Kazi Connect API running on http://localhost:3000
@@ -1063,7 +1061,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 708 automated tests: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript (except that two of them now apply logged in, see 1.3.1 in `CONTRACT_DEVIATIONS.md`); 232 for Event work, which use a stand-in for Sherehe and never need the real one; 292 that prove the move changed nothing a client can see and check the tools below; 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`); and 17 that tell students apart (`__tests__/studentIdentity.test.js`). One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 707 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (83 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 777 automated tests. These 708 come from before Week 11: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript (except that two of them now apply logged in, see 1.3.1 in `CONTRACT_DEVIATIONS.md`); 232 for Event work, which use a stand-in for Sherehe and never need the real one; 292 that prove the move changed nothing a client can see and check the tools below; 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`); and 17 that tell students apart (`__tests__/studentIdentity.test.js`). The other 69 came with Weeks 11 to 13: 27 for timeouts, retries and the saved list (`__tests__/resilience.test.js`), 22 for the request log and `/api/stats` (`__tests__/monitoring.test.ts`), 14 for version 2 of the job list (`__tests__/versions.test.ts`), and 6 added to existing files. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 776 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (89 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 
@@ -1085,7 +1083,7 @@ npm run typecheck
 | `BREVO_API_KEY` and `MAIL_FROM` | Send password reset emails through Brevo, from the `MAIL_FROM` address |
 | `APP_URL` | The site address used in reset links (the live server works it out by itself) |
 | `PORT` | The port to listen on (default 3000) |
-| `KAZI_URL`, `KAZI_API_KEY` and `UJUZI_URL` | Used only by `npm run ring:status` and `npm run ring:check`: Kazi Connect's own address (the live site by default), the key to send there once Kazi Connect asks for one, and Ujuzi's address (TODO until it is shared) |
+| `KAZI_URL`, `KAZI_API_KEY` and `UJUZI_URL` | Used only by `npm run ring:status` and `npm run ring:check`: Kazi Connect's own address (the live site by default), the key to send there once Kazi Connect asks for one, and Ujuzi's address (https://ujuzi-vgp4.onrender.com on the live ring) |
 
 ## All endpoints
 

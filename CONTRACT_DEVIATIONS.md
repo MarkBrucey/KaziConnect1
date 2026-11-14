@@ -199,7 +199,7 @@ Evidence, from 21 October 2026:
 
 Two things change for people who run the server themselves, not for any client of the API: it needs **Node.js 20.9 or newer** (it was 18; current Next.js requires 20.9), and it must be built once before it starts (`npm run build`, then `npm start`; `npm test` and `start_lab.bat` and `run.sh` do this for you). `NODE_ENV` no longer has to be set by hand.
 
-TODO: the humans change Render's build command to `npm ci && npm run build`, its start command to `npm start`, and its Node.js version to 20.9 or newer, and add `SHEREHE_API_URL` and `SHEREHE_API_KEY`. Record the date here once it is deployed and the live API has been checked again.
+Done. On 4 November 2026 Render's build command was set to `npm ci --include=dev && npm run build` and its start command to `npm start`, after the first deploy of this version answered 500 on everything (`INTEGRATION_LOG.md`, row 7). `SHEREHE_API_URL` and `SHEREHE_API_KEY` were added afterwards, and the live Event work page answered 200 from the real Sherehe on 10 November 2026.
 
 # Telling students apart (version 1.3.0 to 1.3.1)
 
