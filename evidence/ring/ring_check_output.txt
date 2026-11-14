@@ -1,0 +1,147 @@
+Ring check output, local ring, 14 November 2026
+
+Where: the three projects running together on one computer, not on Render.
+  Sherehe       http://localhost:4001   commit ed0f04e (main)
+  Kazi Connect  http://localhost:4002   commit 88d936e (branch uat-final-gaps; the code is the same as main 6a482aa, only documents differ)
+  Ujuzi         http://localhost:4003   commit c648e0c (main)
+How they were started: the same way as start_ring.sh. Each system got a fresh key for the partner that calls it,
+made for this run only and kept out of this file. Sherehe checks Ujuzi's bookings every 30 seconds
+(BOOKING_POLL_MS=30000) and Kazi Connect checks Sherehe's offers every 30 seconds (OFFER_POLL_MS=30000),
+so a run does not have to wait the usual 5 minutes.
+When: run from 23:38 EAT, in this order (the times inside are in UTC, three hours behind EAT). The screenshots in this folder were taken on the same ring
+straight afterwards, between 23:43 and 23:52 EAT.
+
+Apart from one read of Kazi Connect's live contract by ring:status (to compare versions), the live systems on
+Render were not used for this run. LIVE_RUNBOOK.md says how to repeat it there.
+
+==================================================================
+1. Kazi Connect: npm run ring:status
+==================================================================
+Ring status at 2026-11-14T20:38:39.758Z
+
+Kazi Connect (live): CURRENT   http://localhost:4002
+  the live site is up and on the current contract
+  - ok             live contract [200]: live is on 1.4.0, the same as this checkout
+  - ok             Endpoint 1 [200]: 6 active job(s), all matching the contract
+  - ok             Endpoint 22 exists [401]: asks for a login, so Event work is deployed
+
+Sherehe (upstream): CONFORMING   http://localhost:4001
+  6 check(s) fine
+  - ok             contract [200]: version 0.1.0, same as the copy we built from
+  - ok             asks for a key [401]: refuses a request without a key, as its contract says
+  - ok             K1 upcoming events [200]: 6 item(s), all matching the contract
+  - ok             K1 county filter [200]: 1 item(s), all matching the contract
+  - ok             K2 roles of an event [200]: 1 item(s), all matching the contract
+  - ok             K4 unknown offer [404]: a missing offer is a 404 with a message
+  - skipped        K3 and K5 (make and withdraw an offer): only run with --write, because it makes one offer at Sherehe (and withdraws it again)
+
+Ujuzi (downstream): UP   http://localhost:4003
+  reachable and publishing its contract
+  - ok             reachable and publishing its contract [200]: Ujuzi API, version 0.5.0
+  - manual         Ujuzi has re-run its tests against Kazi 1.3.0: cannot be seen from outside: ask the Ujuzi sub-team and record the answer in PARTNER_TEST_RESULTS.md
+
+READY: all three systems are up and the ring can be checked end to end.
+
+==================================================================
+2. Kazi Connect: npm run ring:check
+==================================================================
+Ring check: Sherehe at http://localhost:4001, Kazi Connect at http://localhost:4002
+
+pass  [sherehe] one live read from Sherehe (K1: upcoming events), with the real key
+        6 upcoming event(s), for example "Ruaka Staff Retreat" in Kiambu, every one matching the Event schema
+pass  [kazi] Endpoint 1: GET /api/jobs?status=active
+        6 active job(s), every one matching the contract
+pass  [kazi] Endpoint 5: GET /api/applications/app_1005/status
+        status "pending"
+pass  [kazi] Endpoint 6: WebSocket, the status on connect
+        received "pending" at once
+pass  [kazi] Endpoint 6: WebSocket, the final "cancelled" message (and Endpoint 9)
+        cancelling it was announced live and the socket closed normally
+
+All 5 steps passed.
+
+==================================================================
+3. Sherehe: npm run ring:e2e (all three systems, end to end)
+==================================================================
+Ring end-to-end, 2026-11-14T20:39:41Z
+Sherehe http://localhost:4001   Kazi http://localhost:4002   Ujuzi http://localhost:4003
+
+PASS  Sherehe is running
+      http://localhost:4001
+PASS  Kazi Connect is running
+      http://localhost:4002
+PASS  Ujuzi is running
+      http://localhost:4003
+PASS  Sherehe: an organiser registers
+      201, logged in
+PASS  Sherehe: the organiser posts an event
+      201, evt_2008
+PASS  Kazi: the demo employer logs in
+      200
+PASS  Kazi -> Sherehe: Kazi lists the organiser's new roles (read from Sherehe)
+      all 3 roles are in Kazi's event openings
+PASS  Kazi -> Sherehe: an employer offers workers on Kazi
+      201, pending (sof_1001)
+PASS  Kazi -> Sherehe: the offer arrived on Sherehe, pending
+      ofr_4001, 2 workers
+PASS  Sherehe: the organiser accepts the offer
+      200, accepted
+PASS  Sherehe: accepting filled 2 places on the role
+      filled = 2
+PASS  Sherehe -> Kazi: Kazi notices the acceptance
+      status accepted, jobId job_12353
+PASS  Kazi: a job is open for the students
+      job job_12353 is active
+PASS  Sherehe -> Kazi: a declined offer shows as declined on Kazi and opens no job
+      declined, no jobId
+PASS  Kazi -> Sherehe: Kazi withdraws a pending offer
+      204, and it is gone from Sherehe
+PASS  Sherehe -> Ujuzi: courses are read through Sherehe
+      1 catering course(s) from Ujuzi, e.g. crs_501
+PASS  Sherehe -> Ujuzi: certificate UJZ-2026-00123 is valid
+      201, valid = true, holder Achieng O.
+PASS  Sherehe -> Ujuzi: certificate UJZ-2026-00124 is revoked
+      201, valid = false, holder Brian K.
+PASS  Sherehe -> Ujuzi: the organiser books crew training
+      201, pending (trn_5001)
+PASS  Ujuzi: the training centre staff log in
+      200
+PASS  Ujuzi: the centre confirms the booking
+      200, confirmed
+PASS  Ujuzi -> Sherehe: Sherehe notices the confirmation (its poller)
+      status confirmed
+
+All 22 steps passed.
+
+==================================================================
+4. Ujuzi: npm run ring:check (with Ujuzi's key for Sherehe, as start_ring.sh --check gives it)
+==================================================================
+Ring check: Sherehe -> Kazi Connect -> Ujuzi -> Sherehe (this run covers Kazi and Ujuzi)
+
+Kazi Connect at http://localhost:4002
+PASS live read: GET /api/jobs?status=active answers 200 with jobs  (7 jobs)
+PASS every job matches Kazi's contract (types/kazi.d.ts Job)
+PASS POST /api/applications creates a pending application  (app_1006)
+PASS WebSocket opens and sends the current status  ({"applicationId":"app_1006","status":"pending"})
+PASS WebSocket closes cleanly
+PASS the application it made is withdrawn again
+
+Ujuzi at http://localhost:4003 (the partner API Sherehe calls)
+PASS refuses a call with no key (401)
+PASS S1: GET /api/courses with the key answers 200  (1 catering courses in Nairobi)
+PASS S1: GET /api/courses/{id}  (crs_501)
+PASS S2: GET /api/certificates/{no}  ({"certificateNo":"UJZ-2026-00123","valid":true,"courseTitle":"Food hygiene and event servi)
+PASS S3: POST /api/bookings answers 201, pending  (bkg_6004)
+PASS S4: GET /api/bookings/{id}
+PASS S5: PUT /api/bookings/{id} changes it
+PASS S5: DELETE /api/bookings/{id} answers 204
+PASS a cancelled booking is gone (404)
+
+Ujuzi -> Kazi Connect (a graduate through Ujuzi)
+PASS job matches come from Kazi through Ujuzi  (2 matches)
+PASS applying through Ujuzi creates it at Kazi  (app_1007)
+PASS Kazi has it, pending
+PASS withdrawn again through Ujuzi (204)
+
+ring:check: OK
+

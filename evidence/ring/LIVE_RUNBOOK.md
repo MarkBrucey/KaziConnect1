@@ -12,6 +12,7 @@ Never paste a real key into a chat, a file in git, or this document: keys live o
   since 13 October; everything new is on `uat`. **So deploying Kazi 1.3.0 comes before any ring test on Render.**
 - Sherehe and Ujuzi have no Render address yet (`sherehe-TODO` and `ujuzi-TODO` in `.env.example`).
 - **Update, 10 November 2026:** Kazi is live on 1.3.1 (since 4 November), Sherehe is live at https://sherehe-r0qm.onrender.com, and Ujuzi was deployed to Render on 10 November (see `INTEGRATION_LOG.md`, rows 13 and 14).
+- **Update, 14 November 2026:** Kazi has been on 1.4.0 since 10 November (pull request #6). Ujuzi's address is https://ujuzi-vgp4.onrender.com. All four ring checks and the six step screenshots were done on the local ring on 14 November (`ring_check_output.txt` and `README.md` in this folder). They were not taken on Render; the steps below are how to take them there.
 
 ## 1. Before Kazi is deployed
 
