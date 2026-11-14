@@ -10,9 +10,27 @@ Ring order: **Sherehe, then Kazi Connect, then Ujuzi.** In Sherehe's slot we are
 | Tests pass | `npm test`: 776 passed, 1 skipped (it needs PostgreSQL); against a local PostgreSQL database, 777 of 777. `npm run typecheck` passes |
 | Our integration uses the partner's v2 | **Not possible:** Sherehe has not shipped a v2 or sent a notice (`VERSIONING_NOTES.md`, Part E). We call Sherehe's only version |
 | Keys valid both ways | Kazi to Sherehe: the live Event work page answered `200` on 10 November once Sherehe was awake. Ujuzi to Kazi: API keys are off on the live site, so Ujuzi needs none. **Do one real call each way on the morning of the demo** |
-| Partner URLs current | Kazi: https://kaziconnect1-1xmu.onrender.com. Sherehe: https://sherehe-r0qm.onrender.com. Ujuzi: deployed to Render on 10 November (its address is on its Render page). All three are on Render, so the venue Wi-Fi does not matter |
+| Partner URLs current | Kazi: https://kaziconnect1-1xmu.onrender.com. Sherehe: https://sherehe-r0qm.onrender.com. Ujuzi: https://ujuzi-vgp4.onrender.com (deployed to Render on 10 November). All three are on Render, so the venue Wi-Fi does not matter |
 | Demo data ready | The live database's jobs (Campus Housing Assistant, Hostel Front Desk Attendant, ...) and the demo logins below. No "test" or "asdf" rows |
 | Nothing secret on screen | Never open Render's **Environment** page on the projector; use the **Logs** tab only. Keys live in Render, never in a terminal you show |
+
+## Pre-flight record
+
+What was run, when, and what it gave. Only results that were actually seen are written here.
+
+| When | Where | What was run | Result |
+|---|---|---|---|
+| 10 November 2026 | Fresh clone, and the live sites | The Part A checks in the table above | As in the table above |
+| 11 November 2026 | The presenter's own laptop (Windows, Git Bash, VS Code), from a fresh download of the project from GitHub | `npm ci`, `npm run typecheck`, `npm test`, `npm run verify` | Typecheck passes. `npm test`: 24 suites, 776 passed, 1 skipped (it needs PostgreSQL). `npm run verify`: 89 of 89. On that laptop the versions test timed out once at the default time limit, and passed 14 of 14 when run again with `--testTimeout=30000` |
+| 14 November 2026, after Demo Day | Sherehe, Kazi Connect and Ujuzi running together on one computer (ports 4001, 4002, 4003), each with a key made for that run | Kazi Connect `npm run ring:status` and `npm run ring:check`; Sherehe `npm run ring:e2e`; Ujuzi `npm run ring:check`; then the six ring steps by hand in the browser | READY; 5 of 5 steps; 22 of 22 steps; `ring:check: OK`. All six steps worked, from Sherehe's roles to Ujuzi showing `accepted` without a reload. Output and screenshots: `evidence/ring/` |
+
+Keys both ways, as seen in that 14 November run: Kazi Connect read Sherehe with its own key (step 1 of `ring:check`, and every Event work call), and Ujuzi accepted the key Sherehe calls it with (the S1 to S5 checks of Ujuzi's `ring:check`, after it refused a call with no key, and the crew training steps of Sherehe's `ring:e2e`). Ujuzi called Kazi Connect without a key, because keys are off on Kazi Connect, as on the live site.
+
+## The fallback we agreed with Sherehe and Ujuzi
+
+Agreed with: TO FILL IN before submitting (the name of Sherehe's presenter, the name of Ujuzi's presenter, and the date). Do not submit this section with this line unfilled; if no agreement was made, say so here instead.
+
+The one fallback: **if a partner's live system does not answer within one minute in a slot, the presenter says so out loud and does not fake the call. The team then shows its own recorded evidence and says when it was recorded.** For Kazi Connect that is the saved roles banner on Event work (when Sherehe is the one not answering), and `evidence/monitoring/requests_sample.txt` (when Kazi Connect itself is down). The details for each case are in the next section.
 
 ## Tonight, after the pull request is merged
 
