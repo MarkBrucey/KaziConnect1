@@ -144,6 +144,8 @@ describe('acceptStaffingOffer', () => {
       area_name: 'Westlands', duration_text: 'One shift, 5 Dec 2026, about 10 hours', is_urgent: false,
       listing_status: 'active', employer_id: 'usr_1001', source_role_id: 'rol_3001',
     });
+    expect(done.job.places).toBe(6); // one place per worker offered (1.5.0)
+    expect((await db.findJobById(done.job._id)).places_filled).toBe(0);
     expect(Number(done.job.pay_min)).toBe(1500);
     expect(Number(done.job.pay_max)).toBe(1500);
     expect((await db.findStaffingOfferById(row._id)).job_id).toBe(done.job._id);
@@ -174,7 +176,8 @@ describe('jobs.source_role_id', () => {
     const { job } = await db.acceptStaffingOffer(row._id);
 
     expect((await db.findJobById(job._id)).source_role_id).toBe('rol_3001');
-    expect(Object.keys(toJob(job)).sort()).toEqual(['area', 'category', 'county', 'duration', 'id', 'payRange', 'status', 'title', 'urgent']);
+    // 6 workers were offered, so the job has 6 places and says so (1.5.0); the role id never leaves.
+    expect(Object.keys(toJob(job)).sort()).toEqual(['area', 'category', 'county', 'duration', 'id', 'payRange', 'places', 'placesFilled', 'status', 'title', 'urgent']);
   });
 
   it('is empty for an ordinary job', async () => {

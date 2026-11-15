@@ -10,6 +10,7 @@
 import { EventEmitter } from 'events';
 import { singleton } from './lib/singleton';
 import { StoreConflict } from './lib/conflict';
+import { isFull } from './lib/storeTypes';
 import { SEED_JOBS, SEED_APPLICATIONS, FIRST_IDS, seedUsers } from './seedData';
 import type { IdCounters, SeedApplication, SeedUserRow } from './seedData';
 import type {
@@ -71,17 +72,27 @@ export async function init(): Promise<void> { /* the data is loaded when this fi
 
 // Jobs
 
+// Accepted applications for a job. A job is full once this reaches its places (1 unless set).
+const filledCount = (jobId: string): number =>
+  state.applications.filter((a) => a.job_ref === jobId && a.application_status === 'accepted').length;
+// Every job handed out carries how many of its places are filled, counted now.
+const out = (row: JobRow): JobRow => ({ ...row, places_filled: filledCount(row._id) });
+const full = (row: JobRow): boolean => isFull({ places: row.places, places_filled: filledCount(row._id) });
+
 export async function findJobs({ status, county, category }: JobFilter = {}): Promise<JobRow[]> {
   return state.jobs.filter((row) =>
     (status === undefined || same(row.listing_status, status)) &&
     (county === undefined || same(row.county_name, county)) &&
-    (category === undefined || same(row.job_category, category))).map((row) => ({ ...row }));
+    (category === undefined || same(row.job_category, category))).map(out);
 }
 
-export async function findJobById(id: string): Promise<JobRow | null> { return copy(state.jobs.find((row) => row._id === id)); }
+export async function findJobById(id: string): Promise<JobRow | null> {
+  const row = state.jobs.find((r) => r._id === id);
+  return row ? out(row) : null;
+}
 
 export async function findJobsByEmployer(userId: string): Promise<JobRow[]> {
-  return state.jobs.filter((row) => row.employer_id === userId).map((row) => ({ ...row })).reverse();
+  return state.jobs.filter((row) => row.employer_id === userId).map(out).reverse();
 }
 
 export async function countPendingApplications(jobId: string): Promise<number> {
@@ -90,30 +101,29 @@ export async function countPendingApplications(jobId: string): Promise<number> {
 
 // sourceRoleId is set only for jobs opened from an accepted Sherehe offer. It is
 // internal: mappers.toJob() never sends it out.
-export async function createJob({ employerId, title, category, county, area, duration, urgent, payMin, payMax, sourceRoleId }: NewJobInput): Promise<JobRow> {
+export async function createJob({ employerId, title, category, county, area, duration, urgent, payMin, payMax, sourceRoleId, places }: NewJobInput): Promise<JobRow> {
   const row: JobRow = {
     _id: `job_${state.next.job++}`, job_title: title, job_category: category, county_name: county,
     area_name: area, duration_text: duration, is_urgent: urgent, listing_status: 'active',
     pay_min: Number(payMin).toFixed(2), pay_max: Number(payMax).toFixed(2),
     employer_id: employerId, created_by: employerId, internal_notes: '',
-    source_role_id: sourceRoleId || null,
+    source_role_id: sourceRoleId || null, places: Math.max(1, places ?? 1),
   };
   state.jobs.push(row);
-  return { ...row };
+  return out(row);
 }
 
-// The application accepted for this job, or null. A job has one place, so there is at most one.
+// An application accepted for this job (the first), or null.
 const acceptedFor = (jobId: string): ApplicationRow | undefined =>
   state.applications.find((a) => a.job_ref === jobId && a.application_status === 'accepted');
 export async function findAcceptedApplication(jobId: string): Promise<ApplicationRow | null> { return copy(acceptedFor(jobId)); }
 
 // Closing a job marks every application still waiting on it as filled.
-// A job that already has an accepted applicant cannot be reopened.
+// A job whose places are all filled cannot be reopened.
 export async function setJobStatus(id: string, status: JobListingStatus): Promise<JobRow | null> {
   const row = state.jobs.find((r) => r._id === id);
   if (!row) return null;
-  const accepted = status === 'active' ? acceptedFor(id) : undefined;
-  if (accepted) throw new StoreConflict('filled', { acceptedId: accepted._id });
+  if (status === 'active' && full(row)) throw new StoreConflict('filled', { acceptedId: acceptedFor(id)?._id ?? null });
   row.listing_status = status;
   if (status === 'closed') {
     for (const a of state.applications.filter((x) => x.job_ref === id && x.application_status === 'pending')) {
@@ -122,7 +132,7 @@ export async function setJobStatus(id: string, status: JobListingStatus): Promis
       state.events.emit('statusChanged', a._id, { ...a });
     }
   }
-  return { ...row };
+  return out(row);
 }
 
 // Applications
@@ -143,8 +153,7 @@ export async function countApplications(): Promise<number> { return state.applic
 export async function createApplication({ jobId, studentId, preferredAt, note }: NewApplicationInput): Promise<ApplicationRow> {
   const job = state.jobs.find((j) => j._id === jobId);
   if (!job || job.listing_status !== 'active') throw new StoreConflict('closed');
-  const accepted = acceptedFor(jobId);
-  if (accepted) throw new StoreConflict('filled', { acceptedId: accepted._id });
+  if (full(job)) throw new StoreConflict('filled', { acceptedId: acceptedFor(jobId)?._id ?? null });
   const now = new Date();
   const row: ApplicationRow = {
     _id: `app_${state.next.application++}`, student_id: studentId, job_ref: jobId, application_status: 'pending',
@@ -181,25 +190,26 @@ export async function setApplicationStatus(id: string, status: StoredApplication
   return { ...row };
 }
 
-// Accepting one application fills every other waiting application for the
-// same job, and closes the job. Only a waiting application can be accepted,
-// and only if nobody has been accepted for the job already.
+// Only a waiting application can be accepted, and only while the job has a place left. The
+// accept that takes the last place fills every other waiting application for the job and closes
+// it; until then the job stays open and the others keep waiting.
 export async function acceptApplication(id: string): Promise<ApplicationRow | null> {
   const row = state.applications.find((r) => r._id === id);
   if (!row) return null;
   if (row.application_status !== 'pending') throw new StoreConflict('not_pending', { status: row.application_status });
-  const accepted = acceptedFor(row.job_ref);
-  if (accepted) throw new StoreConflict('filled', { acceptedId: accepted._id });
+  const job = state.jobs.find((j) => j._id === row.job_ref);
+  if (job && full(job)) throw new StoreConflict('filled', { acceptedId: acceptedFor(row.job_ref)?._id ?? null });
   row.application_status = 'accepted';
   row.updated_at = new Date();
   state.events.emit('statusChanged', id, { ...row });
-  for (const other of state.applications.filter((a) => a.job_ref === row.job_ref && a._id !== id && a.application_status === 'pending')) {
-    other.application_status = 'filled';
-    other.updated_at = new Date();
-    state.events.emit('statusChanged', other._id, { ...other });
+  if (!job || full(job)) {
+    for (const other of state.applications.filter((a) => a.job_ref === row.job_ref && a._id !== id && a.application_status === 'pending')) {
+      other.application_status = 'filled';
+      other.updated_at = new Date();
+      state.events.emit('statusChanged', other._id, { ...other });
+    }
+    if (job) job.listing_status = 'closed';
   }
-  const job = state.jobs.find((j) => j._id === row.job_ref);
-  if (job) job.listing_status = 'closed';
   return { ...row };
 }
 
@@ -293,13 +303,13 @@ export async function declineStaffingOffer(id: string): Promise<StaffingOfferRow
 }
 
 // The organiser accepted: mark the offer accepted and open the job for the
-// employer in one step. Returns null if the offer is no longer pending, so
-// running this twice never makes two jobs.
+// employer in one step, with one place per worker offered. Returns null if the
+// offer is no longer pending, so running this twice never makes two jobs.
 export async function acceptStaffingOffer(id: string): Promise<{ offer: StaffingOfferRow; job: JobRow } | null> {
   const row = state.staffingOffers.find((o) => o._id === id && o.status === 'pending');
   if (!row) return null;
   row.status = 'accepted'; // claim it before any await, so a second call finds it already taken
-  const job = await createJob({ employerId: row.employer_id, ...row.job_draft, sourceRoleId: row.role_id });
+  const job = await createJob({ employerId: row.employer_id, ...row.job_draft, sourceRoleId: row.role_id, places: row.workers_offered });
   row.job_id = job._id;
   return { offer: { ...row }, job };
 }

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/clientApi';
-import { cap, kesText } from '@/lib/format';
+import { cap, kesText, placesText } from '@/lib/format';
 import type { Job } from '@/lib/contract';
 import { useAuth } from './authContext';
 import { ApplyForm } from './ApplyForm';
@@ -37,6 +37,7 @@ function JobCard({ job, canApply, onApply }: { job: Job; canApply: boolean; onAp
       </h3>
       <p className="m-0 text-muted">{job.area}, {job.county}</p>
       <p className="mb-0 mt-0.5 text-muted">{job.duration}</p>
+      {placesText(job) ? <p className="mb-0 mt-0.5 font-semibold">{placesText(job)}</p> : null}
       <div className="h-[22px]" />
       <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5 border-t border-line pt-[18px]">
         <span className="whitespace-nowrap font-extrabold tabular-nums"><Price payRange={job.payRange} /></span>

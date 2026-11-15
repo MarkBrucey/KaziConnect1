@@ -14,6 +14,7 @@ import { whyNotOwner } from '@/lib/identity';
 import { fail, json, noContent } from '@/lib/http';
 import type { ApplicationUpdate } from '@/lib/contract';
 import { StoreConflict, filledForEmployer } from '@/lib/conflict';
+import { isFull, placesOf } from '@/lib/storeTypes';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,13 +60,13 @@ export const PATCH = withAuth(requireRole('employer')(async (_req, { params, use
   if (!job || job.employer_id !== user._id) return fail(403, 'You can only decide on applications for jobs you posted.');
   const notPending = (status: string): string => `Application ${id} is ${status}; only pending applications can be accepted`;
   if (row.application_status !== 'pending') return fail(409, notPending(row.application_status));
-  const accepted = await db.findAcceptedApplication(row.job_ref);
-  if (accepted) return fail(409, filledForEmployer(row.job_ref, accepted._id));
+  // A job takes `places` people (1 unless it was opened from an offer of several workers).
+  if (isFull(job)) return fail(409, filledForEmployer(row.job_ref, (await db.findAcceptedApplication(row.job_ref))?._id ?? null, placesOf(job)));
   try {
     return json(toApplication((await db.acceptApplication(id))!));
   } catch (err) {
     // Someone accepted or decided at the same moment: the store saw it.
-    if (err instanceof StoreConflict && err.reason === 'filled') return fail(409, filledForEmployer(row.job_ref, err.acceptedId));
+    if (err instanceof StoreConflict && err.reason === 'filled') return fail(409, filledForEmployer(row.job_ref, err.acceptedId, placesOf(job)));
     if (err instanceof StoreConflict && err.reason === 'not_pending') return fail(409, notPending(err.status || 'decided'));
     throw err;
   }

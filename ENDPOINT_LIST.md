@@ -37,7 +37,7 @@ These serve the website's own needs, W1 to W6 in API_NEEDS.md. They come on top 
 | 15 | GET | `/api/me/jobs` | Lists the jobs the logged in employer posted, with waiting applications | W2 |
 | 16 | GET | `/api/jobs/{jobId}/applications` | Lists the applications for a job (the employer who posted it) | W3 |
 | 17 | PATCH | `/api/jobs/{jobId}` | Closes or reopens a job (the employer who posted it) | W4 |
-| 18 | PATCH | `/api/applications/{applicationId}` | Accepts an application; others for the job become filled | W3, Statement 5 |
+| 18 | PATCH | `/api/applications/{applicationId}` | Accepts an application; others for the job become filled (for a job with several places, once the last place is taken; since 1.5.0) | W3, Statement 5 |
 | 19 | GET | `/api/me/applications` | Lists the logged in student's applications | W5 |
 | 20 | POST | `/api/auth/password-resets` | Asks for a password reset email (Forgot password?) | W6 |
 | 21 | PUT | `/api/auth/password` | Sets a new password using the token from the reset email | W6 |
@@ -55,7 +55,7 @@ These serve website need W7 and are the only place Kazi Connect calls its upstre
 | # | Method | Path/Endpoint | Purpose | Maps to Need |
 |---|--------|----------|---------|---------------|
 | 22 | GET | `/api/event-openings?county={county}` | Lists open staffing roles on upcoming Sherehe events, as Kazi event openings (employers) | W7 (K1, K2) |
-| 23 | POST | `/api/staffing-offers` | Offers Kazi workers for a Sherehe role; a job opens when the organiser accepts (employers) | W7 (K3) |
+| 23 | POST | `/api/staffing-offers` | Offers Kazi workers for a Sherehe role; a job with one place per worker opens when the organiser accepts (employers) | W7 (K3) |
 | 24 | GET | `/api/me/staffing-offers` | Lists the logged in employer's offers and their status (optional) | W7 (K4) |
 | 25 | DELETE | `/api/staffing-offers/{offerId}` | Withdraws a pending offer at Sherehe and deletes it here (the employer who made it) | W7 (K5) |
 

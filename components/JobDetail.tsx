@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/clientApi';
-import { cap } from '@/lib/format';
+import { cap, placesText } from '@/lib/format';
 import { followed, useFollowedApplications } from '@/lib/followed';
 import type { Job } from '@/lib/contract';
 import { useAuth } from './authContext';
@@ -51,6 +51,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
             <h1 className="mb-2 mt-4 text-4xl font-extrabold leading-[1.15] tracking-tight">{job.title}</h1>
             <p className="m-0 text-lg text-muted">{job.area}, {job.county}</p>
             <p className="mb-0 mt-1 text-lg text-muted">{job.duration}</p>
+            {placesText(job) ? <p className="mb-0 mt-1 text-lg font-semibold">{placesText(job)}</p> : null}
             <p className="mb-0 mt-6 text-2xl font-extrabold tabular-nums"><Price payRange={job.payRange} /></p>
           </article>
 

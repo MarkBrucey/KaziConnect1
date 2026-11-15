@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, messageOf } from '@/lib/clientApi';
-import { COUNTIES, KINDS, cap, kesText, readable } from '@/lib/format';
+import { COUNTIES, KINDS, cap, kesText, placesOpen, readable } from '@/lib/format';
 import type { Applicant, Application, EmployerJob, Job } from '@/lib/contract';
 import { Dialog, DialogHead } from './Dialog';
 import { Button, EmptyBox, ErrorText, Field, ListCard, StatusPill, SuccessText, Tag, TextButton, UrgentTag } from './ui';
@@ -41,9 +41,11 @@ function EmployerJobCard({ job, onChanged }: { job: EmployerJob; onChanged: (mes
   const [applicants, setApplicants] = useState<Applicant[] | null>(null);
   const [error, setError] = useState('');
   const open = job.status === 'active';
-  // A job has one place: once someone is accepted it is filled for good, so it is not offered for reopening.
-  // (Only known once the applicants are loaded; otherwise the API says so if Reopen is pressed.)
-  const filled = applicants !== null && applicants.some((a) => a.status === 'accepted');
+  // A job takes `places` people (1 unless it was opened from an offer of several workers). Once they all
+  // have an accepted applicant it is filled for good, so it is not offered for reopening.
+  const places = job.places ?? 1;
+  const left = placesOpen(job);
+  const filled = left === 0 || (places === 1 && applicants !== null && applicants.some((a) => a.status === 'accepted'));
 
   const loadApplicants = useCallback(async () => {
     const res = await api<Applicant[]>(`/api/jobs/${encodeURIComponent(job.id)}/applications`);
@@ -59,11 +61,16 @@ function EmployerJobCard({ job, onChanged }: { job: EmployerJob; onChanged: (mes
   }
 
   async function accept(a: Applicant) {
-    if (!confirm('Accept this applicant? Everyone else waiting for this job will be told it is filled, and the job will close.')) return;
+    const last = left <= 1; // this accept takes the job's last place
+    if (!confirm(last
+      ? 'Accept this applicant? Everyone else waiting for this job will be told it is filled, and the job will close.'
+      : `Accept this applicant? They take 1 of the ${left} places still open. The job stays open until all ${places} places are filled.`)) return;
     setError('');
     const res = await api<Application>(`/api/applications/${encodeURIComponent(a.applicationId)}`, { method: 'PATCH', body: { status: 'accepted' } });
     if (res.status !== 200) { setError(messageOf(res, 'That did not work. Try again.')); return; }
-    onChanged(`Accepted ${a.studentName || a.studentId}. The job is now closed and the other applicants have been told.`);
+    onChanged(last
+      ? `Accepted ${a.studentName || a.studentId}. The job is now closed and the other applicants have been told.`
+      : `Accepted ${a.studentName || a.studentId}. ${left - 1} of ${places} places are still open.`);
     await loadApplicants();
   }
 
@@ -82,6 +89,7 @@ function EmployerJobCard({ job, onChanged }: { job: EmployerJob; onChanged: (mes
           <div className="flex items-center gap-2.5"><Tag>{cap(job.category)}</Tag>{job.urgent ? <UrgentTag /> : null}</div>
           <h4 className="mb-1 mt-2 text-xl font-bold">{job.title}</h4>
           <p className="m-0 text-muted">{job.area}, {job.county}. {job.duration}. {kesText(job.payRange)}</p>
+          {places > 1 ? <p className="m-0 font-semibold">{places - left} of {places} places filled, {left} open</p> : null}
         </div>
         <StatusPill status={open ? 'active' : 'closed'}>{open ? 'Open' : filled ? 'Filled' : 'Closed'}</StatusPill>
       </div>

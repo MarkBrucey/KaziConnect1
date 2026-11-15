@@ -54,3 +54,25 @@ describe('anyOf', () => {
     expect(check([{ id: 1, name: 'N' }], either)).toEqual(['reply[0].id should be a string, got number']);
   });
 });
+
+describe('required', () => {
+  // 1.5.0: a job carries places and placesFilled only when it takes more than one person, so the contract lists them
+  // as properties but not under required. A schema with no required list still expects every property it declares.
+  const job: SchemaNode = {
+    type: 'object', required: ['id'],
+    properties: { id: { type: 'string' }, places: { type: 'integer' }, placesFilled: { type: 'integer' } },
+  };
+
+  it('lets a property that is declared but not required be left out', () => {
+    expect(check({ id: 'job_1' }, job)).toEqual([]);
+  });
+
+  it('still says when a required property is missing, and still checks an optional one that is there', () => {
+    expect(check({ places: 3 }, job)).toEqual(['reply.id is missing']);
+    expect(check({ id: 'job_1', places: 'three' }, job)).toEqual(['reply.places should be an integer']);
+  });
+
+  it('expects every declared property when the schema has no required list, as it always did', () => {
+    expect(check({ id: 'e1' }, { $ref: '#/components/schemas/Event' })).toEqual(['reply.name is missing']);
+  });
+});

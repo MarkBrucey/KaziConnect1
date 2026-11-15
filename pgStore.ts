@@ -10,6 +10,7 @@ import { Pool } from 'pg';
 import type { PoolClient, QueryResultRow } from 'pg';
 import { singleton } from './lib/singleton';
 import { StoreConflict } from './lib/conflict';
+import { placesOf } from './lib/storeTypes';
 import { SEED_JOBS, SEED_APPLICATIONS, FIRST_IDS, seedUsers } from './seedData';
 import type {
   ApplicationRow, JobFilter, JobListingStatus, JobRow, NewApplicationInput, NewJobInput,
@@ -92,6 +93,9 @@ CREATE SEQUENCE IF NOT EXISTS user_number_seq START ${FIRST_IDS.user};
 -- Event work (added with Endpoints 22 to 25). Additive only: nothing above is changed or dropped.
 -- source_role_id is internal: the Sherehe role a job was opened from. toJob() never sends it.
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_role_id TEXT;
+-- places (added in 1.5.0): how many people a job takes. 1 for every job except one opened from an
+-- offer of several workers. Additive: existing jobs get 1, which is what they always were.
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS places INTEGER NOT NULL DEFAULT 1 CHECK (places >= 1);
 CREATE SEQUENCE IF NOT EXISTS staffing_offer_number_seq START ${FIRST_IDS.staffingOffer};
 CREATE TABLE IF NOT EXISTS staffing_offers (
   _id TEXT PRIMARY KEY,
@@ -135,34 +139,38 @@ export async function migrate(): Promise<void> {
   await getPool().query(SCHEMA);
 }
 
-// A job has one place: at most one accepted application per job. Before this rule the API let an
-// employer reopen a filled job and accept a second applicant, so an older database can break it. This
-// repairs that, saying in the log what it changed, then adds a unique index so the database itself
-// refuses a second accepted application from now on. It changes nothing in a database that keeps the rule.
-async function enforceOneAcceptedPerJob(): Promise<void> {
+// A job takes `places` people (1 unless it was opened from an offer of several workers): at most that
+// many accepted applications. Before the one place rule the API let an employer reopen a filled job and
+// accept a second applicant, so an older database can break it. This repairs that, saying in the log
+// what it changed. It changes nothing in a database that keeps the rule.
+// From 1.5.0 the rule is checked under the job's row lock (lockJob), which every accept, apply, close
+// and reopen takes first, so the unique index that allowed only one accepted application per job is
+// dropped: a job with several places needs more than one.
+async function enforcePlacesPerJob(): Promise<void> {
   const changes = await inTransaction(async (client) => {
     const log: string[] = [];
-    // 1. Two or more accepted for one job: the one accepted first keeps it.
+    // 1. More accepted than the job has places: the ones accepted first keep them.
     const extra = (await client.query<{ _id: string; job_ref: string }>(`
       WITH ranked AS (
-        SELECT _id, row_number() OVER (PARTITION BY job_ref ORDER BY updated_at, _id) AS n
-        FROM applications WHERE application_status = 'accepted')
+        SELECT a._id, row_number() OVER (PARTITION BY a.job_ref ORDER BY a.updated_at, a._id) AS n, j.places
+        FROM applications a JOIN jobs j ON j._id = a.job_ref WHERE a.application_status = 'accepted')
       UPDATE applications a SET application_status = 'filled', updated_at = now()
-      FROM ranked r WHERE a._id = r._id AND r.n > 1
+      FROM ranked r WHERE a._id = r._id AND r.n > r.places
       RETURNING a._id, a.job_ref`)).rows;
     for (const row of extra) {
-      const kept = (await client.query<{ _id: string }>("SELECT _id FROM applications WHERE job_ref = $1 AND application_status = 'accepted'", [row.job_ref])).rows[0];
-      log.push(`Job ${row.job_ref} had more than one accepted application: kept ${kept ? kept._id : 'the first'} (accepted first), marked ${row._id} filled.`);
+      const kept = (await client.query<{ _id: string }>("SELECT _id FROM applications WHERE job_ref = $1 AND application_status = 'accepted' ORDER BY updated_at, _id", [row.job_ref])).rows.map((r) => r._id);
+      log.push(`Job ${row.job_ref} had more accepted applications than places: kept ${kept.length ? kept.join(', ') : 'the first'} (accepted first), marked ${row._id} filled.`);
     }
-    // 2. Still waiting on a job that is already filled: tell them it is filled.
+    // 2. Still waiting on a job whose places are all filled: tell them it is filled.
     const waiting = (await client.query<{ _id: string; job_ref: string }>(`
       UPDATE applications SET application_status = 'filled', updated_at = now()
       WHERE application_status = 'pending'
-        AND job_ref IN (SELECT job_ref FROM applications WHERE application_status = 'accepted')
+        AND job_ref IN (
+          SELECT j._id FROM jobs j
+          WHERE (SELECT count(*) FROM applications x WHERE x.job_ref = j._id AND x.application_status = 'accepted') >= j.places)
       RETURNING _id, job_ref`)).rows;
     for (const row of waiting) log.push(`Job ${row.job_ref} is already filled: marked waiting application ${row._id} filled.`);
-    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS one_accepted_application_per_job
-      ON applications (job_ref) WHERE application_status = 'accepted'`);
+    await client.query('DROP INDEX IF EXISTS one_accepted_application_per_job');
     return log;
   });
   changes.forEach((line) => console.log(`[data] ${line}`));
@@ -173,7 +181,7 @@ export async function init(): Promise<void> {
   await migrate();
   const counted = await one<{ n: number }>('SELECT count(*)::int AS n FROM jobs');
   if (counted && counted.n === 0) await seed(getPool());
-  await enforceOneAcceptedPerJob();
+  await enforcePlacesPerJob();
 }
 
 // Used only by the automated tests: wipe everything and reload the sample data.
@@ -186,7 +194,7 @@ export async function reset(): Promise<void> {
     ALTER SEQUENCE user_number_seq RESTART WITH ${FIRST_IDS.user};
     ALTER SEQUENCE staffing_offer_number_seq RESTART WITH ${FIRST_IDS.staffingOffer};`);
   await seed(pool);
-  await enforceOneAcceptedPerJob();
+  await enforcePlacesPerJob();
 }
 
 async function inTransaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -206,55 +214,64 @@ async function inTransaction<T>(work: (client: PoolClient) => Promise<T>): Promi
 
 // Jobs
 
+// Every job read carries how many of its places are filled (accepted applications), counted now.
+const JOB_SELECT = `SELECT jobs.*, (SELECT count(*)::int FROM applications a
+    WHERE a.job_ref = jobs._id AND a.application_status = 'accepted') AS places_filled FROM jobs`;
+const countAccepted = async (client: PoolClient, jobId: string): Promise<number> =>
+  (await client.query<{ n: number }>("SELECT count(*)::int AS n FROM applications WHERE job_ref = $1 AND application_status = 'accepted'", [jobId])).rows[0].n;
+
 export async function findJobs({ status, county, category }: JobFilter = {}): Promise<JobRow[]> {
-  return many<JobRow>(`SELECT * FROM jobs
+  return many<JobRow>(`${JOB_SELECT}
     WHERE ($1::text IS NULL OR lower(listing_status) = lower($1))
       AND ($2::text IS NULL OR lower(county_name) = lower($2))
       AND ($3::text IS NULL OR lower(job_category) = lower($3))
     ORDER BY _id`, [status ?? null, county ?? null, category ?? null]);
 }
 
-export const findJobById = (id: string): Promise<JobRow | null> => one<JobRow>('SELECT * FROM jobs WHERE _id = $1', [id]);
-export const findJobsByEmployer = (userId: string): Promise<JobRow[]> => many<JobRow>('SELECT * FROM jobs WHERE employer_id = $1 ORDER BY _id DESC', [userId]);
+export const findJobById = (id: string): Promise<JobRow | null> => one<JobRow>(`${JOB_SELECT} WHERE _id = $1`, [id]);
+export const findJobsByEmployer = (userId: string): Promise<JobRow[]> => many<JobRow>(`${JOB_SELECT} WHERE employer_id = $1 ORDER BY _id DESC`, [userId]);
 
 export async function countPendingApplications(jobId: string): Promise<number> {
   const counted = await one<{ n: number }>("SELECT count(*)::int AS n FROM applications WHERE job_ref = $1 AND application_status = 'pending'", [jobId]);
   return counted ? counted.n : 0;
 }
 
-// The application accepted for this job, or null. A job has one place, so there is at most one (the
-// unique index one_accepted_application_per_job makes sure).
+// An application accepted for this job (the first accepted), or null.
 export const findAcceptedApplication = (jobId: string): Promise<ApplicationRow | null> =>
-  one<ApplicationRow>("SELECT * FROM applications WHERE job_ref = $1 AND application_status = 'accepted' LIMIT 1", [jobId]);
+  one<ApplicationRow>("SELECT * FROM applications WHERE job_ref = $1 AND application_status = 'accepted' ORDER BY updated_at, _id LIMIT 1", [jobId]);
 const acceptedFor = async (client: PoolClient, jobId: string): Promise<{ _id: string } | undefined> =>
-  (await client.query<{ _id: string }>("SELECT _id FROM applications WHERE job_ref = $1 AND application_status = 'accepted' LIMIT 1", [jobId])).rows[0];
+  (await client.query<{ _id: string }>("SELECT _id FROM applications WHERE job_ref = $1 AND application_status = 'accepted' ORDER BY updated_at, _id LIMIT 1", [jobId])).rows[0];
+// Under the job's lock: are all its places taken?
+const fullUnderLock = async (client: PoolClient, job: JobRow): Promise<boolean> =>
+  (await countAccepted(client, job._id)) >= placesOf(job);
 
 // Two requests about the same job (accept, close, reopen, apply) can arrive at the same moment. Each
 // one locks the job's row first, so they run one after the other and every check sees the result of
 // the one before. Applying takes a shared lock, so many students can still apply at once.
 const lockJob = async (client: PoolClient, jobId: string, mode: 'UPDATE' | 'SHARE' = 'UPDATE'): Promise<JobRow | undefined> =>
   (await client.query<JobRow>(`SELECT * FROM jobs WHERE _id = $1 FOR ${mode}`, [jobId])).rows[0];
-const isOneAcceptedViolation = (err: unknown): boolean =>
-  typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505' && (err as { constraint?: string }).constraint === 'one_accepted_application_per_job';
 
 // sourceRoleId is set only for jobs opened from an accepted Sherehe offer.
-const NEW_JOB_SQL = `INSERT INTO jobs (_id, job_title, job_category, county_name, area_name, duration_text, is_urgent, listing_status, pay_min, pay_max, employer_id, created_by, source_role_id)
-    VALUES ('job_' || nextval('job_number_seq'), $1, $2, $3, $4, $5, $6, 'active', $7, $8, $9, $9, $10) RETURNING *`;
-const newJobParams = ({ employerId, title, category, county, area, duration, urgent, payMin, payMax, sourceRoleId }: NewJobInput): unknown[] =>
-  [title, category, county, area, duration, urgent, payMin, payMax, employerId, sourceRoleId ?? null];
+const NEW_JOB_SQL = `INSERT INTO jobs (_id, job_title, job_category, county_name, area_name, duration_text, is_urgent, listing_status, pay_min, pay_max, employer_id, created_by, source_role_id, places)
+    VALUES ('job_' || nextval('job_number_seq'), $1, $2, $3, $4, $5, $6, 'active', $7, $8, $9, $9, $10, $11) RETURNING *, 0 AS places_filled`;
+const newJobParams = ({ employerId, title, category, county, area, duration, urgent, payMin, payMax, sourceRoleId, places }: NewJobInput): unknown[] =>
+  [title, category, county, area, duration, urgent, payMin, payMax, employerId, sourceRoleId ?? null, Math.max(1, places ?? 1)];
 
 export async function createJob(job: NewJobInput): Promise<JobRow> {
   return (await one<JobRow>(NEW_JOB_SQL, newJobParams(job)))!;
 }
 
 // Closing a job marks every application still waiting on it as filled.
-// A job that already has an accepted applicant cannot be reopened.
+// A job whose places are all filled cannot be reopened.
 export async function setJobStatus(id: string, status: JobListingStatus): Promise<JobRow | null> {
   const { job, filled } = await inTransaction(async (client) => {
-    if (!(await lockJob(client, id))) return { job: null, filled: [] as ApplicationRow[] };
-    const accepted = status === 'active' ? await acceptedFor(client, id) : undefined;
-    if (accepted) throw new StoreConflict('filled', { acceptedId: accepted._id });
-    const j = (await client.query<JobRow>('UPDATE jobs SET listing_status = $2 WHERE _id = $1 RETURNING *', [id, status])).rows[0];
+    const locked = await lockJob(client, id);
+    if (!locked) return { job: null, filled: [] as ApplicationRow[] };
+    if (status === 'active' && await fullUnderLock(client, locked)) {
+      throw new StoreConflict('filled', { acceptedId: (await acceptedFor(client, id))?._id ?? null });
+    }
+    const j = (await client.query<JobRow>(`UPDATE jobs SET listing_status = $2 WHERE _id = $1 RETURNING *, (SELECT count(*)::int FROM applications a
+      WHERE a.job_ref = jobs._id AND a.application_status = 'accepted') AS places_filled`, [id, status])).rows[0];
     let f: ApplicationRow[] = [];
     if (j && status === 'closed') {
       f = (await client.query<ApplicationRow>("UPDATE applications SET application_status = 'filled', updated_at = now() WHERE job_ref = $1 AND application_status = 'pending' RETURNING *", [id])).rows;
@@ -275,15 +292,14 @@ export async function countApplications(): Promise<number> {
   return counted ? counted.n : 0;
 }
 
-// Only an open job that nobody has been accepted for takes applications. FOR SHARE lets many students
-// apply at once, but waits while an accept or a close on the same job finishes, so nobody joins a job
-// that has just filled.
+// Only an open job with a place left takes applications. FOR SHARE lets many students apply at once,
+// but waits while an accept or a close on the same job finishes, so nobody joins a job that has just
+// filled.
 export function createApplication({ jobId, studentId, preferredAt, note }: NewApplicationInput): Promise<ApplicationRow> {
   return inTransaction(async (client) => {
     const job = await lockJob(client, jobId, 'SHARE');
     if (!job || job.listing_status !== 'active') throw new StoreConflict('closed');
-    const accepted = await acceptedFor(client, jobId);
-    if (accepted) throw new StoreConflict('filled', { acceptedId: accepted._id });
+    if (await fullUnderLock(client, job)) throw new StoreConflict('filled', { acceptedId: (await acceptedFor(client, jobId))?._id ?? null });
     return (await client.query<ApplicationRow>(`INSERT INTO applications (_id, student_id, job_ref, application_status, preferred_at, student_note)
       VALUES ('app_' || nextval('application_number_seq'), $1, $2, 'pending', $3, $4) RETURNING *`,
       [studentId, jobId, preferredAt, note])).rows[0];
@@ -306,30 +322,29 @@ export async function setApplicationStatus(id: string, status: StoredApplication
   return row;
 }
 
-// Accepting one application fills every other waiting application for the same job, and closes the
-// job. Only a waiting application can be accepted, and only if nobody has been accepted for the job.
+// Only a waiting application can be accepted, and only while the job has a place left. The accept
+// that takes the last place fills every other waiting application for the job and closes it; until
+// then the job stays open and the others keep waiting. Every step runs under the job's row lock, so
+// two accepts at the same moment can never take more places than the job has.
 export async function acceptApplication(id: string): Promise<ApplicationRow | null> {
   const target = await one<{ job_ref: string }>('SELECT job_ref FROM applications WHERE _id = $1', [id]);
   if (!target) return null;
-  let result: { accepted: ApplicationRow | null; filled: ApplicationRow[] };
-  try {
-    result = await inTransaction(async (client) => {
-      await lockJob(client, target.job_ref); // the job first, then its applications, always in that order
-      const current = (await client.query<ApplicationRow>('SELECT * FROM applications WHERE _id = $1 FOR UPDATE', [id])).rows[0];
-      if (!current) return { accepted: null, filled: [] as ApplicationRow[] };
-      if (current.application_status !== 'pending') throw new StoreConflict('not_pending', { status: current.application_status });
-      const already = await acceptedFor(client, current.job_ref);
-      if (already) throw new StoreConflict('filled', { acceptedId: already._id });
-      const a = (await client.query<ApplicationRow>("UPDATE applications SET application_status = 'accepted', updated_at = now() WHERE _id = $1 RETURNING *", [id])).rows[0];
-      const f = (await client.query<ApplicationRow>("UPDATE applications SET application_status = 'filled', updated_at = now() WHERE job_ref = $1 AND _id <> $2 AND application_status = 'pending' RETURNING *", [a.job_ref, id])).rows;
+  const result = await inTransaction(async (client) => {
+    const job = await lockJob(client, target.job_ref); // the job first, then its applications, always in that order
+    const current = (await client.query<ApplicationRow>('SELECT * FROM applications WHERE _id = $1 FOR UPDATE', [id])).rows[0];
+    if (!current) return { accepted: null, filled: [] as ApplicationRow[] };
+    if (current.application_status !== 'pending') throw new StoreConflict('not_pending', { status: current.application_status });
+    const places = job ? placesOf(job) : 1;
+    const before = await countAccepted(client, current.job_ref);
+    if (before >= places) throw new StoreConflict('filled', { acceptedId: (await acceptedFor(client, current.job_ref))?._id ?? null });
+    const a = (await client.query<ApplicationRow>("UPDATE applications SET application_status = 'accepted', updated_at = now() WHERE _id = $1 RETURNING *", [id])).rows[0];
+    let f: ApplicationRow[] = [];
+    if (before + 1 >= places) {
+      f = (await client.query<ApplicationRow>("UPDATE applications SET application_status = 'filled', updated_at = now() WHERE job_ref = $1 AND _id <> $2 AND application_status = 'pending' RETURNING *", [a.job_ref, id])).rows;
       await client.query("UPDATE jobs SET listing_status = 'closed' WHERE _id = $1", [a.job_ref]);
-      return { accepted: a, filled: f };
-    });
-  } catch (err) {
-    if (!isOneAcceptedViolation(err)) throw err;
-    const winner = await findAcceptedApplication(target.job_ref); // the database index caught a second accept
-    throw new StoreConflict('filled', { acceptedId: winner ? winner._id : null });
-  }
+    }
+    return { accepted: a, filled: f };
+  });
   const { accepted, filled } = result;
   if (accepted) events.emit('statusChanged', id, accepted);
   filled.forEach((a) => events.emit('statusChanged', a._id, a));
@@ -400,13 +415,13 @@ export const deleteStaffingOffer = (id: string): Promise<StaffingOfferRow | null
 export const declineStaffingOffer = (id: string): Promise<StaffingOfferRow | null> => one<StaffingOfferRow>("UPDATE staffing_offers SET status = 'declined' WHERE _id = $1 AND status = 'pending' RETURNING *", [id]);
 
 // The organiser accepted: mark the offer accepted and open the job for the
-// employer in one transaction. Claiming the row first (WHERE status = 'pending')
+// employer, with one place per worker offered, in one transaction. Claiming the row first (WHERE status = 'pending')
 // means two runs at once can never make two jobs; the loser gets null.
 export function acceptStaffingOffer(id: string): Promise<{ offer: StaffingOfferRow; job: JobRow } | null> {
   return inTransaction(async (client) => {
     const claimed = (await client.query<StaffingOfferRow>("UPDATE staffing_offers SET status = 'accepted' WHERE _id = $1 AND status = 'pending' RETURNING *", [id])).rows[0];
     if (!claimed) return null;
-    const job = (await client.query<JobRow>(NEW_JOB_SQL, newJobParams({ employerId: claimed.employer_id, ...claimed.job_draft, sourceRoleId: claimed.role_id }))).rows[0];
+    const job = (await client.query<JobRow>(NEW_JOB_SQL, newJobParams({ employerId: claimed.employer_id, ...claimed.job_draft, sourceRoleId: claimed.role_id, places: claimed.workers_offered }))).rows[0];
     const offer = (await client.query<StaffingOfferRow>('UPDATE staffing_offers SET job_id = $2 WHERE _id = $1 RETURNING *', [id, job._id])).rows[0];
     return { offer, job };
   });

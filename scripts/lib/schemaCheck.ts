@@ -20,6 +20,7 @@ export interface SchemaNode {
   anyOf?: SchemaNode[];
   oneOf?: SchemaNode[];
   allOf?: SchemaNode[];
+  required?: string[];
   content?: Record<string, { schema?: SchemaNode }>;
 }
 
@@ -54,10 +55,15 @@ export function createChecker(contract: ContractDoc): Checker {
   function flatten(schema: SchemaNode): SchemaNode {
     if (!schema.allOf) return schema;
     const merged: SchemaNode = { type: 'object', properties: {} };
+    const required: string[] = [];
+    let everyBranchSaysRequired = true;
     for (const part of schema.allOf) {
       const branch = flatten(resolve(part) ?? {});
       Object.assign(merged.properties!, branch.properties);
+      if (Array.isArray(branch.required)) required.push(...branch.required);
+      else everyBranchSaysRequired = false;
     }
+    if (everyBranchSaysRequired) merged.required = required;
     return merged;
   }
 
@@ -86,8 +92,12 @@ export function createChecker(contract: ContractDoc): Checker {
         return;
       }
       const props = schema.properties || {};
+      // A property the schema lists under `required` must be there. A schema with no `required` list
+      // expects every property it declares (how this checker always read it). A property declared but
+      // not required may be left out, for example places, which is sent only for a job with several.
+      const required = Array.isArray(schema.required) ? schema.required : null;
       for (const key of Object.keys(props)) {
-        if (!(key in value)) problems.push(`${where}.${key} is missing`);
+        if (!(key in value)) { if (!required || required.includes(key)) problems.push(`${where}.${key} is missing`); }
         else schemaCheck(value[key], props[key], `${where}.${key}`, problems);
       }
       for (const key of Object.keys(value)) {

@@ -11,7 +11,7 @@ Kazi Connect is a REST API of casual jobs and services in Kenya, such as campus 
 | Sherehe, our upstream partner (events) | https://sherehe-r0qm.onrender.com |
 | Ujuzi, our downstream partner (skills training) | https://ujuzi-vgp4.onrender.com |
 
-> **Which version this describes:** 1.4.0, on the live address since 10 November 2026, when pull request #6 merged `uat` into `main` and Render deployed it. That includes Event work (Endpoints 22 to 25, Part 3) and version 2 of the job list (Endpoint 27). API keys and a rate limit are built and tested (see [API keys and rate limits](#api-keys-and-rate-limits)), but the live address does not ask for a key: they stay off there until Ujuzi's server sends a key of its own.
+> **Which version this describes:** 1.5.0. The live address runs 1.4.0, there since 10 November 2026, when pull request #6 merged `uat` into `main` and Render deployed it; it moves to 1.5.0 when this version is merged into `main` and deployed. 1.4.0 brought Event work (Endpoints 22 to 25, Part 3) and version 2 of the job list (Endpoint 27). 1.5.0 changes one thing: a job opened from an organiser's accepted offer has one place per worker offered, so it can take every worker the organiser accepted (Part 3, step 24). Every other job takes one person and answers exactly as before. API keys and a rate limit are built and tested (see [API keys and rate limits](#api-keys-and-rate-limits)), but the live address does not ask for a key: they stay off there until Ujuzi's server sends a key of its own.
 
 > **Before your first request:** the API runs on a free server that goes to sleep after 15 minutes without visitors. The first request after a quiet spell can take **up to a minute** to answer. That is normal: wait for it, don't cancel. Every request after that is fast.
 
@@ -71,7 +71,7 @@ HTTP 200
 | [Part 2: Accounts and employer tools](#part-2-accounts-and-employer-tools-kazi-connect-website) | The **Kazi Connect website**: employers posting jobs and accepting requests, students with accounts. Endpoints 10 to 21 | Needed for most |
 | [Part 3: Event work](#part-3-event-work-sherehe) | Employers on the website, offering workers for staffing roles on **Sherehe** events. Endpoints 22 to 25 | Employer login |
 
-Parts 1 and 2 meet in one place: when an employer accepts a request in Part 2, every app watching that request live, as Ujuzi does in Part 1, is told straight away. That is Ujuzi's need U5. Parts 2 and 3 meet in another: when a Sherehe organiser accepts an offer from Part 3, a job opens in the listings of Part 1.
+Parts 1 and 2 meet in one place: when an employer accepts a request in Part 2, every app watching that request live, as Ujuzi does in Part 1, is told straight away. That is Ujuzi's need U5. Parts 2 and 3 meet in another: when a Sherehe organiser accepts an offer from Part 3, a job with one place per worker offered opens in the listings of Part 1.
 
 Ujuzi's needs are numbered U1 to U6 in `API_NEEDS.md`, and this README uses those numbers. Ujuzi replaced SettleIn as our downstream partner and uses the same endpoints SettleIn did; U1 to U6 replace SettleIn's eight statements:
 
@@ -712,7 +712,7 @@ HTTP 401
 
 ## Part 3: Event work (Sherehe)
 
-Employers can see staffing roles on upcoming Sherehe events and offer Kazi Connect workers for them (need W7, Endpoints 22 to 25). When the organiser accepts an offer, a job opens for that employer and appears in the listings of Part 1. This is the one place Kazi Connect calls another team's API from code.
+Employers can see staffing roles on upcoming Sherehe events and offer Kazi Connect workers for them (need W7, Endpoints 22 to 25). When the organiser accepts an offer, a job opens for that employer, with one place per worker offered, and appears in the listings of Part 1. This is the one place Kazi Connect calls another team's API from code.
 
 > **Read this before running Part 3.** Endpoints 22 to 25 have been on the live address since 10 November 2026, where they call the real Sherehe (https://sherehe-r0qm.onrender.com) with Kazi Connect's key, which is kept in Render's settings. The commands below run on your own computer against a **stand-in for Sherehe** (`helpers/shereheStub.ts`, the same one the automated tests use), so you need no key. It is not Sherehe: it answers from the examples in Sherehe's contract. The replies below were captured from that stand-in, and the data in them (the wedding, its roles and pay) is the stand-in's sample data; the real Sherehe's events and roles are different.
 
@@ -819,7 +819,7 @@ curl -s -w "\nHTTP %{http_code}\n" -X POST $API/api/staffing-offers \
 HTTP 409
 ```
 
-**Step 24. See your offers and their status** (W7, K4, Endpoint 24), newest first. `status` is `pending`, `accepted` or `declined`. `jobId` is `null` until the organiser accepts; then it is the ID of the job that opened for you.
+**Step 24. See your offers and their status** (W7, K4, Endpoint 24), newest first. `status` is `pending`, `accepted` or `declined`. `jobId` is `null` until the organiser accepts; then it is the ID of the job that opened for you, which has one place per worker you offered.
 
 ```bash
 curl -s -w "\nHTTP %{http_code}\n" $API/api/me/staffing-offers -H "Authorization: Bearer $TOKEN"
@@ -856,7 +856,29 @@ HTTP 200
 HTTP 404
 ```
 
-**What happens when the organiser decides.** Sherehe cannot call Kazi Connect, so Kazi Connect asks Sherehe about each waiting offer every 3 minutes. When the organiser accepts, a job opens for the employer and the offer's `jobId` is filled in, within about 3 minutes. The job is an ordinary Kazi Connect job: its category comes from the role, its county from the event, and its `payRange` has the same `min` and `max`, because Sherehe pays one amount per shift. Ujuzi can request it with Endpoint 7 like any other job. When the organiser declines, the offer becomes `declined` and nothing opens. On the free server this check only runs while the server is awake.
+**What happens when the organiser decides.** Sherehe cannot call Kazi Connect, so Kazi Connect asks Sherehe about each waiting offer every 3 minutes. When the organiser accepts, a job opens for the employer and the offer's `jobId` is filled in, within about 3 minutes. The job is an ordinary Kazi Connect job, except that it takes one person per worker offered (since 1.5.0): its category comes from the role, its county from the event, and its `payRange` has the same `min` and `max`, because Sherehe pays one amount per shift. Ujuzi can request it with Endpoint 7 like any other job, and several students can be accepted for it.
+
+**Jobs with several places (1.5.0).** A job opened from an offer of 4 workers takes 4 people. It answers with two more fields, `places` (4) and `placesFilled` (how many applications are accepted so far), so anyone can show "3 of 4 places open". It stays `active`, and keeps taking applications, until all its places have an accepted applicant; the accept that takes the last place closes it and tells everyone still waiting that it is filled, exactly as accepting the one applicant of an ordinary job does. A job with places still open can be closed and reopened; a job whose places are all filled cannot be reopened. Every other job, including every job an employer posts, takes one person and answers exactly as before, without the two fields. The website shows the places left on the job list, on the job's own page, on the employer's postings and on the offer in Event work.
+
+```bash
+curl -s http://localhost:3000/api/jobs/job_12353
+```
+
+```json
+{
+  "id": "job_12353",
+  "title": "Waiters, Wanjiku and Otieno wedding",
+  "category": "catering",
+  "county": "Nairobi",
+  "area": "Westlands",
+  "duration": "One shift, 5 Dec 2026, about 10 hours",
+  "urgent": false,
+  "status": "active",
+  "payRange": { "min": 1500, "max": 1500 },
+  "places": 4,
+  "placesFilled": 1
+}
+``` When the organiser declines, the offer becomes `declined` and nothing opens. On the free server this check only runs while the server is awake.
 
 **When Sherehe cannot be reached.** Endpoints 22, 23 and 25 answer `502` with a message that says nothing about Sherehe's side, and change nothing. Endpoint 24 and every endpoint in Parts 1 and 2 keep working. The reply is the same when Sherehe's address or key is not set up. This is what Endpoint 22 answers then:
 
@@ -1031,7 +1053,7 @@ No Git? Open https://github.com/MarkBrucey/KaziConnect1, click the green **Code*
 After `npm start`, when it is ready, the terminal shows:
 
 ```text
-> kazi-connect-api@1.4.0 start
+> kazi-connect-api@1.5.0 start
 > tsx server.ts
 
 Kazi Connect API running on http://localhost:3000
@@ -1061,7 +1083,7 @@ npm run verify
 npm run typecheck
 ```
 
-`npm test` builds the app and runs 777 automated tests. These 708 come from before Week 11: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript (except that two of them now apply logged in, see 1.3.1 in `CONTRACT_DEVIATIONS.md`); 232 for Event work, which use a stand-in for Sherehe and never need the real one; 292 that prove the move changed nothing a client can see and check the tools below; 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`); and 17 that tell students apart (`__tests__/studentIdentity.test.js`). The other 69 came with Weeks 11 to 13: 27 for timeouts, retries and the saved list (`__tests__/resilience.test.js`), 22 for the request log and `/api/stats` (`__tests__/monitoring.test.ts`), 14 for version 2 of the job list (`__tests__/versions.test.ts`), and 6 added to existing files. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 776 passed and 1 skipped. `npm run verify` checks the running code against `openapi.yaml` (89 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
+`npm test` builds the app and runs 793 automated tests. These 708 come from before Week 11: 156 for Endpoints 1 to 21, which are the same tests as before the move to Next.js and TypeScript (except that two of them now apply logged in, see 1.3.1 in `CONTRACT_DEVIATIONS.md`); 232 for Event work, which use a stand-in for Sherehe and never need the real one; 292 that prove the move changed nothing a client can see and check the tools below; 11 that hold the rule that a job has one place (`__tests__/onePlacePerJob.test.js`); and 17 that tell students apart (`__tests__/studentIdentity.test.js`). The other 69 came with Weeks 11 to 13: 27 for timeouts, retries and the saved list (`__tests__/resilience.test.js`), 22 for the request log and `/api/stats` (`__tests__/monitoring.test.ts`), 14 for version 2 of the job list (`__tests__/versions.test.ts`), and 6 added to existing files. The last 16 came with version 1.5.0, jobs with several places: 12 in `__tests__/jobPlaces.test.js`, 3 for the contract checker (`__tests__/schemaCheck.test.ts`) and 1 for the offer poller. One test needs a PostgreSQL database and is skipped without `DATABASE_URL`, so a plain run reports 792 passed and 1 skipped (793 of 793 with `DATABASE_URL` set). `npm run verify` checks the running code against `openapi.yaml` (89 checks), and `npm run typecheck` checks the TypeScript. All three should end with everything passing.
 
 **The ring, from this repository:**
 

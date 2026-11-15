@@ -7,6 +7,13 @@ export interface PayRange { min: number; max: number }
 
 export const kesText = (p: PayRange): string => (p.min === p.max ? `KES ${num(p.min)}` : `KES ${num(p.min)} to ${num(p.max)}`);
 
+// A job takes `places` people (1 unless it was opened from an offer of several workers; versions
+// before 1.5.0 do not send the fields). "2 of 3 places open" for a job with several places, else ''.
+export interface Places { places?: number; placesFilled?: number }
+export const placesOpen = (j: Places): number => Math.max(0, (j.places ?? 1) - (j.placesFilled ?? 0));
+export const placesText = (j: Places): string =>
+  (j.places ?? 1) > 1 ? `${placesOpen(j)} of ${j.places} places open` : '';
+
 export const cap = (s: string): string => String(s).charAt(0).toUpperCase() + String(s).slice(1);
 
 export const firstName = (name: string): string => String(name).trim().split(/\s+/)[0];

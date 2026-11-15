@@ -7,12 +7,17 @@
 
 import type { Applicant, Application, ApplicationStatus, EmployerJob, EventOpening, Job, JobStatus, StaffingOffer, User } from './lib/contract';
 import type { ApplicationEvent, ApplicationRow, JobDraft, JobRow, StaffingOfferRow, UserRow } from './lib/storeTypes';
+import { filledOf, placesOf } from './lib/storeTypes';
 import type { components as ShereheTypes } from './types/sherehe';
 import { UpstreamError } from './clients/upstreamError';
 import { CATEGORIES, COUNTIES } from './sharedLists';
 
 // Database row -> Job schema
+// places and placesFilled are sent only for a job that takes more than one person (one opened from an
+// offer of several workers, since 1.5.0). Every other job answers exactly as it always did, field for
+// field, as Endpoints 1 to 21 must; a job without them takes one person.
 export function toJob(row: JobRow): Job {
+  const places = placesOf(row);
   return {
     id: String(row._id),                 // _id        -> id
     title: row.job_title,                // job_title  -> title
@@ -26,6 +31,7 @@ export function toJob(row: JobRow): Job {
       min: Number(row.pay_min),          // "15000.00" (string) -> 15000 (number)
       max: Number(row.pay_max),
     },
+    ...(places > 1 ? { places, placesFilled: filledOf(row) } : {}), // places; accepted applications, counted when read
     // employer_id, created_by, internal_notes and source_role_id are internal and are left out on purpose.
   };
 }

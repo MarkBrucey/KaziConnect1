@@ -1728,6 +1728,16 @@ export interface components {
                 /** @example 22000 */
                 max: number;
             };
+            /**
+             * @description How many people the job takes (since 1.5.0). Sent only when it is more than one, which happens for a job opened from an accepted staffing offer of several workers. A job without it takes one person.
+             * @example 3
+             */
+            places?: number;
+            /**
+             * @description How many applications for the job are accepted (since 1.5.0), sent together with places. places minus placesFilled is how many places are still open; when they are equal the job is filled and closed.
+             * @example 1
+             */
+            placesFilled?: number;
         };
         JobStatus: {
             /** @example job_12345 */
@@ -1917,6 +1927,16 @@ export interface components {
             };
             /** @example 1 */
             pendingApplications: number;
+            /**
+             * @description How many people the job takes (since 1.5.0), as in Job; sent only when more than one.
+             * @example 3
+             */
+            places?: number;
+            /**
+             * @description How many applications for the job are accepted (since 1.5.0), as in Job; sent with places.
+             * @example 1
+             */
+            placesFilled?: number;
         };
         /** @description An Application, plus the applicant's name for the employer deciding on it. */
         Applicant: {
@@ -2031,7 +2051,7 @@ export interface components {
              */
             status: "pending" | "accepted" | "declined";
             /**
-             * @description The Kazi job opened when the offer was accepted; null until then.
+             * @description The Kazi job opened when the offer was accepted; null until then. Since 1.5.0 the job has one place per worker offered (its places field), so it can take every worker the organiser accepted.
              * @example job_12360
              */
             jobId: string | null;

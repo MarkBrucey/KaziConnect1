@@ -67,7 +67,7 @@ describe('an offer the organiser accepts', () => {
 
   it('makes a job exactly like any other: the exact Job fields, active, with the role\'s details', async () => {
     const token = await employer();
-    await offerFor(token);
+    await offerFor(token, 'rol_3001', 1);
     stub.decide('ofr_4001', 'accepted');
     await runOnce();
 
@@ -80,6 +80,18 @@ describe('an offer the organiser accepts', () => {
       area: 'Westlands', duration: 'One shift, 5 Dec 2026, about 10 hours', urgent: false, status: 'active',
       payRange: { min: 1500, max: 1500 },
     });
+  });
+
+  it('gives the job one place per worker offered, so it can take every worker the organiser accepted (1.5.0)', async () => {
+    const token = await employer();
+    await offerFor(token); // 4 workers
+    stub.decide('ofr_4001', 'accepted');
+    await runOnce();
+
+    const res = await request(server).get('/api/jobs/job_12353');
+
+    expect(Object.keys(res.body).sort()).toEqual([...JOB_FIELDS, 'places', 'placesFilled'].sort());
+    expect(res.body).toMatchObject({ title: 'Waiters, Wanjiku and Otieno wedding', status: 'active', places: 4, placesFilled: 0 });
   });
 
   it('never shows where the job came from in any response', async () => {

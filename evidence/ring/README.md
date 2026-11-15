@@ -1,7 +1,7 @@
 # Ring evidence
 
 End-to-end demo across Sherehe, Kazi Connect and Ujuzi. Kazi takes part in steps 1-6:
-1-3 Kazi reads Sherehe events and roles, makes an offer, sees it accepted; Kazi opens the job.
+1-3 Kazi reads Sherehe events and roles, makes an offer, sees it accepted; Kazi opens the job (with one place per worker offered since 1.5.0).
 4-6 Ujuzi reads matching jobs, applies for a graduate, and receives "accepted" over the WebSocket.
 
 One screenshot per step, named by step number, plus the output of `npm run ring:check`.
@@ -30,5 +30,7 @@ The test data was made for this run: an organiser account, the event evt_2010 "R
 | `5_ujuzi_applies.png` | 5 | Ujuzi applies for the graduate with its own ID `grd_0101` as `studentId` (Endpoint 7; U4); the employer sees application `app_1008` from `grd_0101` | Taken 14 November 2026, local ring |
 | `6_accepted_over_websocket.png` | 6 | The employer accepts; Ujuzi's page, left open and not reloaded, changes to `accepted` within seconds (Endpoint 6 WebSocket; U5). Kazi Connect's log shows no request from Ujuzi for that application after the accept, so the change came over the WebSocket, not Ujuzi's 2 minute backup poll | Taken 14 November 2026, local ring |
 | `ring_check_output.txt` | all | The output of the four ring checks on the same ring and day | Done 14 November 2026, local ring |
+
+These screenshots show version 1.4.0. Since 1.5.0 (15 November 2026), a job opened from an accepted offer has one place per worker offered: in step 3, where 2 workers were offered, the job would take 2 people and show "2 of 2 places open" until they are accepted. See `CONTRACT_DEVIATIONS.md`, "Version 1.5.0".
 
 Run `npm run ring:status` first on the day: it says which systems are ready, so a missing part is not mistaken for a fault.

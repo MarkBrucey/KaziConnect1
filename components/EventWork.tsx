@@ -6,9 +6,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api, messageOf } from '@/lib/clientApi';
-import { cap, num, readable } from '@/lib/format';
+import { cap, num, placesOpen, readable } from '@/lib/format';
 import { COUNTIES } from '@/sharedLists';
-import type { EventOpening, StaffingOffer } from '@/lib/contract';
+import type { EventOpening, Job, StaffingOffer } from '@/lib/contract';
 import { Dialog, DialogHead } from './Dialog';
 import { Button, EmptyBox, ErrorText, Field, ListCard, StatusPill, SuccessText, Tag, TextButton } from './ui';
 
@@ -16,7 +16,7 @@ const UNAVAILABLE = 'Event work is unavailable right now. Your jobs are not affe
 
 const OFFER_STATUS: Record<string, { word: string; note: string }> = {
   pending: { word: 'Waiting for the organiser', note: 'The organiser has not decided yet.' },
-  accepted: { word: 'Accepted', note: 'The organiser accepted, and a job was opened in your postings.' },
+  accepted: { word: 'Accepted', note: 'The organiser accepted, and a job was opened in your postings, with one place per worker.' },
   declined: { word: 'Declined', note: 'The organiser declined this offer.' },
 };
 
@@ -70,6 +70,7 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
   const [savedAt, setSavedAt] = useState(''); // Week 11: set when Sherehe failed and these are the last roles we had
   const [offers, setOffers] = useState<StaffingOffer[] | null>(null);
   const [offersFailed, setOffersFailed] = useState(false);
+  const [offerJobs, setOfferJobs] = useState<Record<string, Job>>({}); // the job each accepted offer opened, for its places
   const [offerErrors, setOfferErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const [offering, setOffering] = useState<EventOpening | null>(null);
@@ -97,6 +98,12 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
     if (res.status !== 200 || !res.body) { setOffersFailed(true); return; }
     setOffersFailed(false);
     setOffers(res.body);
+    // How many of each opened job's places are filled (Endpoint 3). If one cannot be read, its line is left out.
+    const ids = res.body.filter((o) => o.jobId).map((o) => o.jobId as string);
+    const read = await Promise.all(ids.map((id) => api<Job>(`/api/jobs/${encodeURIComponent(id)}`)));
+    const found: Record<string, Job> = {};
+    read.forEach((r, i) => { if (r.status === 200 && r.body) found[ids[i]] = r.body; });
+    setOfferJobs(found);
   }, []);
 
   useEffect(() => { void loadOpenings(); }, [loadOpenings]);
@@ -117,7 +124,7 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
         <div>
           <h3 className="m-0 text-[22px] font-bold">Event work</h3>
           <p className="mb-0 mt-1.5 max-w-[640px] text-muted">
-            Staffing roles on upcoming events, from Sherehe. Offer your workers for a role. If the organiser accepts, a job opens in your postings with the role&apos;s pay.
+            Staffing roles on upcoming events, from Sherehe. Offer your workers for a role. If the organiser accepts, a job opens in your postings with the role&apos;s pay and one place per worker.
           </p>
         </div>
         <label className="grid min-w-[240px] gap-1.5 font-semibold">
@@ -183,6 +190,11 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
                       <h4 className="mb-1 mt-2 text-xl font-bold">{o.eventName}</h4>
                       <p className="m-0 text-muted">{o.workersOffered} {o.workersOffered === 1 ? 'worker' : 'workers'} offered on {readable(o.createdAt)}</p>
                       <p className="m-0 text-muted">{s.note}{o.jobId ? ` Job ${o.jobId}.` : ''}</p>
+                      {o.jobId && offerJobs[o.jobId] && (offerJobs[o.jobId].places ?? 1) > 1 ? (
+                        <p className="m-0 font-semibold">
+                          {places(offerJobs[o.jobId].places ?? 1)}: {(offerJobs[o.jobId].placesFilled ?? 0)} filled, {placesOpen(offerJobs[o.jobId])} open
+                        </p>
+                      ) : null}
                     </div>
                     <StatusPill status={o.status}>{s.word}</StatusPill>
                   </div>
@@ -203,7 +215,7 @@ export function EventWork({ onSeeJobs }: { onSeeJobs: () => void }) {
         onClose={() => setOffering(null)}
         onSent={(offer) => {
           setOffering(null);
-          setMessage(`Offer sent to the organiser of ${offer.eventName}. If they accept, a job opens in your postings.`);
+          setMessage(`Offer sent to the organiser of ${offer.eventName}. If they accept, a job with ${places(offer.workersOffered)} opens in your postings.`);
           void loadOpenings();
           void loadOffers();
         }}

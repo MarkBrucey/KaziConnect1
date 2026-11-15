@@ -26,9 +26,16 @@ export class StoreConflict extends Error {
 }
 
 // The messages the API sends for these cases (Endpoints 7, 17 and 18).
-export const filledForApplicants = (jobId: string): string =>
-  `Job ${jobId} is already filled: another applicant was accepted, so it is not accepting applications.`;
-export const filledForEmployer = (jobId: string, acceptedId: string | null): string =>
-  `Job ${jobId} is already filled: application ${acceptedId || 'another application'} was accepted. Only one applicant can be accepted for a job.`;
-export const cannotReopen = (jobId: string, acceptedId: string | null): string =>
-  `Job ${jobId} is already filled: application ${acceptedId || 'another application'} was accepted, so it cannot be reopened. Post a new job if you need someone else.`;
+// A job with one place keeps the exact words it always had; a job with several places says so.
+export const filledForApplicants = (jobId: string, places = 1): string =>
+  places > 1
+    ? `Job ${jobId} is already filled: all ${places} places have been taken, so it is not accepting applications.`
+    : `Job ${jobId} is already filled: another applicant was accepted, so it is not accepting applications.`;
+export const filledForEmployer = (jobId: string, acceptedId: string | null, places = 1): string =>
+  places > 1
+    ? `Job ${jobId} is already filled: all ${places} places have an accepted applicant. No more applicants can be accepted for it.`
+    : `Job ${jobId} is already filled: application ${acceptedId || 'another application'} was accepted. Only one applicant can be accepted for a job.`;
+export const cannotReopen = (jobId: string, acceptedId: string | null, places = 1): string =>
+  places > 1
+    ? `Job ${jobId} is already filled: all ${places} places have an accepted applicant, so it cannot be reopened. Post a new job if you need someone else.`
+    : `Job ${jobId} is already filled: application ${acceptedId || 'another application'} was accepted, so it cannot be reopened. Post a new job if you need someone else.`;

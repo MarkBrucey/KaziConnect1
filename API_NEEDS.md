@@ -32,7 +32,7 @@ Ujuzi replaces SettleIn and uses the same Endpoints 1 to 9. The last column maps
 K1 to K5 map to a new audit item, "Event work: see Sherehe staffing roles and offer workers" (TEAM_CHARTER.md, update of October 2026). U1 to U6 map to the existing Jobs and Applications items, exactly as SettleIn's statements did. Gaps found on 14 November 2026:
 
 * K1 to K5 are all in Sherehe's contract, and all five pass end to end in Sherehe's `ring:e2e` run against the three systems together.
-* Ujuzi never calls Endpoints 3 or 4, so U3 is served but unused: Ujuzi shows pay and availability from the job list instead.
+* Ujuzi never calls Endpoints 3 or 4, so U3 is served but unused: Ujuzi shows pay and availability from the job list instead. (Ujuzi's pull request of 15 November 2026, branch `apply-needs-enrolment`, starts calling Endpoint 3 when a graduate applies, to check the job's skill.)
 * Ujuzi still reads version 1 of the job list (`/api/jobs`), not `/api/v2/jobs`; `DEPRECATION_NOTICE.md` tells them how to move.
 
 ## Reflection on the new ring

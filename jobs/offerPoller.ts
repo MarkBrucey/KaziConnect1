@@ -3,8 +3,9 @@
 // Sherehe cannot call us, so every few minutes this asks it (K4) about each offer that is
 // still pending:
 //   accepted  Kazi opens the job for the offer's employer, from the job worked out when the
-//             offer was made, and the offer records the job's id. (db.acceptStaffingOffer does
-//             both in one step, so running twice never makes two jobs.)
+//             offer was made, with one place per worker offered, and the offer records the
+//             job's id. (db.acceptStaffingOffer does both in one step, so running twice never
+//             makes two jobs.)
 //   declined  the offer is marked declined.
 //   pending   nothing happens; it is asked about again next time.
 // Offers that are accepted or declined are final and are never asked about again.

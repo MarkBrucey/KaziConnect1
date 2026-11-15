@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Kazi Connect API
-  version: 1.4.0
+  version: 1.5.0
   description: >
     Kazi Connect job listings and job applications for Ujuzi graduates, plus accounts and
     employer tools for the Kazi Connect website. Endpoint numbers match ENDPOINT_LIST.md, and each
@@ -18,6 +18,13 @@ info:
     Version 1.4.0 (Week 13): GET /api/jobs (Endpoints 1 and 2) is deprecated. It answers exactly as before, plus
     three headers (Deprecation, Sunset, Link). Its successor is GET /api/v2/jobs, the same jobs wrapped as
     { "data": [...], "count": N }. GET /api/v1/jobs is version 1 under a versioned address. See DEPRECATION_NOTICE.md.
+
+
+    Version 1.5.0 (15 November 2026): a job can take more than one person. A job opened from an accepted
+    staffing offer has one place per worker offered: it stays active, and keeps taking applications, until all
+    its places have an accepted applicant, and then it closes. Such a job also carries places (how many people
+    it takes) and placesFilled (how many applications are accepted). Every other job takes one person and
+    answers exactly as before, without the two fields, so Endpoints 1 to 21 are unchanged for them.
 servers:
   - url: http://localhost:3000
     description: Local development server
@@ -1394,6 +1401,20 @@ components:
             max:
               type: number
               example: 22000
+        places:
+          type: integer
+          minimum: 1
+          description: >
+            How many people the job takes (since 1.5.0). Sent only when it is more than one, which happens for a
+            job opened from an accepted staffing offer of several workers. A job without it takes one person.
+          example: 3
+        placesFilled:
+          type: integer
+          minimum: 0
+          description: >
+            How many applications for the job are accepted (since 1.5.0), sent together with places. places
+            minus placesFilled is how many places are still open; when they are equal the job is filled and closed.
+          example: 1
     JobStatus:
       type: object
       required: [jobId, status]
@@ -1653,6 +1674,16 @@ components:
           type: integer
           minimum: 0
           example: 1
+        places:
+          type: integer
+          minimum: 1
+          description: How many people the job takes (since 1.5.0), as in Job; sent only when more than one.
+          example: 3
+        placesFilled:
+          type: integer
+          minimum: 0
+          description: How many applications for the job are accepted (since 1.5.0), as in Job; sent with places.
+          example: 1
     Applicant:
       type: object
       description: An Application, plus the applicant's name for the employer deciding on it.
@@ -1806,7 +1837,9 @@ components:
         jobId:
           type: string
           nullable: true
-          description: The Kazi job opened when the offer was accepted; null until then.
+          description: >
+            The Kazi job opened when the offer was accepted; null until then. Since 1.5.0 the job has one place
+            per worker offered (its places field), so it can take every worker the organiser accepted.
           example: job_12360
         createdAt:
           type: string

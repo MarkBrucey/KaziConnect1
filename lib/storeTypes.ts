@@ -37,7 +37,14 @@ export interface JobRow {
   created_by: string | null;
   internal_notes: string;
   source_role_id?: string | null; // internal: the Sherehe role a job was opened from
+  places?: number;                 // how many people the job takes; 1 unless it was opened from an offer of several workers
+  places_filled?: number;          // read only: how many applications are accepted (worked out when the job is read)
 }
+
+// A job takes `places` people (1 if not set). It is full once that many applications are accepted.
+export const placesOf = (job: Pick<JobRow, 'places'>): number => Math.max(1, Number(job.places ?? 1));
+export const filledOf = (job: Pick<JobRow, 'places_filled'>): number => Number(job.places_filled ?? 0);
+export const isFull = (job: Pick<JobRow, 'places' | 'places_filled'>): boolean => filledOf(job) >= placesOf(job);
 
 export interface ApplicationRow {
   _id: string;
@@ -103,6 +110,7 @@ export interface JobFilter {
 export interface NewJobInput extends JobDraft {
   employerId: string;
   sourceRoleId?: string | null;
+  places?: number; // set only for a job opened from an offer of several workers
 }
 
 export interface NewApplicationInput {

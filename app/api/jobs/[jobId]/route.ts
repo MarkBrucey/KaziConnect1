@@ -12,6 +12,7 @@ import { empty, fail, json } from '@/lib/http';
 import { ownJob } from '@/lib/jobs';
 import type { JobStatusUpdate } from '@/lib/contract';
 import { StoreConflict, cannotReopen } from '@/lib/conflict';
+import { isFull, placesOf } from '@/lib/storeTypes';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,14 +30,15 @@ export const PATCH = withAuth(requireRole('employer')(async (_req, { params, use
   const job = await ownJob(params.jobId, user);
   if (job instanceof Response) return job;
   const status = (body as JobStatusUpdate).status;
-  if (status === 'active') {
-    const accepted = await db.findAcceptedApplication(job._id);
-    if (accepted) return fail(409, cannotReopen(job._id, accepted._id));
+  // A job whose places are all filled cannot be reopened (a job takes 1 person unless it was opened
+  // from an offer of several workers).
+  if (status === 'active' && isFull(job)) {
+    return fail(409, cannotReopen(job._id, (await db.findAcceptedApplication(job._id))?._id ?? null, placesOf(job)));
   }
   try {
     return json(toJob((await db.setJobStatus(job._id, status))!));
   } catch (err) {
-    if (err instanceof StoreConflict && err.reason === 'filled') return fail(409, cannotReopen(job._id, err.acceptedId));
+    if (err instanceof StoreConflict && err.reason === 'filled') return fail(409, cannotReopen(job._id, err.acceptedId, placesOf(job)));
     throw err;
   }
 }));
