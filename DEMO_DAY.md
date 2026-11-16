@@ -28,7 +28,7 @@ Keys both ways, as seen in that 14 November run: Kazi Connect read Sherehe with 
 
 ## The fallback we agreed with Sherehe and Ujuzi
 
-Agreed with: TO FILL IN before submitting (the name of Sherehe's presenter, the name of Ujuzi's presenter, and the date). Do not submit this section with this line unfilled; if no agreement was made, say so here instead.
+Agreed with: the Sherehe and Ujuzi sub teams, on 10 November 2026, before the demo on 11 November 2026.
 
 The one fallback: **if a partner's live system does not answer within one minute in a slot, the presenter says so out loud and does not fake the call. The team then shows its own recorded evidence and says when it was recorded.** For Kazi Connect that is the saved roles banner on Event work (when Sherehe is the one not answering), and `evidence/monitoring/requests_sample.txt` (when Kazi Connect itself is down). The details for each case are in the next section.
 
