@@ -878,7 +878,9 @@ curl -s http://localhost:3000/api/jobs/job_12353
   "places": 4,
   "placesFilled": 1
 }
-``` When the organiser declines, the offer becomes `declined` and nothing opens. On the free server this check only runs while the server is awake.
+```
+
+ When the organiser declines, the offer becomes `declined` and nothing opens. On the free server this check only runs while the server is awake.
 
 **When Sherehe cannot be reached.** Endpoints 22, 23 and 25 answer `502` with a message that says nothing about Sherehe's side, and change nothing. Endpoint 24 and every endpoint in Parts 1 and 2 keep working. The reply is the same when Sherehe's address or key is not set up. This is what Endpoint 22 answers then:
 
